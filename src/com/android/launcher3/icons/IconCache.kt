@@ -574,7 +574,7 @@ constructor(
 
     private fun applyCacheEntry(entry: CacheEntry, info: ItemInfoWithIcon) {
         info.title = Utilities.trim(entry.title)
-        com.android.launcher3.popup.SystemShortcut.getCustomName(context, info)?.let {
+        com.android.launcher3.util.CustomAppNameStore.getCustomName(context, info)?.let {
             info.title = it
         }
         info.contentDescription =
@@ -602,7 +602,7 @@ constructor(
 
         info.appTitle = Utilities.trim(info.title)
         info.title = Utilities.trim(packageEntry.title)
-        com.android.launcher3.popup.SystemShortcut.getCustomName(context, info)?.let {
+        com.android.launcher3.util.CustomAppNameStore.getCustomName(context, info)?.let {
             info.title = it
         }
         info.contentDescription = packageEntry.contentDescription
