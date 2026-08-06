@@ -203,7 +203,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
      */
     public static final int STATUS_BAR_TRANSITION_PRE_DELAY = 96;
 
-    public static final long APP_LAUNCH_DURATION = 500;
+    public static final long APP_LAUNCH_DURATION = 420;
 
     private static final long APP_LAUNCH_ALPHA_DURATION = 50;
     private static final long APP_LAUNCH_ALPHA_START_DELAY = 25;
@@ -219,7 +219,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
 
     public static final int RECENTS_LAUNCH_DURATION = 336;
     private static final int LAUNCHER_RESUME_START_DELAY = 100;
-    private static final int CLOSING_TRANSITION_DURATION_MS = 250;
+    private static final int CLOSING_TRANSITION_DURATION_MS = 300;
     public static final int SPLIT_LAUNCH_DURATION = 370;
     public static final int SPLIT_DIVIDER_ANIM_DURATION = 100;
 
@@ -241,6 +241,32 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
 
     private static final float MAX_SCRIM_ALPHA_DARK = 0.8f;
     private static final float MAX_SCRIM_ALPHA_LIGHT = 0.2f;
+
+    /**
+     * Damped-harmonic-oscillator interpolator used to give the app-open/close morph a
+     * "fluid" spring feel (OxygenOS-style) instead of a static Material easing curve.
+     * getInterpolation(0) == 0 and getInterpolation(1) settles to ~1 with a small
+     * decaying overshoot, controlled by dampingRatio (lower = bouncier) and
+     * numOfCycles (higher = faster settling oscillation).
+     */
+    private static final class SpringInterpolator implements Interpolator {
+        private final double mDampingRatio;
+        private final double mNumOfCycles;
+
+        SpringInterpolator(double dampingRatio, double numOfCycles) {
+            mDampingRatio = dampingRatio;
+            mNumOfCycles = numOfCycles;
+        }
+
+        @Override
+        public float getInterpolation(float input) {
+            double wn = mNumOfCycles * 2 * Math.PI;
+            double wd = wn * Math.sqrt(Math.max(1e-6, 1 - mDampingRatio * mDampingRatio));
+            double envelope = Math.exp(-mDampingRatio * wn * input);
+            return (float) (1 - envelope * (Math.cos(wd * input)
+                    + (mDampingRatio * wn / wd) * Math.sin(wd * input)));
+        }
+    }
 
     private final RunnableList mCleanupTask = new RunnableList();
     protected final QuickstepLauncher mLauncher;
@@ -363,8 +389,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
 
         mOpeningXInterpolator = AnimationUtils.loadInterpolator(
                 launcher, R.interpolator.app_open_x);
-        mOpeningInterpolator = AnimationUtils.loadInterpolator(
-                launcher, R.interpolator.emphasized_interpolator);
+        mOpeningInterpolator = new SpringInterpolator(0.65, 1.0);
         mLatencyTracker = LatencyTracker.getInstance(launcher);
 
         mMaxBlurRadius = res.getDimensionPixelSize(
