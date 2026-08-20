@@ -994,7 +994,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         final float finalShadowRadius = appTargetsAreTranslucent ? 0 : mMaxShadowRadius;
 
         MultiValueUpdateListener listener = new MultiValueUpdateListener(mOpeningInterpolator) {
-            FloatProp mDx = new FloatProp(0, prop.dX, mOpeningXInterpolator);
+            FloatProp mDx = new FloatProp(0, prop.dX, DECELERATE_1_5);
             FloatProp mDy = new FloatProp(0, prop.dY, DECELERATE_1_5);
 
             // Only the icon-grow scale gets the spring bounce -- the fluid morph feel.
@@ -1283,7 +1283,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
 
             // Window & widget background positioning bounds
             final FloatProp mDx = new FloatProp(widgetBackgroundBounds.centerX(),
-                    windowTargetBounds.centerX(), mOpeningXInterpolator);
+                    windowTargetBounds.centerX(), DECELERATE_1_5);
             final FloatProp mDy = new FloatProp(widgetBackgroundBounds.centerY(),
                     windowTargetBounds.centerY());
             final FloatProp mWidth = new FloatProp(widgetBackgroundBounds.width(),
