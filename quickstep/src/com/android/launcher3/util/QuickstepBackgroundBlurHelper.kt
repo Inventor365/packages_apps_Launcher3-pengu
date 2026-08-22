@@ -155,6 +155,7 @@ constructor(
         val d = folderBlurDrawable ?: return
 
         d.setVisible(true, false)
+        d.alpha = Math.round(view.alpha * 255f)
         if (pathWrapper != null) {
             pathWrapper.bounds.roundOut(bounds)
             d.bounds = bounds
