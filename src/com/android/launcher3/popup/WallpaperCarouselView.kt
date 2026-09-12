@@ -54,9 +54,12 @@ class WallpaperCarouselView @JvmOverloads constructor(
         resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_selected_height)
     private val selectedRadius =
         resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_selected_radius).toFloat()
-    private val basePillWidth =
-        resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_pill_width)
-    private val pillHeight = resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_pill_height)
+    private val baseUnselectedWidth =
+        resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_unselected_width)
+    private val unselectedHeight =
+        resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_unselected_height)
+    private val unselectedRadius =
+        resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_unselected_radius).toFloat()
     private val itemGap = resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_item_gap)
     private val checkSize = resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_check_size)
 
@@ -109,7 +112,7 @@ class WallpaperCarouselView @JvmOverloads constructor(
                     wallpaper,
                     selected = index == currentItemIndex,
                     selectedWidth = sizes.selectedWidth,
-                    pillWidth = sizes.pillWidth,
+                    unselectedWidth = sizes.unselectedWidth,
                 )
             addView(chip)
             loadWallpaperImage(wallpaper, chip.getChildAt(0) as ImageView)
@@ -118,8 +121,8 @@ class WallpaperCarouselView @JvmOverloads constructor(
     }
 
     /**
-     * Scale selected + pills to exactly fill [width] (already inset by menu side padding),
-     * keeping the Beta 6 width ratio. Never exceeds available space.
+     * Scale selected + unselected squircle chips to exactly fill [width] (already inset by menu side padding),
+     * keeping proportional width ratios. Never exceeds available space.
      */
     private fun resolveChipSizes(itemCount: Int): ChipSizes {
         val otherCount = (itemCount - 1).coerceAtLeast(0)
@@ -128,7 +131,7 @@ class WallpaperCarouselView @JvmOverloads constructor(
                 width
             } else {
                 // Before first measure: stay conservative so we don't widen the menu.
-                (baseSelectedWidth + otherCount * (basePillWidth + itemGap))
+                (baseSelectedWidth + otherCount * (baseUnselectedWidth + itemGap))
                     .coerceAtMost(
                         resources.getDimensionPixelSize(R.dimen.bg_popup_item_width) -
                             2 * resources.getDimensionPixelSize(R.dimen.wallpaper_carousel_horizontal_padding)
@@ -136,24 +139,24 @@ class WallpaperCarouselView @JvmOverloads constructor(
             }
         if (itemCount <= 0) return ChipSizes(0, 0)
         if (itemCount == 1) {
-            return ChipSizes(selectedWidth = available.coerceAtLeast(1), pillWidth = 0)
+            return ChipSizes(selectedWidth = available.coerceAtLeast(1), unselectedWidth = 0)
         }
 
         val gaps = itemGap * otherCount
         val usable = max(1, available - gaps)
-        val totalWeight = (baseSelectedWidth + basePillWidth * otherCount).toFloat()
+        val totalWeight = (baseSelectedWidth + baseUnselectedWidth * otherCount).toFloat()
         var selectedW = ((usable * baseSelectedWidth) / totalWeight).roundToInt().coerceAtLeast(1)
         var remaining = usable - selectedW
-        var pillW = remaining / otherCount
-        if (pillW < 1) {
-            pillW = 1
-            selectedW = max(1, usable - pillW * otherCount)
+        var unselectedW = remaining / otherCount
+        if (unselectedW < 1) {
+            unselectedW = 1
+            selectedW = max(1, usable - unselectedW * otherCount)
             remaining = usable - selectedW
-            pillW = remaining / otherCount
+            unselectedW = remaining / otherCount
         }
-        val leftover = remaining - pillW * otherCount
-        // Exact fit: selected + leftover + pills*count + gaps == available
-        return ChipSizes(selectedWidth = selectedW + leftover, pillWidth = pillW.coerceAtLeast(1))
+        val leftover = remaining - unselectedW * otherCount
+        // Exact fit: selected + leftover + unselected*count + gaps == available
+        return ChipSizes(selectedWidth = selectedW + leftover, unselectedWidth = unselectedW.coerceAtLeast(1))
     }
 
     private fun createChip(
@@ -161,10 +164,11 @@ class WallpaperCarouselView @JvmOverloads constructor(
         wallpaper: Wallpaper,
         selected: Boolean,
         selectedWidth: Int,
-        pillWidth: Int,
+        unselectedWidth: Int,
     ): FrameLayout {
-        val width = if (selected) selectedWidth else pillWidth
-        val height = if (selected) selectedHeight else pillHeight
+        val width = if (selected) selectedWidth else unselectedWidth
+        val height = if (selected) selectedHeight else unselectedHeight
+        val radius = if (selected) selectedRadius else unselectedRadius
         val chip =
             FrameLayout(context).apply {
                 layoutParams =
@@ -178,12 +182,7 @@ class WallpaperCarouselView @JvmOverloads constructor(
                 layoutParams = FrameLayout.LayoutParams(width, height)
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 clipToOutline = true
-                outlineProvider =
-                    if (selected) {
-                        roundedRectOutline(selectedRadius)
-                    } else {
-                        roundedRectOutline(width / 2f)
-                    }
+                outlineProvider = roundedRectOutline(radius)
                 setImageDrawable(
                     ContextCompat.getDrawable(context, R.drawable.ic_deepshortcut_placeholder)
                 )
@@ -327,5 +326,5 @@ class WallpaperCarouselView @JvmOverloads constructor(
         removeAllViews()
     }
 
-    private data class ChipSizes(val selectedWidth: Int, val pillWidth: Int)
+    private data class ChipSizes(val selectedWidth: Int, val unselectedWidth: Int)
 }

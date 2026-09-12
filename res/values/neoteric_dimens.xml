@@ -25,7 +25,10 @@
     <dimen name="wallpaper_carousel_selected_width">140dp</dimen>
     <dimen name="wallpaper_carousel_selected_height">72dp</dimen>
     <dimen name="wallpaper_carousel_selected_radius">24dp</dimen>
-    <dimen name="wallpaper_carousel_pill_width">60dp</dimen>
+    <dimen name="wallpaper_carousel_unselected_width">72dp</dimen>
+    <dimen name="wallpaper_carousel_unselected_height">72dp</dimen>
+    <dimen name="wallpaper_carousel_unselected_radius">20dp</dimen>
+    <dimen name="wallpaper_carousel_pill_width">72dp</dimen>
     <dimen name="wallpaper_carousel_pill_height">72dp</dimen>
     <dimen name="wallpaper_carousel_item_gap">10dp</dimen>
     <dimen name="wallpaper_carousel_check_size">27dp</dimen>
