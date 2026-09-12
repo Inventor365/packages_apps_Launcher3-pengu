@@ -1365,7 +1365,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     }
 
     private boolean isCaddyEnabled() {
-        return !LauncherPrefs.DRAWER_LIST.get(mActivityContext.asContext());
+        Context context = mActivityContext.asContext();
+        return LauncherPrefs.APP_LIBRARY.get(context) || !LauncherPrefs.DRAWER_LIST.get(context);
     }
 
     /**
