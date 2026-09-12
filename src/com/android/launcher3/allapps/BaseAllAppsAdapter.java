@@ -73,12 +73,15 @@ public abstract class BaseAllAppsAdapter
     public static final int VIEW_TYPE_BOTTOM_VIEW_TO_SCROLL_TO = 1 << 8;
     public static final int VIEW_TYPE_PRIVATE_SPACE_APP_ICON = 1 << 9;
     public static final int VIEW_TYPE_FOLDER = 1 << 10;
+
+    public static final int VIEW_TYPE_ICON_ROW = 1 << 11;
     public static final int NEXT_ID = 11;
 
     // Common view type masks
     public static final int VIEW_TYPE_MASK_DIVIDER = VIEW_TYPE_ALL_APPS_DIVIDER;
-    public static final int VIEW_TYPE_MASK_ICON = VIEW_TYPE_ICON | VIEW_TYPE_PRIVATE_SPACE_APP_ICON
-            | VIEW_TYPE_FOLDER;
+    public static final int VIEW_TYPE_MASK_ICON =
+            VIEW_TYPE_ICON | VIEW_TYPE_PRIVATE_SPACE_APP_ICON | VIEW_TYPE_FOLDER
+                    | VIEW_TYPE_ICON_ROW;
 
     public static final int VIEW_TYPE_MASK_PRIVATE_SPACE_HEADER =
             VIEW_TYPE_PRIVATE_SPACE_HEADER;
@@ -131,6 +134,13 @@ public abstract class BaseAllAppsAdapter
             return item;
         }
 
+        public static AdapterItem asAppRow(AppInfo appInfo) {
+            AdapterItem item = new AdapterItem(VIEW_TYPE_ICON_ROW);
+            item.itemInfo = appInfo;
+            return item;
+        }
+
+        /** Factory method for an app-drawer (Caddy) category folder tile. */
         public static AdapterItem asFolder(FolderInfo folderInfo) {
             AdapterItem item = new AdapterItem(VIEW_TYPE_FOLDER);
             item.folderInfo = folderInfo;
@@ -264,6 +274,8 @@ public abstract class BaseAllAppsAdapter
         switch (viewType) {
             case VIEW_TYPE_ICON:
                 return new ViewHolder(getIconOnCreateSetup(parent));
+            case VIEW_TYPE_ICON_ROW:
+                return new ViewHolder(getIconRowOnCreateSetup(parent));
             case VIEW_TYPE_PRIVATE_SPACE_APP_ICON:
                 BubbleTextView icon = getIconOnCreateSetup(parent);
                 icon.setOnClickListener(v ->
@@ -296,11 +308,16 @@ public abstract class BaseAllAppsAdapter
                 // preview inside is a 2x2 arrangement, so a tile sized off the icon-row height
                 // instead came out wider than it is tall and the cluster floated in dead space.
                 // The FolderIcon is inflated/attached on bind.
+                int belowPanel = parent.getResources().getDimensionPixelSize(
+                        R.dimen.app_library_tile_label_room)
+                        + parent.getResources().getDimensionPixelSize(
+                                R.dimen.app_library_tile_row_gap);
                 FrameLayout tile = new FrameLayout(parent.getContext()) {
                     @Override
                     protected void onMeasure(int widthSpec, int heightSpec) {
                         super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(
-                                MeasureSpec.getSize(widthSpec), MeasureSpec.EXACTLY));
+                                MeasureSpec.getSize(widthSpec) + belowPanel,
+                                MeasureSpec.EXACTLY));
                     }
                 };
                 tile.setLayoutParams(new RecyclerView.LayoutParams(
@@ -308,9 +325,9 @@ public abstract class BaseAllAppsAdapter
                         ViewGroup.LayoutParams.WRAP_CONTENT));
                 // Inset each tile by half the gap we want between them, so the gap down the middle
                 // of the row matches the recycler's own left/right margin at the screen edges.
-                int tilePad = mActivityContext.getDeviceProfile()
-                        .getAllAppsProfile().getLeftRightMargin() / 2;
-                tile.setPadding(tilePad, tilePad, tilePad, tilePad);
+                int sidePad = parent.getResources().getDimensionPixelSize(
+                        R.dimen.app_library_tile_side_padding);
+                tile.setPadding(sidePad, 0, sidePad, 0);
                 return new ViewHolder(tile);
             }
             default:
@@ -326,6 +343,7 @@ public abstract class BaseAllAppsAdapter
         holder.itemView.setVisibility(View.VISIBLE);
         switch (holder.getItemViewType()) {
             case VIEW_TYPE_PRIVATE_SPACE_APP_ICON:
+            case VIEW_TYPE_ICON_ROW:
             case VIEW_TYPE_ICON: {
                 AdapterItem adapterItem = mApps.getAdapterItems().get(position);
                 BubbleTextView icon = (BubbleTextView) holder.itemView;
@@ -417,6 +435,17 @@ public abstract class BaseAllAppsAdapter
                     mAdapterProvider.onBindView(holder, position);
                 }
         }
+    }
+
+    private BubbleTextView getIconRowOnCreateSetup(ViewGroup parent) {
+        BubbleTextView icon = (BubbleTextView) mLayoutInflater.inflate(
+                R.layout.all_apps_icon_row, parent, false);
+        icon.setLongPressTimeoutFactor(1f);
+        icon.setOnFocusChangeListener(mIconFocusListener);
+        icon.setOnClickListener(mOnIconClickListener);
+        icon.setOnLongClickListener(mOnIconLongClickListener);
+        icon.setCustomActionsListener(mIconCustomActionsListener);
+        return icon;
     }
 
     private BubbleTextView getIconOnCreateSetup(ViewGroup parent) {

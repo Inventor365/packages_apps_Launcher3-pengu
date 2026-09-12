@@ -119,6 +119,10 @@ public class AllAppsState extends LauncherState {
 
     @Override
     public ScaleAndTranslation getWorkspaceScaleAndTranslation(Launcher launcher) {
+        if (hasAppLibrary(launcher)) {
+            return new ScaleAndTranslation(NO_SCALE,
+                    -launcher.getDeviceProfile().getDeviceProperties().getWidthPx(), NO_OFFSET);
+        }
         final float scale = shouldReduceWorkspaceBlurUsage(launcher)
                 ? NO_SCALE
                 : launcher.getDeviceProfile().getWorkspaceProfile().getWorkspaceContentScale();
@@ -133,15 +137,32 @@ public class AllAppsState extends LauncherState {
     }
 
     @Override
+    public PageAlphaProvider getWorkspacePageAlphaProvider(Launcher launcher) {
+        if (hasAppLibrary(launcher)) {
+            return DEFAULT_ALPHA_PROVIDER;
+        }
+        return super.getWorkspacePageAlphaProvider(launcher);
+    }
+
+    private static boolean hasAppLibrary(Launcher launcher) {
+        return launcher.getWorkspace() != null && launcher.getWorkspace().hasAppLibrary();
+    }
+
+    @Override
     public boolean shouldBlurWorkspace(Launcher launcher, LauncherState targetState) {
+        if (hasAppLibrary(launcher)) {
+            return false;
+        }
         return !shouldReduceWorkspaceBlurUsage(launcher) && (targetState == ALL_APPS
                 || targetState == NORMAL);
     }
 
     @Override
     public int getVisibleElements(LauncherUiState launcherUiState) {
-        return Flags.allAppsSurface() ? HOTSEAT_ICONS
-                : ALL_APPS_CONTENT | FLOATING_SEARCH_BAR | HOTSEAT_ICONS;
+        if (Flags.allAppsSurface()) {
+            return HOTSEAT_ICONS;
+        }
+        return ALL_APPS_CONTENT | FLOATING_SEARCH_BAR | HOTSEAT_ICONS;
     }
 
     @Override
@@ -171,6 +192,9 @@ public class AllAppsState extends LauncherState {
     public ScrimColors getWorkspaceScrimColor(Launcher launcher) {
         if (Flags.allAppsSurface()) {
             // No scrim.
+            return super.getWorkspaceScrimColor(launcher);
+        }
+        if (hasAppLibrary(launcher)) {
             return super.getWorkspaceScrimColor(launcher);
         }
         int backgroundColor = ColorUtils.setAlphaComponent(

@@ -27,6 +27,7 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
 import com.android.launcher3.ExtendedEditText;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.search.SearchAlgorithm;
@@ -66,6 +67,14 @@ public class AllAppsSearchBarController
         mInput.setOnEditorActionListener(this);
         mInput.setOnBackKeyListener(this);
         mSearchAlgorithm = searchAlgorithm;
+        if (LauncherPrefs.isAppLibrary(mInput.getContext())) {
+            mInput.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus && mInput.getEditableText().length() == 0) {
+                    mSearchAlgorithm.cancel(false);
+                    mSearchAlgorithm.doSearch("", mTextConversions, mCallback);
+                }
+            });
+        }
     }
 
     @Override
@@ -99,7 +108,11 @@ public class AllAppsSearchBarController
         mQuery = s.toString();
         if (mQuery.isEmpty()) {
             mSearchAlgorithm.cancel(true);
-            mCallback.clearSearchResult();
+            if (LauncherPrefs.isAppLibrary(mInput.getContext())) {
+                mSearchAlgorithm.doSearch("", mTextConversions, mCallback);
+            } else {
+                mCallback.clearSearchResult();
+            }
         } else {
             mSearchAlgorithm.cancel(false);
             mSearchAlgorithm.doSearch(mQuery, mTextConversions, mCallback);

@@ -13,6 +13,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.SharedPreferences;
+import android.os.Process;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -32,6 +33,7 @@ import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartScreenCallb
 import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceGroup.PreferencePositionCallback;
 import androidx.preference.PreferenceScreen;
+import androidx.preference.TwoStatePreference;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.launcher3.BuildConfig;
@@ -202,6 +204,7 @@ public class SettingsAppDrawer extends CollapsingToolbarBaseActivity
 
             PreferenceScreen screen = getPreferenceScreen();
             initPreferences(screen);
+            wireAppLibraryToggle(screen);
 
             if (mHighLightKey != null
                     && !isKeyInPreferenceGroup(mHighLightKey, screen)) {
@@ -219,6 +222,30 @@ public class SettingsAppDrawer extends CollapsingToolbarBaseActivity
             if (getActivity() != null && !TextUtils.isEmpty(getPreferenceScreen().getTitle())) {
                 getActivity().setTitle(getPreferenceScreen().getTitle());
             }
+        }
+
+        private void wireAppLibraryToggle(PreferenceScreen screen) {
+            Preference layout = screen.findPreference(
+                    LauncherPrefs.DRAWER_LIST.getSharedPrefKey());
+            Preference library = screen.findPreference(
+                    LauncherPrefs.APP_LIBRARY.getSharedPrefKey());
+            if (layout == null || !(library instanceof TwoStatePreference toggle)) {
+                return;
+            }
+            applyAppLibraryState(layout, toggle.isChecked());
+            toggle.setOnPreferenceChangeListener((preference, value) -> {
+                applyAppLibraryState(layout, (Boolean) value);
+                getPreferenceManager().getSharedPreferences().edit().commit();
+                Process.killProcess(Process.myPid());
+                return true;
+            });
+        }
+
+        private void applyAppLibraryState(Preference layout, boolean libraryOn) {
+            layout.setEnabled(!libraryOn);
+            layout.setSummary(libraryOn
+                    ? R.string.app_library_replaces_layout
+                    : R.string.drawer_list_summary);
         }
 
         private void initPreferences(PreferenceGroup group) {

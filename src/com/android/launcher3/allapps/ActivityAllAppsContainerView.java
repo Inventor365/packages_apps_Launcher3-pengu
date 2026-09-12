@@ -41,12 +41,14 @@ import android.graphics.Path;
 import android.graphics.Path.Direction;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.os.UserManager;
 import android.os.Process;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.KeyEvent;
@@ -84,6 +86,11 @@ import com.android.launcher3.Utilities;
 import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.allapps.search.AllAppsSearchUiDelegate;
 import com.android.launcher3.allapps.search.SearchAdapterProvider;
+
+import eightbitlab.com.blurview.BlurTarget;
+import eightbitlab.com.blurview.BlurView;
+import com.android.launcher3.applibrary.AppLibraryIndexRail;
+import com.android.launcher3.applibrary.AppLibraryRowDecoration;
 import com.android.launcher3.config.FeatureFlags;
 import com.android.launcher3.keyboard.FocusedItemDecorator;
 import com.android.launcher3.keyboard.ViewGroupFocusHelper;
@@ -167,6 +174,10 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     protected View mBottomSheetBackground;
     protected RecyclerViewFastScroller mFastScroller;
     private ConstraintLayout mFastScrollLetterLayout;
+    private AppLibraryIndexRail mIndexRail;
+    private View mSearchCancel;
+    private View mSearchScrim;
+    private BlurView mSearchBlur;
 
     /**
      * View that defines the search box. Result is rendered inside {@link #mSearchRecyclerView}.
@@ -278,13 +289,25 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         mAH.set(AdapterHolder.CATEGORIES, new AdapterHolder(AdapterHolder.CATEGORIES,
                 new AlphabeticalAppsList(mActivityContext, mAllAppsStore, null, null)));
         mAH.get(AdapterHolder.CATEGORIES).mAppsList.setCaddyEnabled(true);
+        if (isAppLibrary()) {
+            mAH.get(AdapterHolder.MAIN).mAppsList.setCaddyEnabled(true);
+        }
 
-        getLayoutInflater().inflate(R.layout.all_apps_content, this);
+        getLayoutInflater().inflate(
+                isAppLibrary() ? R.layout.all_apps_content_library : R.layout.all_apps_content,
+                this);
         mHeader = findViewById(R.id.all_apps_header);
         mAdditionalHeaderRows.clear();
         mAdditionalHeaderRows.addAll(getAdditionalHeaderRows());
         mBottomSheetBackground = findViewById(R.id.bottom_sheet_background);
         mBottomSheetHandleArea = findViewById(R.id.bottom_sheet_handle_area);
+        if (isAppLibrary()) {
+            mBottomSheetHandleArea.setVisibility(GONE);
+            View handle = findViewById(R.id.bottom_sheet_handle);
+            if (handle != null) {
+                handle.setVisibility(GONE);
+            }
+        }
         mSearchRecyclerView = findViewById(R.id.search_results_list_view);
         mFastScroller = findViewById(R.id.fast_scroller);
         mFastScroller.setPopupView(findViewById(R.id.fast_scroller_popup));
@@ -304,6 +327,40 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mSearchContainer.setFocusedByDefault(true);
         }
         mSearchUiManager = (SearchUiManager) mSearchContainer;
+
+        if (isAppLibrary()) {
+            moveSearchBarToBottom();
+            setupSearchListChrome();
+        }
+    }
+
+    private void moveSearchBarToBottom() {
+        RelativeLayout.LayoutParams searchLp =
+                (RelativeLayout.LayoutParams) mSearchContainer.getLayoutParams();
+        searchLp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+
+        mSearchContainer.addOnLayoutChangeListener(
+                (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+                    if (b - t != oldB - oldT) {
+                        mAH.forEach(AdapterHolder::applyPadding);
+                    }
+                });
+    }
+
+    private void setupSearchListChrome() {
+        mIndexRail = findViewById(R.id.app_library_index_rail);
+        mIndexRail.setup(mSearchRecyclerView, mAH.get(SEARCH).mAppsList);
+
+        setupSearchBlur();
+        setupSuggestionsPill();
+
+        mSearchScrim = findViewById(R.id.app_library_search_scrim);
+        mSearchCancel = findViewById(R.id.app_library_search_cancel);
+        mSearchCancel.setOnClickListener(v -> {
+            mSearchUiManager.resetSearch();
+            mSearchContainer.clearFocus();
+            mActivityContext.hideKeyboard();
+        });
     }
 
     public List<AllAppsRow> getAdditionalHeaderRows() {
@@ -320,6 +377,10 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mSearchContainer.setVisibility(View.GONE);
         }
 
+        if (isAppLibrary()) {
+            mSearchRecyclerView.addItemDecoration(new AppLibraryRowDecoration(
+                    getContext(), mAH.get(SEARCH).mAppsList, this::isSearchTransitionRunning));
+        }
         mAH.get(SEARCH).setup(mSearchRecyclerView,
                 /* Filter out A-Z apps */ itemInfo -> false);
         rebindAdapters(true /* force */);
@@ -380,8 +441,74 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     /** Invoke when the current search session is finished. */
     public void onClearSearchResult() {
         getMainAdapterProvider().clearHighlightedItem();
+        setSearchListChromeVisible(false);
         animateToSearchState(false);
         rebindAdapters();
+    }
+
+    private void setupSuggestionsPill() {
+        View predictionRow = findViewById(R.id.prediction_row);
+        if (predictionRow == null) {
+            return;
+        }
+        int margin = getResources().getDimensionPixelSize(R.dimen.app_library_suggestions_margin);
+        int gap = getResources().getDimensionPixelSize(R.dimen.app_library_suggestions_gap);
+        predictionRow.setBackgroundResource(R.drawable.bg_app_library_suggestions);
+        predictionRow.setPadding(predictionRow.getPaddingLeft(), predictionRow.getPaddingTop(),
+                predictionRow.getPaddingRight(), predictionRow.getPaddingBottom() + gap);
+        if (predictionRow.getLayoutParams() instanceof MarginLayoutParams mlp) {
+            mlp.leftMargin = margin;
+            mlp.rightMargin = margin;
+        }
+        View appsDivider = findViewById(R.id.apps_divider_view);
+        if (appsDivider != null) {
+            appsDivider.setVisibility(GONE);
+        }
+    }
+
+    private void setupSearchBlur() {
+        BlurView blur = findViewById(R.id.app_library_search_blur);
+        BlurTarget target = findViewById(R.id.app_library_blur_target);
+        if (blur == null || target == null) {
+            return;
+        }
+        mSearchBlur = blur;
+        blur.setBackgroundResource(R.drawable.bg_app_library_search_glass);
+        blur.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
+        blur.setClipToOutline(true);
+        ColorDrawable glassBase =
+                new ColorDrawable(getContext().getColor(R.color.app_library_search_glass_base));
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        glassBase.setBounds(0, 0, metrics.widthPixels, metrics.heightPixels);
+        blur.setupWith(target, 4f, /* applyNoise= */ false)
+                .setFrameClearDrawable(glassBase)
+                .setBlurRadius(
+                        getResources().getInteger(R.integer.app_library_search_blur_radius))
+                .setOverlayColor(getContext().getColor(R.color.app_library_search_blur_overlay));
+        blur.setVisibility(VISIBLE);
+        mSearchContainer.setBackground(null);
+    }
+
+    public void onSearchBoxTranslated(float translationX) {
+        if (mSearchBlur != null) {
+            mSearchBlur.setTranslationX(translationX);
+        }
+    }
+
+    private void setSearchListChromeVisible(boolean visible) {
+        if (mIndexRail == null) {
+            return;
+        }
+        mSearchCancel.setVisibility(visible ? VISIBLE : GONE);
+        if (mSearchScrim != null) {
+            mSearchScrim.setVisibility(visible ? VISIBLE : GONE);
+        }
+        if (visible) {
+            mIndexRail.refresh();
+        } else {
+            mIndexRail.setVisibility(GONE);
+        }
+        mSearchContainer.requestLayout();
     }
 
     /**
@@ -393,6 +520,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             getSearchRecyclerView().onSearchResultsChanged();
         }
         if (results != null) {
+            setSearchListChromeVisible(true);
             animateToSearchState(true);
         }
     }
@@ -752,11 +880,12 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             }
         }
         View oldView = getAppsRecyclerViewContainer();
-        int index = indexOfChild(oldView);
-        removeView(oldView);
+        ViewGroup rvParent = (ViewGroup) oldView.getParent();
+        int index = rvParent.indexOfChild(oldView);
+        rvParent.removeView(oldView);
         int layout = showTabs ? R.layout.all_apps_tabs : R.layout.all_apps_rv_layout;
-        final View rvContainer = getLayoutInflater().inflate(layout, this, false);
-        addView(rvContainer, index);
+        final View rvContainer = getLayoutInflater().inflate(layout, rvParent, false);
+        rvParent.addView(rvContainer, index);
         if (showTabs) {
             mViewPager = (AllAppsPagedView) rvContainer;
             mViewPager.initParentViews(this);
@@ -784,12 +913,12 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
 
         removeCustomRules(rvContainer);
         removeCustomRules(getSearchRecyclerView());
-        if (isSearchBarFloating()) {
+        if (isSearchBarFloating() || isAppLibrary()) {
             alignParentTop(rvContainer, showTabs);
-            alignParentTop(getSearchRecyclerView(), /* tabs= */ false);
+            alignParentTop(getSearchRecyclerView(), /* includeTabsMargin= */ false);
         } else {
             layoutBelowSearchContainer(rvContainer, showTabs);
-            layoutBelowSearchContainer(getSearchRecyclerView(), /* tabs= */ false);
+            layoutBelowSearchContainer(getSearchRecyclerView(), /* includeTabsMargin= */ false);
         }
 
         updateSearchResultsVisibility();
@@ -827,7 +956,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         mAdditionalHeaderRows.forEach(row -> mHeader.onPluginConnected(row, mActivityContext));
 
         removeCustomRules(mHeader);
-        if (isSearchBarFloating()) {
+        if (isSearchBarFloating() || isAppLibrary()) {
             alignParentTop(mHeader, false /* includeTabsMargin */);
         } else {
             layoutBelowSearchContainer(mHeader, false /* includeTabsMargin */);
@@ -870,7 +999,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mTabsProtectionAlpha = tabsAlpha;
             invalidateHeader();
         }
-        getSearchView().setBackgroundResource(R.drawable.bg_all_apps_searchbox);
+        if (!isAppLibrary()) {
+            getSearchView().setBackgroundResource(R.drawable.bg_all_apps_searchbox);
+        }
         if (mSearchUiManager.getEditText() == null) {
             return;
         }
@@ -986,17 +1117,16 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     }
 
     private void alignParentTop(View v, boolean includeTabsMargin) {
-        if (!(v.getLayoutParams() instanceof RelativeLayout.LayoutParams)) {
-            return;
-        }
-
-        RelativeLayout.LayoutParams layoutParams = (LayoutParams) v.getLayoutParams();
-        layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
-        layoutParams.topMargin =
-                includeTabsMargin
-                        ? getContext().getResources().getDimensionPixelSize(
+        int topMargin = includeTabsMargin
+                ? getContext().getResources().getDimensionPixelSize(
                         R.dimen.all_apps_header_pill_height)
-                        : 0;
+                : 0;
+        if (v.getLayoutParams() instanceof RelativeLayout.LayoutParams layoutParams) {
+            layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+            layoutParams.topMargin = topMargin;
+        } else if (v.getLayoutParams() instanceof MarginLayoutParams marginParams) {
+            marginParams.topMargin = topMargin;
+        }
     }
 
     private void removeCustomRules(View v) {
@@ -1219,6 +1349,10 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         return mViewPager != null ? mViewPager : findViewById(R.id.apps_list_view);
     }
 
+    public boolean isSearchTransitionRunning() {
+        return mSearchTransitionController != null && mSearchTransitionController.isAnimating();
+    }
+
     /** The RV for search results, which is hidden while A-Z apps are visible. */
     public SearchRecyclerView getSearchRecyclerView() {
         return mSearchRecyclerView;
@@ -1263,7 +1397,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         setLayoutParams(mlp);
 
         if (!grid.isVerticalBarLayout() || FeatureFlags.enableResponsiveWorkspace()) {
-            int topPadding = grid.getAllAppsProfile().getPadding().top;
+            int topPadding = isAppLibrary()
+                    ? insets.top + getResources().getDimensionPixelSize(R.dimen.app_library_top_gap)
+                    : grid.getAllAppsProfile().getPadding().top;
             setPadding(grid.getAllAppsProfile().getLeftRightMargin(), topPadding,
                     grid.getAllAppsProfile().getLeftRightMargin(), 0);
         }
@@ -1353,7 +1489,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
      * Returns true if the container has work apps.
      */
     public boolean shouldShowTabs() {
-        return mHasWorkApps || isCaddyEnabled();
+        return mHasWorkApps || !isAppLibrary();
     }
 
     /**
@@ -1361,12 +1497,20 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
      * profile wins: Personal|Work is a platform affordance, the category tab is a preference.
      */
     private boolean showCategoriesTab() {
-        return !mHasWorkApps && isCaddyEnabled();
+        return !mHasWorkApps;
     }
 
     private boolean isCaddyEnabled() {
-        Context context = mActivityContext.asContext();
-        return LauncherPrefs.APP_LIBRARY.get(context) || !LauncherPrefs.DRAWER_LIST.get(context);
+        return isAppLibrary() || !LauncherPrefs.DRAWER_LIST.get(mActivityContext.asContext());
+    }
+
+    public int getSearchCancelWidth() {
+        return mSearchCancel == null || mSearchCancel.getVisibility() != VISIBLE ? 0
+                : getResources().getDimensionPixelSize(R.dimen.app_library_search_cancel_width);
+    }
+
+    public boolean isAppLibrary() {
+        return LauncherPrefs.isAppLibrary(mActivityContext.asContext());
     }
 
     /**
@@ -1537,6 +1681,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     @Override
     public void drawOnScrimWithScaleAndBottomOffset(
             Canvas canvas, float scale, @Px int bottomOffsetPx) {
+        if (isAppLibrary()) {
+            return;
+        }
         final View panel = mBottomSheetBackground;
         final float translationY = ((View) panel.getParent()).getTranslationY();
 
@@ -1746,7 +1893,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                         bottomOffset = mPrivateSpaceBottomExtraSpace;
                     }
                 }
-                if (isSearchBarFloating()) {
+                if (isSearchBarFloating() || isAppLibrary()) {
                     bottomOffset += mSearchContainer.getHeight();
                 }
                 mRecyclerView.setPadding(mPadding.left, mPadding.top, mPadding.right,

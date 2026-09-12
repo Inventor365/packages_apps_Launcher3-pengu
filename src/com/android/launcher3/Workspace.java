@@ -152,7 +152,6 @@ import com.android.launcher3.util.IntSparseArrayMap;
 import com.android.launcher3.util.LauncherBindableItemsContainer;
 import com.android.launcher3.util.MSDLPlayerWrapper;
 import com.android.launcher3.util.ObjectWrapper;
-import com.android.launcher3.applibrary.AppLibraryEdgeEffect;
 import com.android.launcher3.util.OverlayEdgeEffect;
 import com.android.launcher3.util.RunnableList;
 import com.android.launcher3.util.Thunk;
@@ -324,7 +323,7 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
 
     // State related to Launcher Overlay
     private OverlayEdgeEffect mOverlayEdgeEffect;
-    private AppLibraryEdgeEffect mAppLibraryEdgeEffect;
+    private boolean mHasAppLibrary;
     private boolean mOverlayShown = false;
     private float mOverlayProgress; // 1 -> overlay completely visible, 0 -> home visible
     private final List<LauncherOverlayCallbacks> mOverlayCallbacks = new ArrayList<>();
@@ -1435,33 +1434,25 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
      * they run out into the feed on the other side.
      */
     private void setupAppLibrary() {
-        if (!LauncherPrefs.get(getContext()).get(LauncherPrefs.APP_LIBRARY)) {
+        if (!LauncherPrefs.isAppLibrary(getContext())) {
             return;
         }
-        mAppLibraryEdgeEffect = new AppLibraryEdgeEffect(getContext(),
-                this::onAppLibraryProgress, Interpolators.DECELERATE_2);
-        if (mIsRtl) {
-            mEdgeGlowLeft = mAppLibraryEdgeEffect;
-        } else {
-            mEdgeGlowRight = mAppLibraryEdgeEffect;
-        }
+        mHasAppLibrary = true;
+        mLauncherUiState.setAppLibrary(true);
     }
 
     /** Whether the App Library replaces the swipe up drawer. */
     public boolean hasAppLibrary() {
-        return mAppLibraryEdgeEffect != null;
+        return mHasAppLibrary;
     }
 
-    private void onAppLibraryProgress(float progress) {
-        if (Float.compare(progress, 1f) != 0) {
-            return;
+    public boolean isAtAppLibraryEdge() {
+        if (!mHasAppLibrary || getNextPage() != getPageCount() - 1) {
+            return false;
         }
         // The drawer is the library's content, so opening it is the whole of the gesture. The
         // state manager owns the animation and the way back out from here.
-        if (!mLauncher.isInState(LauncherState.ALL_APPS)) {
-            mLauncher.getStateManager().goToState(LauncherState.ALL_APPS);
-        }
-        mAppLibraryEdgeEffect.close(false);
+        return mIsRtl ? getScrollX() <= computeMinScroll() : getScrollX() >= computeMaxScroll();
     }
 
     public boolean hasOverlay() {
