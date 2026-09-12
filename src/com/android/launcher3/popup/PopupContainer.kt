@@ -182,6 +182,9 @@ open class PopupContainer<T : ActivityContext>(
      * Seeds the DB from the current wallpaper on first open if needed.
      */
     private fun maybeAddWallpaperCarousel(parent: ViewGroup) {
+        if (!LauncherPrefs.get(context).get(LauncherPrefs.SHOW_WALLPAPER_CAROUSEL)) {
+            return
+        }
         val service = WallpaperService.INSTANCE.get(context)
         var wallpapers =
             runCatching { service.getTopWallpapersBlocking() }.getOrDefault(emptyList())

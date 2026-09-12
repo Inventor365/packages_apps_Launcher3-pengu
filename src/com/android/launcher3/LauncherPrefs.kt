@@ -380,6 +380,13 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         val FIXED_LANDSCAPE_MODE = backedUpItem(SettingsMisc.FIXED_LANDSCAPE_MODE, false)
 
         @JvmField
+        val SHOW_WALLPAPER_CAROUSEL = backedUpItem("pref_wallpaper_carousel", true)
+
+        @JvmField
+        val WALLPAPER_CAROUSEL_BOTH_SCREENS =
+            backedUpItem("pref_wallpaper_carousel_both_screens", true)
+
+        @JvmField
         val WORKSPACE_ITEMS_LABEL_HIDDEN = backedUpItem("pref_workspace_items_label_hidden", false)
 
         @JvmField

@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import com.android.launcher3.LauncherPrefs
 import com.android.launcher3.R
 import com.android.launcher3.data.wallpaper.Wallpaper
 import com.android.launcher3.data.wallpaper.service.WallpaperService
@@ -296,8 +297,22 @@ class WallpaperCarouselView @JvmOverloads constructor(
                                 val bmp =
                                     BitmapFactory.decodeFile(wallpaper.imagePath)
                                         ?: return@runCatching false
+                                val applyLockscreen =
+                                    LauncherPrefs.get(context)
+                                        .get(LauncherPrefs.WALLPAPER_CAROUSEL_BOTH_SCREENS)
+                                val flags =
+                                    if (applyLockscreen) {
+                                        WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
+                                    } else {
+                                        WallpaperManager.FLAG_SYSTEM
+                                    }
                                 WallpaperManager.getInstance(context)
-                                    .setBitmap(bmp, null, true, WallpaperManager.FLAG_SYSTEM)
+                                    .setBitmap(
+                                        bmp,
+                                        null,
+                                        true,
+                                        flags,
+                                    )
                                 WallpaperService.INSTANCE.get(context).updateWallpaperRank(wallpaper)
                                 true
                             }
