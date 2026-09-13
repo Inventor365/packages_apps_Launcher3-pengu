@@ -119,6 +119,8 @@ public class AlphabeticalAppsList implements AllAppsStore.OnUpdateListener {
     private int mNumAppsPerRowAllApps;
     private int mNumAppRowsInAdapter;
     private Predicate<ItemInfo> mItemFilter;
+    // See setCaddyEnabled().
+    private boolean mCaddyEnabled;
 
     public AlphabeticalAppsList(ActivityContext activityContext, @Nullable AllAppsStore appsStore,
             WorkProfileManager workProfileManager, PrivateProfileManager privateProfileManager) {
@@ -321,14 +323,9 @@ public class AlphabeticalAppsList implements AllAppsStore.OnUpdateListener {
                                     R.string.work_profile_edu_section), 0));
                     Log.d(TAG, "Adding FastScrollSection for work edu card.");
                 }
-                // DRAWER_LIST = true means list view, false means categorized folders
-                Context context = mActivityContext.asContext();
-                boolean useListViewModel = LauncherPrefs.DRAWER_LIST.get(context);
-                if (useListViewModel) {
-                    position = addAppsWithSections(mApps, position);
-                } else {
-                    position = addAppsHybrid(mApps, position);
-                }
+                position = isCaddyEnabled()
+                        ? addCaddyFolders(mApps, position)
+                        : addAppsWithSections(mApps, position);
             }
             if (Flags.enablePrivateSpace()) {
                 position = addPrivateSpaceItems(position);
@@ -359,14 +356,16 @@ public class AlphabeticalAppsList implements AllAppsStore.OnUpdateListener {
                         || BaseAllAppsAdapter.isPrivateSpaceSysAppsDividerView(item.viewType)) {
                     numAppsInSection = 0;
                 } else if (BaseAllAppsAdapter.isIconViewType(item.viewType)) {
+                    // Caddy category tiles span two grid columns, so they consume two slots.
+                    int slots = (item.viewType == BaseAllAppsAdapter.VIEW_TYPE_FOLDER) ? 2 : 1;
                     if (numAppsInSection % mNumAppsPerRowAllApps == 0) {
                         numAppsInRow = 0;
                         rowIndex++;
                     }
                     item.rowIndex = rowIndex;
                     item.rowAppIndex = numAppsInRow;
-                    numAppsInSection++;
-                    numAppsInRow++;
+                    numAppsInSection += slots;
+                    numAppsInRow += slots;
                 }
             }
             mNumAppRowsInAdapter = rowIndex + 1;
@@ -517,39 +516,50 @@ public class AlphabeticalAppsList implements AllAppsStore.OnUpdateListener {
     }
 
     /**
-     * Adds apps in hybrid mode: folders for categories with 2+ apps at the top,
-     * individual apps below in regular list format.
+     * Renders this list as auto-categorized big folder tiles instead of a flat A-Z list. Set per
+     * list rather than read from {@link com.android.launcher3.LauncherPrefs#DRAWER_LIST}, so the
+     * drawer can show a flat "All" tab and a tiled "Categories" tab side by side.
      */
-    protected int addAppsHybrid(List<AppInfo> appList, int startPosition) {
-        if (appList == null || appList.isEmpty()) {
-            return startPosition;
+    public void setCaddyEnabled(boolean enabled) {
+        if (mCaddyEnabled == enabled) {
+            return;
         }
+        mCaddyEnabled = enabled;
+        onAppsUpdated();
+    }
 
-        Context context = mActivityContext.asContext();
-        AppsListUtils.HybridCategorizationResult result =
-                AppsListUtils.categorizeAppsHybrid(context, appList);
+    /** Whether the app drawer should show auto-categorized big folders ("Caddy" mode). */
+    private boolean isCaddyEnabled() {
+        return mCaddyEnabled;
+    }
 
+    /**
+     * "Caddy" mode: instead of a flat A-Z list, group the drawer's apps into category folders
+     * (System / Google / Flowerpot categories) and add each as a big (2x2) iOS App-Library-style
+     * folder tile. The folders are transient (rebuilt on every update) and not persisted.
+     */
+    private int addCaddyFolders(List<AppInfo> appList, int startPosition) {
         int position = startPosition;
-
-        // Add folders for categories with 2+ apps at the top
-        for (Map.Entry<String, List<AppInfo>> entry : result.folders.entrySet()) {
+        if (appList == null || appList.isEmpty()) {
+            return position;
+        }
+        Context context = mActivityContext.asContext();
+        Map<String, List<AppInfo>> categorized = CaddyCategorizer.categorize(appList, context);
+        for (Map.Entry<String, List<AppInfo>> entry : categorized.entrySet()) {
+            List<AppInfo> apps = entry.getValue();
+            if (apps == null || apps.isEmpty()) {
+                continue;
+            }
             FolderInfo folderInfo = new FolderInfo();
             folderInfo.title = entry.getKey();
-            folderInfo.container = ItemInfo.NO_ID; // Mark as app drawer folder
-
-            for (AppInfo app : entry.getValue()) {
-                folderInfo.add(app);
+            // Always render drawer folders as the big iOS-style tile, regardless of app count.
+            folderInfo.forceBigPreview = true;
+            for (AppInfo app : apps) {
+                folderInfo.add(app.makeWorkspaceItem(context));
             }
-
             mAdapterItems.add(AdapterItem.asFolder(folderInfo));
             position++;
         }
-
-        // Add individual apps below in regular list format
-        if (!result.individualApps.isEmpty()) {
-            position = addAppsWithSections(result.individualApps, position);
-        }
-
         return position;
     }
 
