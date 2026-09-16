@@ -16,6 +16,7 @@
 
 package com.android.launcher3.folder;
 
+import static com.android.launcher3.LauncherPrefs.ALLAPPS_THEMED_ICONS;
 import static com.android.launcher3.BubbleTextView.DISPLAY_FOLDER;
 import static com.android.launcher3.LauncherSettings.Favorites.DESKTOP_ICON_FLAG;
 import static com.android.launcher3.Utilities.dpToPx;
@@ -25,6 +26,7 @@ import static com.android.launcher3.folder.ClippedFolderIconLayoutRule.MAX_NUM_I
 import static com.android.launcher3.folder.FolderIcon.DROP_IN_ANIMATION_DURATION;
 import static com.android.launcher3.graphics.AutomatedIconDelegate.newAutomatedIcon;
 import static com.android.launcher3.graphics.PreloadIconDelegate.newPendingIcon;
+import static com.android.launcher3.icons.cache.CacheLookupFlag.DEFAULT_LOOKUP_FLAG;
 import static com.android.launcher3.icons.BitmapInfo.FLAG_THEMED;
 import static com.android.launcher3.model.data.ItemInfoWithIcon.FLAG_AUTOMATED;
 
@@ -54,6 +56,7 @@ import com.android.launcher3.apppairs.AppPairIconDrawingParams;
 import com.android.launcher3.apppairs.AppPairIconGraphic;
 import com.android.launcher3.graphics.AutomatedIconDelegate;
 import com.android.launcher3.icons.FastBitmapDrawable;
+import com.android.launcher3.icons.cache.CacheLookupFlag;
 import com.android.launcher3.model.data.AppPairInfo;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.model.data.ItemInfoWithIcon;
@@ -456,16 +459,27 @@ public class PreviewItemManager {
         setDrawableInternal(p, item, true /* loadHighResIcon */);
     }
 
+    private boolean shouldUseTheme() {
+        if (!ThemeManager.INSTANCE.get(mContext).isIconThemeEnabled()) {
+            return false;
+        }
+        if (mIcon.isInAppDrawer()) {
+            return ALLAPPS_THEMED_ICONS.get(mContext);
+        }
+        return true;
+    }
+
     private void setDrawableInternal(
             PreviewItemDrawingParams p, ItemInfo item, boolean loadHighResIcon) {
+        int creationFlags = shouldUseTheme() ? FLAG_THEMED : 0;
         if (item instanceof WorkspaceItemInfo wii) {
             if (wii.shouldShowPendingIcon()) {
-                p.drawable = newPendingIcon(wii, mContext, FLAG_THEMED);
+                p.drawable = newPendingIcon(wii, mContext, creationFlags);
             } else if (Flags.enableAppAutomationIndicator()
                     && (wii.runtimeStatusFlags & FLAG_AUTOMATED) != 0) {
-                p.drawable = newAutomatedIcon(mContext, wii, FLAG_THEMED);
+                p.drawable = newAutomatedIcon(mContext, wii, creationFlags);
             } else if (!maybeHandleAutomationExit(wii, p)) {
-                p.drawable = wii.newIcon(mContext, FLAG_THEMED);
+                p.drawable = wii.newIcon(mContext, creationFlags);
             }
             p.drawable.setBounds(0, 0, mIconSize, mIconSize);
         } else if (item instanceof AppPairInfo api) {
@@ -474,8 +488,7 @@ public class PreviewItemManager {
             p.drawable = AppPairIconGraphic.composeDrawable(api, appPairParams);
             p.drawable.setBounds(0, 0, mIconSize, mIconSize);
         } else if (item instanceof ItemInfoWithIcon withIcon) {
-            p.drawable = withIcon.newIcon(mContext,
-                    ThemeManager.INSTANCE.get(mContext).isIconThemeEnabled() ? FLAG_THEMED : 0);
+            p.drawable = withIcon.newIcon(mContext, creationFlags);
             p.drawable.setBounds(0, 0, mIconSize, mIconSize);
         }
 
@@ -485,8 +498,10 @@ public class PreviewItemManager {
         p.drawable.setCallback(mIcon);
 
         // Verify high res
+        CacheLookupFlag expectedFlag = shouldUseTheme() ? DESKTOP_ICON_FLAG : DEFAULT_LOOKUP_FLAG;
         if (item instanceof ItemInfoWithIcon info
-                && info.getMatchingLookupFlag().isVisuallyLessThan(DESKTOP_ICON_FLAG)) {
+                && (info.getMatchingLookupFlag().isVisuallyLessThan(expectedFlag)
+                    || (info.getMatchingLookupFlag().hasThemeIcon() != shouldUseTheme()))) {
             if (loadHighResIcon) {
                 LauncherAppState.getInstance(mContext).getIconCache().updateIconInBackground(
                         mContext.getMainExecutor(),
@@ -495,7 +510,7 @@ public class PreviewItemManager {
                                 setDrawableInternal(p, newInfo, false /* loadHighResIcon */);
                                 mIcon.invalidate();
                             }
-                        }, info, DESKTOP_ICON_FLAG);
+                        }, info, expectedFlag);
             } else {
                 Log.d(TAG, "Skipping high res icon load with flags: " + info.getMatchingLookupFlag()
                         + " for " + info);
@@ -508,7 +523,7 @@ public class PreviewItemManager {
                 && p.drawable instanceof FastBitmapDrawable fbd
                 && fbd.getDelegate() instanceof AutomatedIconDelegate aid) {
             aid.startExitAnimation(() -> {
-                p.drawable = wii.newIcon(mContext, FLAG_THEMED);
+                p.drawable = wii.newIcon(mContext, shouldUseTheme() ? FLAG_THEMED : 0);
                 if (p.drawable != null) {
                     p.drawable.setBounds(0, 0, mIconSize, mIconSize);
                     p.drawable.setCallback(mIcon);

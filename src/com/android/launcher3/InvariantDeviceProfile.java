@@ -319,10 +319,13 @@ public class InvariantDeviceProfile {
                 onConfigChanged();
             }
         };
-        prefs.addListener(prefListener, FIXED_LANDSCAPE_MODE, ENABLE_TWOLINE_ALLAPPS_TOGGLE,
-                SHOW_HOTSEAT_QSB);
+        prefs.addListener(prefListener, FIXED_LANDSCAPE_MODE, ALLAPPS_THEMED_ICONS,
+                SHOW_DESKTOP_LABELS, SHOW_DRAWER_LABELS, ICON_SIZE, FONT_SIZE,
+                ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB);
         lifeCycle.addCloseable(() -> prefs.removeListener(prefListener,
-                FIXED_LANDSCAPE_MODE, ENABLE_TWOLINE_ALLAPPS_TOGGLE, SHOW_HOTSEAT_QSB));
+                FIXED_LANDSCAPE_MODE, ALLAPPS_THEMED_ICONS,
+                SHOW_DESKTOP_LABELS, SHOW_DRAWER_LABELS, ICON_SIZE, FONT_SIZE,
+                ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB));
 
         SharedPreferences.OnSharedPreferenceChangeListener iconPackListener = (sp, key) -> {
             if (IconDatabase.KEY_ICON_PACK.equals(key)) {
@@ -333,6 +336,10 @@ public class InvariantDeviceProfile {
         lifeCycle.addCloseable(() ->
                 LauncherPrefs.getPrefs(context)
                         .unregisterOnSharedPreferenceChangeListener(iconPackListener));
+
+        ThemeManager.ThemeChangeListener themeChangeListener = () -> onConfigChanged();
+        mThemeManager.addChangeListener(themeChangeListener);
+        lifeCycle.addCloseable(() -> mThemeManager.removeChangeListener(themeChangeListener));
 
         SimpleBroadcastReceiver localeReceiver = new SimpleBroadcastReceiver(context,
                 mMainExecutor, i -> onConfigChanged());

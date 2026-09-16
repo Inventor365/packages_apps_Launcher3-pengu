@@ -18,6 +18,7 @@ package com.android.launcher3.graphics.theme
 
 import androidx.annotation.VisibleForTesting
 import com.android.launcher3.ConstantItem
+import com.android.launcher3.LauncherPrefChangeListener
 import com.android.launcher3.LauncherPrefs
 import com.android.launcher3.LauncherPrefs.Companion.backedUpItem
 import com.android.launcher3.dagger.LauncherAppSingleton
@@ -71,6 +72,23 @@ private constructor(
         if (oldValue != null)
             prefs.remove(*(legacyThemeKeys.values + LEGACY_MONO_THEME_ICON).toTypedArray())
         themePref.dispatchValue(currentValue)
+
+        val prefListener = LauncherPrefChangeListener {
+            val prefString = prefs.get(THEME_ID)
+            val newValue = parsePrefValue(prefString)
+                ?: if (prefs.get(LEGACY_MONO_THEME_ICON)) MONO_THEME_VALUE else null
+            synchronized(themePref) {
+                if (themePref.value != newValue) {
+                    themePref.dispatchValue(newValue)
+                }
+            }
+        }
+        prefs.addListener(
+            prefListener,
+            THEME_ID,
+            LEGACY_MONO_THEME_ICON,
+            *(legacyThemeKeys.values.toTypedArray()),
+        )
     }
 
     /**

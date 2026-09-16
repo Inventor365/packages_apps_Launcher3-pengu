@@ -1456,7 +1456,7 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
     }
 
     public boolean isInAppDrawer() {
-        return mInfo != null && mInfo.container == ItemInfo.NO_ID;
+        return mInfo != null && (mInfo.container == ItemInfo.NO_ID || mInfo.forceBigPreview);
     }
 
     public boolean isDestroyed() {

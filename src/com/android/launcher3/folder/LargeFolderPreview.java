@@ -16,8 +16,10 @@
 
 package com.android.launcher3.folder;
 
+import static com.android.launcher3.LauncherPrefs.ALLAPPS_THEMED_ICONS;
 import static com.android.launcher3.LauncherSettings.Favorites.DESKTOP_ICON_FLAG;
 import static com.android.launcher3.folder.ClippedFolderIconLayoutRule.MAX_NUM_ITEMS_IN_PREVIEW;
+import static com.android.launcher3.icons.cache.CacheLookupFlag.DEFAULT_LOOKUP_FLAG;
 import static com.android.launcher3.icons.BitmapInfo.FLAG_THEMED;
 import static com.android.launcher3.model.data.FolderInfo.BIG_FOLDER_LARGE_ICON_COUNT;
 
@@ -35,6 +37,7 @@ import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.LauncherAppState;
 import com.android.launcher3.allapps.AllAppsGridAdapter;
 import com.android.launcher3.graphics.ThemeManager;
+import com.android.launcher3.icons.cache.CacheLookupFlag;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.model.data.ItemInfoWithIcon;
 import com.android.launcher3.model.data.WorkspaceItemInfo;
@@ -185,18 +188,24 @@ public class LargeFolderPreview {
         return Math.max(0, (recyclerWidth / AllAppsGridAdapter.FOLDERS_PER_ROW) - margin);
     }
 
+    private boolean shouldUseTheme() {
+        Context context = mIcon.getContext();
+        if (!ThemeManager.INSTANCE.get(context).isIconThemeEnabled()) {
+            return false;
+        }
+        if (mIcon.isInAppDrawer()) {
+            return ALLAPPS_THEMED_ICONS.get(context);
+        }
+        return true;
+    }
+
     @Nullable
     private Drawable newIcon(ItemInfo item) {
+        int flags = shouldUseTheme() ? FLAG_THEMED : 0;
         if (item instanceof WorkspaceItemInfo wii) {
-            // Only ask for a themed (mono) icon when icon theming is actually on. Passing
-            // FLAG_THEMED unconditionally made the drawer's category tiles draw mono icons even
-            // with "Nothing OS icons" off: newIcon() strips the flag when the global theme is
-            // disabled, but ThemeManager also force-enables mono while the NOS setting is on, so
-            // the two states could not be told apart from here. BubbleTextView gates the same flag
-            // on shouldUseTheme(); this is the drawing-side equivalent.
-            int flags = ThemeManager.INSTANCE.get(mIcon.getContext()).isIconThemeEnabled()
-                    ? FLAG_THEMED : 0;
             return wii.newIcon(mIcon.getContext(), flags);
+        } else if (item instanceof ItemInfoWithIcon info) {
+            return info.newIcon(mIcon.getContext(), flags);
         }
         return null;
     }
@@ -207,11 +216,13 @@ public class LargeFolderPreview {
      * as a plain coloured circle, so request a high-res load and rebuild that icon when it arrives.
      */
     private void requestHighResIfNeeded(ItemInfo item) {
+        CacheLookupFlag expectedFlag = shouldUseTheme() ? DESKTOP_ICON_FLAG : DEFAULT_LOOKUP_FLAG;
         if (item instanceof ItemInfoWithIcon info
-                && info.getMatchingLookupFlag().isVisuallyLessThan(DESKTOP_ICON_FLAG)) {
+                && (info.getMatchingLookupFlag().isVisuallyLessThan(expectedFlag)
+                    || (info.getMatchingLookupFlag().hasThemeIcon() != shouldUseTheme()))) {
             LauncherAppState.getInstance(mIcon.getContext()).getIconCache().updateIconInBackground(
                     mIcon.getContext().getMainExecutor(), this::onHighResIconLoaded,
-                    info, DESKTOP_ICON_FLAG);
+                    info, expectedFlag);
         }
     }
 

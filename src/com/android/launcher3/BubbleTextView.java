@@ -349,6 +349,14 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
             defaultIconSize = mDeviceProfile.getWorkspaceProfile().getIconSizePx();
             setCenterVertically(mDeviceProfile.getWorkspaceProfile().getIconCenterVertically());
             mShouldShowLabel = SHOW_DESKTOP_LABELS.get(context);
+        } else if (mDisplay == DISPLAY_DRAWER_FOLDER) {
+            setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                    mDeviceProfile.getFolderProfile().getChildTextSizePx());
+            setCompoundDrawablePadding(
+                    mDeviceProfile.getFolderProfile().getChildDrawablePaddingPx());
+            defaultIconSize = mDeviceProfile.getFolderProfile().getChildIconSizePx();
+            mShouldShowLabel = SHOW_DRAWER_LABELS.get(context);
+            mThemeAllAppsIcons = ALLAPPS_THEMED_ICONS.get(context);
         } else if (displayIsAppDrawer()) {
             setTextSize(TypedValue.COMPLEX_UNIT_PX,
                     mDeviceProfile.getAllAppsProfile().getIconTextSizePx());
@@ -617,6 +625,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
                 && oldIcon.getDelegate() instanceof AutomatedIconDelegate;
         boolean isItemAutomated = Flags.enableAppAutomationIndicator()
                 && (info.runtimeStatusFlags & FLAG_AUTOMATED) != 0;
+        boolean themedChanged = mIcon != null && (mIcon.isThemed() != shouldUseTheme());
 
         if (isItemAutomated)  {
             // If icon is not already animated or underlying bitmap changed then replace it.
@@ -624,7 +633,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
                 setIcon(newAutomatedIcon(getContext(), info, getIconCreationFlagsForInfo(info)));
             }
         } else if (hasPendingAnimationCompleted(mIcon) || !mIcon.isSameInfo(info.bitmap)
-                || isOldIconAutomated) {
+                || isOldIconAutomated || themedChanged) {
             // Set new, regular icon if loading completed, no longer automating, or bitmap changed
             setStandardIcon(info);
         }
@@ -707,9 +716,17 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
     }
 
     protected boolean shouldUseTheme() {
-        return mDisplay == DISPLAY_WORKSPACE || mDisplay == DISPLAY_FOLDER
-                || mDisplay == DISPLAY_TASKBAR
-                || (mThemeAllAppsIcons && displayIsAppDrawer());
+        if (!ThemeManager.INSTANCE.get(getContext()).isIconThemeEnabled()) {
+            return false;
+        }
+        if (mDisplay == DISPLAY_WORKSPACE || mDisplay == DISPLAY_FOLDER
+                || mDisplay == DISPLAY_TASKBAR) {
+            return true;
+        }
+        if (displayIsAppDrawer()) {
+            return mThemeAllAppsIcons;
+        }
+        return false;
     }
 
     /**
@@ -744,7 +761,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
             case DISPLAY_WORKSPACE -> {
                 return mDeviceProfile.getWorkspaceProfile().getMaxIconTextLineCount();
             }
-            case DISPLAY_FOLDER -> {
+            case DISPLAY_FOLDER, DISPLAY_DRAWER_FOLDER -> {
                 return mDeviceProfile.getFolderProfile().getMaxChildTextLineCount();
             }
         }
@@ -1511,6 +1528,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
             mIconLoadRequest = null;
             mDisableRelayout = true;
             mHighResUpdateInProgress = true;
+            mThemeAllAppsIcons = ALLAPPS_THEMED_ICONS.get(getContext());
 
             // Optimization: Starting in N, pre-uploads the bitmap to RenderThread.
             info.bitmap.icon.prepareToDraw();
@@ -1534,10 +1552,12 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
     public void verifyHighRes() {
         CacheLookupFlag expectedFlag = DEFAULT_LOOKUP_FLAG.withThemeIcon(shouldUseTheme());
         if (getTag() instanceof ItemInfoWithIcon info && !mHighResUpdateInProgress
-                && info.getMatchingLookupFlag().isVisuallyLessThan(expectedFlag)) {
-                if (mIcon != null && mIcon.isThemed() && shouldUseTheme()) {
-                    return;
-                }
+                && (info.getMatchingLookupFlag().isVisuallyLessThan(expectedFlag)
+                    || (info.getMatchingLookupFlag().hasThemeIcon() != shouldUseTheme()))) {
+            if (mIcon != null && (mIcon.isThemed() == shouldUseTheme())
+                    && !info.getMatchingLookupFlag().isVisuallyLessThan(expectedFlag)) {
+                return;
+            }
             if (mIconLoadRequest != null) {
                 mIconLoadRequest.cancel();
             }

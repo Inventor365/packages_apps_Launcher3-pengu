@@ -1139,6 +1139,18 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         mCustomEventsTouchHandler.setCustomActionsListener(listener);
     }
 
+    public boolean isInAppDrawer() {
+        if (mInfo != null) {
+            if (mInfo.container == ItemInfo.NO_ID || mInfo.forceBigPreview) {
+                return true;
+            }
+        }
+        if (mFolder != null) {
+            return mFolder.isInAppDrawer();
+        }
+        return false;
+    }
+
     /**
      * Interface that provides callbacks to a parent ViewGroup that hosts this FolderIcon.
      */
