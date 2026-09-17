@@ -21,6 +21,7 @@ import android.os.Trace
 import android.view.View
 import com.android.launcher3.AppWidgetResizeFrame
 import com.android.launcher3.dragndrop.LauncherDragController
+import com.android.launcher3.folder.FolderIcon
 import com.android.launcher3.model.data.ItemInfo
 import com.android.launcher3.views.ActivityContext
 import com.android.launcher3.widget.LauncherAppWidgetHostView
@@ -66,7 +67,11 @@ class PopupControllerForExtraHomeScreenItems<T>(
         val cellLayout = activityContext.getCellLayout(itemInfo.container, itemInfo.screenId)
         val resizeStrategy = DefaultPopupResizeStrategy()
         if (resizeStrategy.shouldShowResizeFrame(itemInfo, view, cellLayout)) {
-            AppWidgetResizeFrame.showForWidget(view as LauncherAppWidgetHostView?, cellLayout)
+            when (view) {
+                is FolderIcon -> AppWidgetResizeFrame.showForFolder(view, cellLayout)
+
+                is LauncherAppWidgetHostView -> AppWidgetResizeFrame.showForWidget(view, cellLayout)
+            }
         }
     }
 

@@ -716,4 +716,7 @@
     <string name="app_library_title">App Library</string>
     <string name="app_library_summary">Put the categorized apps on a page past the last home screen and turn off the swipe up drawer. Restart the launcher to apply.</string>
 
+    <!-- Accessibility announcements for workspace folder resizing. -->
+    <string name="folder_resized">Folder resized to width %1$d height %2$d</string>
+    <string name="folder_frame_name">Resize folder %1$s</string>
 </resources>

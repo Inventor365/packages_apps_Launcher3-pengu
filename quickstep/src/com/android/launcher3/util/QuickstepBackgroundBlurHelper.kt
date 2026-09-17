@@ -84,16 +84,19 @@ constructor(
         }
 
         val folderIcon = folder.folderIcon
-        val folderNameVisibility: Int = folderIcon.folderName.visibility
+        val folderName = folderIcon.folderName
+        val folderNameVisibility = folderName.visibility
         val isIconVisible = folderIcon.iconVisible
 
-        folderIcon.setTextVisible(false)
-        folderIcon.setIconVisible(false)
+        try {
+            folderName.visibility = View.INVISIBLE
+            folderIcon.setIconVisible(false)
 
-        captureBackdrop()
-
-        folderIcon.folderName.visibility = folderNameVisibility
-        folderIcon.setIconVisible(isIconVisible)
+            captureBackdrop()
+        } finally {
+            folderName.visibility = folderNameVisibility
+            folderIcon.setIconVisible(isIconVisible)
+        }
     }
 
     override fun prepareToOpenBlurSurface() {
