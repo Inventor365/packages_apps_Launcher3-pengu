@@ -1394,7 +1394,7 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         // Open folders are already animated closed on first touch outside. If page is swiped after,
         // then make sure folder is closed immediately.
         AbstractFloatingView.closeOpenViews(mLauncher, false, TYPE_WIDGET_RESIZE_FRAME
-            | TYPE_FOLDER);
+            | TYPE_FOLDER | AbstractFloatingView.TYPE_ICON_RESIZE_FRAME);
 
         super.onPageBeginTransition();
         updateChildrenLayersEnabled();

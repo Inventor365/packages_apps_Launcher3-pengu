@@ -20,6 +20,7 @@ import android.database.Cursor
 import android.database.CursorWrapper
 import com.android.launcher3.LauncherSettings.Favorites.APPWIDGET_ID
 import com.android.launcher3.LauncherSettings.Favorites.APPWIDGET_PROVIDER
+import com.android.launcher3.LauncherSettings
 import com.android.launcher3.LauncherSettings.Favorites.APPWIDGET_SOURCE
 import com.android.launcher3.LauncherSettings.Favorites.CELLX
 import com.android.launcher3.LauncherSettings.Favorites.CELLY
@@ -53,6 +54,13 @@ open class ModelCursorWrapper(cursor: Cursor, private val queriedColumns: Array<
     val spanY: Int by SPANY.delegateInt()
     val rank: Int by RANK.delegateInt()
     val options: Int by OPTIONS.delegateInt()
+
+    /** Individual workspace icon size in dp; zero follows the global icon size setting. */
+    val iconSizeDp: Int
+        get() {
+            val index = getColumnIndex(LauncherSettings.Favorites.ICON_SIZE_DP)
+            return if (index < 0) 0 else maxOf(0, getInt(index))
+        }
     val screen: Int by SCREEN.delegateInt()
     val itemType: Int by ITEM_TYPE.delegateInt()
 
