@@ -51,6 +51,7 @@ import com.android.launcher3.folder.LargeFolderPreview;
 import com.android.launcher3.graphics.PathWrapper;
 import com.android.launcher3.graphics.ShapeDelegate;
 import com.android.launcher3.graphics.ThemeManager;
+import com.android.launcher3.util.Themes;
 
 /**
  * A view used to draw both layers of an {@link AdaptiveIconDrawable}.
@@ -291,6 +292,10 @@ public class ClipIconView extends View implements ClipPathView {
                 mFinalDrawableBounds.inset(iconOffset - blurMargin, iconOffset - blurMargin);
             }
             mForegroundBounds.set(mFinalDrawableBounds);
+            if (!mIsFolderIcon && Themes.isNosThemedIconsEnabled(getContext())) {
+                mForegroundBounds.inset(mFinalDrawableBounds.width() / 4,
+                        mFinalDrawableBounds.height() / 4);
+            }
             mForeground.setBounds(mForegroundBounds);
             mBackground.setBounds(mFinalDrawableBounds);
 

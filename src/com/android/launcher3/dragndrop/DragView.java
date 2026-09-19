@@ -58,6 +58,7 @@ import androidx.dynamicanimation.animation.SpringForce;
 
 import com.android.app.animation.Interpolators;
 import com.android.launcher3.R;
+import com.android.launcher3.util.Themes;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.folder.ClippedFolderIconLayoutRule;
 import com.android.launcher3.graphics.ThemeManager;
@@ -329,7 +330,12 @@ public class DragView extends FrameLayout {
                 if (mFgSpringDrawable == null) {
                     mFgSpringDrawable = new ColorDrawable(Color.TRANSPARENT);
                 }
-                mFgSpringDrawable.setBounds(bounds);
+                Rect mRect = new Rect();
+                mRect.set(bounds);
+                if (Themes.isNosThemedIconsEnabled(getContext())) {
+                    mRect.inset(bounds.width() / 4, bounds.height() / 4);
+                }
+                mFgSpringDrawable.setBounds(mRect);
 
                 new Handler(mActivity.asContext().getMainLooper()).post(() ->
                         mOnDragStartCallback.add(() -> {

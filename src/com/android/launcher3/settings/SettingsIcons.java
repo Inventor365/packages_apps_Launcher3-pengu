@@ -31,6 +31,7 @@ import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartScreenCallb
 import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceGroup.PreferencePositionCallback;
 import androidx.preference.PreferenceScreen;
+import androidx.preference.TwoStatePreference;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.launcher3.BuildConfig;
@@ -57,6 +58,7 @@ public class SettingsIcons extends CollapsingToolbarBaseActivity
     public static final String FIXED_LANDSCAPE_MODE = "pref_fixed_landscape_mode";
 
     private static final String NOTIFICATION_DOTS_PREFERENCE_KEY = "pref_icon_badging";
+    private static final String NOS_THEMED_ICONS_KEY = "pref_nos_themed_icons";
 
     public static final String EXTRA_FRAGMENT_ARGS = ":settings:fragment_args";
     public static final String EXTRA_FRAGMENT_HIGHLIGHT_KEY = ":settings:fragment_args_key";
@@ -290,6 +292,18 @@ public class SettingsIcons extends CollapsingToolbarBaseActivity
                     return BuildConfig.NOTIFICATION_DOTS_ENABLED;
                 case IconDatabase.KEY_ICON_PACK:
                     setupIconPackPreference(preference);
+                    return true;
+                case NOS_THEMED_ICONS_KEY:
+                    if (preference instanceof TwoStatePreference) {
+                        ((TwoStatePreference) preference).setChecked(
+                                Settings.Secure.getInt(getContext().getContentResolver(),
+                                        "nos_themed_icons", 0) != 0);
+                    }
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        Settings.Secure.putInt(getContext().getContentResolver(),
+                                "nos_themed_icons", ((boolean) newValue) ? 1 : 0);
+                        return true;
+                    });
                     return true;
             }
             return true;

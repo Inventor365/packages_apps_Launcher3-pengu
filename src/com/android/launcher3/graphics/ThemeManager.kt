@@ -18,6 +18,10 @@ package com.android.launcher3.graphics
 
 import android.content.Context
 import android.content.res.Resources
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import androidx.annotation.AnyThread
 import com.android.launcher3.LauncherPrefChangeListener
 import com.android.launcher3.LauncherPrefs
@@ -45,6 +49,7 @@ import com.android.launcher3.util.ListenableRef
 import com.android.launcher3.util.LooperExecutor
 import com.android.launcher3.util.MutableListenableRef
 import com.android.launcher3.util.SafeCloseable
+import com.android.launcher3.util.Themes
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.inject.Inject
 import javax.inject.Named
@@ -54,20 +59,20 @@ import javax.inject.Named
 class ThemeManager
 @Inject
 constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
+    private val shapesProvider: ShapesProvider,
+    private val overlayChangeHandler: OverlayChangeHandler,
     private val prefs: LauncherPrefs,
     private val themePreference: ThemePreference,
-    @Named(ICON_FACTORY_DAGGER_KEY)
+    @param:Named(ICON_FACTORY_DAGGER_KEY)
     private val iconThemeFactories: Map<String, @JvmSuppressWildcards IconThemeFactory>,
-    @Ui mainExecutor: LooperExecutor,
-    overlayChangeHandler: OverlayChangeHandler,
-    lifecycle: DaggerSingletonTracker,
+    @Ui private val mainExecutor: LooperExecutor,
+    private val lifecycle: DaggerSingletonTracker,
 ) {
 
-    private val _iconShapeData = MutableListenableRef(IconShape.EMPTY)
+    private val _iconShapeData = MutableListenableRef<IconShapeInfo>()
+    val iconShapeData: ListenableRef<IconShapeInfo> = _iconShapeData
 
-    /** listenable value holder for current IconShape */
-    val iconShapeData: ListenableRef<IconShape> = _iconShapeData.asListenable()
     /** Representation of the current icon state */
     var iconState = parseIconState(null)
         private set
@@ -80,13 +85,16 @@ constructor(
     val themeController
         get() = iconState.themeController
 
-    val isIconThemeEnabled
-        get() = themeController != null
+    val isIconThemeEnabled: Boolean
+        get() = iconState.themeController != null
 
-    val iconShape
+    val iconMask: String
+        get() = iconState.iconMask
+
+    val iconShape: ShapeDelegate
         get() = iconState.iconShape
 
-    val folderShape
+    val folderShape: ShapeDelegate
         get() = iconState.folderShape
 
     val fileShape
@@ -105,8 +113,19 @@ constructor(
         }
         prefs.addListener(prefListener, PREF_ICON_SHAPE)
         lifecycle.addCloseable(themePreference.forEach(mainExecutor) { verifyIconState() })
+
+        // Re-parse when the "Nothing OS icons" secure setting changes so mono icons are forced
+        // on/off live (set by the PenguinOS setup wizard or Launcher settings).
+        val nosObserver =
+            object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) = verifyIconState()
+            }
+        context.contentResolver.registerContentObserver(
+            Settings.Secure.getUriFor("nos_themed_icons"), false, nosObserver)
+
         lifecycle.addCloseable {
             prefs.removeListener(prefListener, PREF_ICON_SHAPE)
+            context.contentResolver.unregisterContentObserver(nosObserver)
             iconState.closeController()
         }
     }
@@ -129,7 +148,8 @@ constructor(
 
     @AnyThread fun addChangeListener(listener: ThemeChangeListener) = listeners.add(listener)
 
-    @AnyThread fun removeChangeListener(listener: ThemeChangeListener) = listeners.remove(listener)
+    @AnyThread
+    fun removeChangeListener(listener: ThemeChangeListener) = listeners.remove(listener)
 
     /**
      * Generates new IconShape based given [iconSize] and current [iconShape] Allocates new Bitmap
@@ -145,17 +165,8 @@ constructor(
     }
 
     private fun parseIconState(oldState: IconState?): IconState {
-        val shapeModel =
-            prefs.get(PREF_ICON_SHAPE).let { shapeOverride ->
-                ShapesProvider.iconShapes.firstOrNull { it.key == shapeOverride }
-            }
-        val iconMask =
-            when {
-                shapeModel != null -> shapeModel.pathString
-                CONFIG_ICON_MASK_RES_ID == Resources.ID_NULL -> ""
-                else -> context.resources.getString(CONFIG_ICON_MASK_RES_ID)
-            }
-
+        val shapeModel = shapesProvider.findOrPreloadShape(prefs.get(PREF_ICON_SHAPE))
+        val iconMask = shapeModel?.iconMask ?: CONFIG_ICON_MASK_RES_ID.let(context::getString)
         val iconShape =
             if (oldState != null && oldState.iconMask == iconMask) {
                 oldState.iconShape
@@ -181,7 +192,11 @@ constructor(
                     ShapeDelegate.GenericPathShape(path)
                 }
 
-        val themeKey = themePreference.value
+        // Force mono icons when the "Nothing OS icons" secure setting is on, even if the user
+        // hasn't enabled themed icons in Launcher settings.
+        val themeKey =
+            themePreference.value
+                ?: if (Themes.isNosThemedIconsEnabled(context)) MONO_THEME_VALUE else null
         val themeCode = themeKey?.toString() ?: "no-theme"
 
         val iconControllerFactory =

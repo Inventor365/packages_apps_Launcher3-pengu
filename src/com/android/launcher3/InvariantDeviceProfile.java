@@ -83,6 +83,7 @@ import com.android.launcher3.util.LooperExecutor;
 import com.android.launcher3.util.Partner;
 import com.android.launcher3.util.SimpleBroadcastReceiver;
 import com.android.launcher3.util.TaskbarModeUtil;
+import com.android.launcher3.util.Themes;
 import com.android.launcher3.util.WindowBounds;
 import com.android.launcher3.util.window.WindowManagerProxy;
 
@@ -119,6 +120,7 @@ public class InvariantDeviceProfile {
     public static final int TYPE_TABLET = 2;
     public static final int TYPE_DESKTOP = 3;
 
+    private static final float NOS_ICON_SCALE = 1.15f;
     private static final float ICON_SIZE_DEFINED_IN_APP_DP = 48;
 
     // Constants that affects the interpolation curve between statically defined device profile
@@ -449,7 +451,7 @@ public class InvariantDeviceProfile {
 
         inlineNavButtonsEndSpacing = closestProfile.inlineNavButtonsEndSpacing;
 
-        iconSize = displayOption.iconSizes;
+        iconSize = scaledForNosIcons(context, displayOption.iconSizes);
         float maxIconSize = iconSize[0];
         for (int i = 1; i < iconSize.length; i++) {
             maxIconSize = Math.max(maxIconSize, iconSize[i]);
@@ -483,7 +485,7 @@ public class InvariantDeviceProfile {
 
         allAppsCellSize = displayOption.allAppsCellSize;
         allAppsBorderSpaces = displayOption.allAppsBorderSpaces;
-        allAppsIconSize = displayOption.allAppsIconSizes;
+        allAppsIconSize = scaledForNosIcons(context, displayOption.allAppsIconSizes);
         allAppsIconTextSize = displayOption.allAppsIconTextSizes;
 
         inlineQsb = closestProfile.inlineQsb;
@@ -685,6 +687,19 @@ public class InvariantDeviceProfile {
         } catch (Resources.NotFoundException ex) {
             Log.e(TAG, "Invalid Partner grid resource!", ex);
         }
+    }
+
+    // Nothing OS look: enlarge grid icons when NOS themed icons are enabled.
+    // Copy first so the cached DisplayOption array isn't mutated.
+    private static float[] scaledForNosIcons(Context context, float[] sizes) {
+        if (!Themes.isNosThemedIconsEnabled(context)) {
+            return sizes;
+        }
+        float[] scaled = Arrays.copyOf(sizes, sizes.length);
+        for (int i = 0; i < scaled.length; i++) {
+            scaled[i] *= NOS_ICON_SCALE;
+        }
+        return scaled;
     }
 
     private static float dist(float x0, float y0, float x1, float y1) {
