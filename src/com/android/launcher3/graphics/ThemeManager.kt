@@ -59,19 +59,20 @@ import javax.inject.Named
 class ThemeManager
 @Inject
 constructor(
-    @param:ApplicationContext private val context: Context,
-    private val shapesProvider: ShapesProvider,
-    private val overlayChangeHandler: OverlayChangeHandler,
+    @ApplicationContext private val context: Context,
     private val prefs: LauncherPrefs,
     private val themePreference: ThemePreference,
-    @param:Named(ICON_FACTORY_DAGGER_KEY)
+    @Named(ICON_FACTORY_DAGGER_KEY)
     private val iconThemeFactories: Map<String, @JvmSuppressWildcards IconThemeFactory>,
     @Ui private val mainExecutor: LooperExecutor,
-    private val lifecycle: DaggerSingletonTracker,
+    overlayChangeHandler: OverlayChangeHandler,
+    lifecycle: DaggerSingletonTracker,
 ) {
 
-    private val _iconShapeData = MutableListenableRef<IconShapeInfo>()
-    val iconShapeData: ListenableRef<IconShapeInfo> = _iconShapeData
+    private val _iconShapeData = MutableListenableRef(IconShape.EMPTY)
+
+    /** listenable value holder for current IconShape */
+    val iconShapeData: ListenableRef<IconShape> = _iconShapeData.asListenable()
 
     /** Representation of the current icon state */
     var iconState = parseIconState(null)
@@ -165,8 +166,16 @@ constructor(
     }
 
     private fun parseIconState(oldState: IconState?): IconState {
-        val shapeModel = shapesProvider.findOrPreloadShape(prefs.get(PREF_ICON_SHAPE))
-        val iconMask = shapeModel?.iconMask ?: CONFIG_ICON_MASK_RES_ID.let(context::getString)
+        val shapeModel =
+            prefs.get(PREF_ICON_SHAPE).let { shapeOverride ->
+                ShapesProvider.iconShapes.firstOrNull { it.key == shapeOverride }
+            }
+        val iconMask =
+            when {
+                shapeModel != null -> shapeModel.pathString
+                CONFIG_ICON_MASK_RES_ID == Resources.ID_NULL -> ""
+                else -> context.resources.getString(CONFIG_ICON_MASK_RES_ID)
+            }
         val iconShape =
             if (oldState != null && oldState.iconMask == iconMask) {
                 oldState.iconShape

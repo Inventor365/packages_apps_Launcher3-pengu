@@ -11,7 +11,7 @@ import com.android.launcher3.data.wallpaper.service.WallpaperDao
 
 import kotlinx.coroutines.runBlocking
 
-@Database(entities = [Wallpaper::class], version = 1)
+@Database(entities = [Wallpaper::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun wallpaperDao(): WallpaperDao
