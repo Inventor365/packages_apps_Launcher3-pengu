@@ -6,27 +6,31 @@
 
     <Preference
         android:key="pref_icon_pack"
-        android:title="@string/icon_pack_title" />
+        android:title="@string/icon_pack_title"
+        launcher:iconSpaceReserved="false" />
 
-    <SwitchPreference
+    <SwitchPreferenceCompat
         android:key="pref_nos_themed_icons"
         android:title="@string/nos_themed_icons_title"
         android:summary="@string/nos_themed_icons_summary"
         android:defaultValue="false"
-        android:persistent="false" />
+        android:persistent="false"
+        launcher:iconSpaceReserved="false" />
 
-    <SwitchPreference
+    <SwitchPreferenceCompat
         android:key="pref_themed_icons_overlay"
         android:title="@string/themed_icons_overlay_title"
         android:summary="@string/themed_icons_overlay_summary"
         android:defaultValue="true"
-        android:persistent="true" />
+        android:persistent="true"
+        launcher:iconSpaceReserved="false" />
 
     <com.android.launcher3.settings.NotificationDotsPreference
         android:key="pref_icon_badging"
         android:title="@string/notification_dots_title"
         android:persistent="false"
-        android:widgetLayout="@layout/notification_pref_warning" />
+        android:widgetLayout="@layout/notification_pref_warning"
+        launcher:iconSpaceReserved="false" />
 
     <com.android.launcher3.settings.preferences.CustomSeekBarPreference
         android:key="pref_custom_icon_size"
