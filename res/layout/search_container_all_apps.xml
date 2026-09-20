@@ -28,7 +28,7 @@
     android:importantForAutofill="no"
     android:inputType="text|textNoSuggestions|textCapWords"
     android:maxLines="1"
-    android:paddingVertical="12dp"
+    android:paddingVertical="6dp"
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
     android:drawablePadding="8dp"
@@ -38,4 +38,4 @@
     android:singleLine="true"
     android:textColor="@color/materialColorOnSurface"
     android:textColorHint="?attr/allAppsSearchTextColor"
-    android:textSize="20sp" />
+    android:textSize="16sp" />
