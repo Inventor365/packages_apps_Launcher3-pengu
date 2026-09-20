@@ -29,6 +29,7 @@ import static com.android.launcher3.LauncherPrefs.SHOW_DESKTOP_LABELS;
 import static com.android.launcher3.LauncherPrefs.SHOW_DRAWER_LABELS;
 import static com.android.launcher3.LauncherPrefs.SHOW_HOTSEAT_QSB;
 import static com.android.launcher3.LauncherPrefs.WORKSPACE_ITEMS_LABEL_HIDDEN;
+import static com.android.launcher3.graphics.ThemeManager.PREF_ICON_SHAPE;
 import static com.android.launcher3.Utilities.dpiFromPx;
 import static com.android.launcher3.deviceprofile.parser.DeviceTypedMap.COUNT_SIZES;
 import static com.android.launcher3.deviceprofile.parser.DeviceTypedMap.INDEX_DEFAULT;
@@ -315,17 +316,20 @@ public class InvariantDeviceProfile {
                     FONT_SIZE.getSharedPrefKey().equals(key) ||
                     ENABLE_TWOLINE_ALLAPPS_TOGGLE.getSharedPrefKey().equals(key) ||
                     ROW_HEIGHT.getSharedPrefKey().equals(key) ||
-                    SHOW_HOTSEAT_QSB.getSharedPrefKey().equals(key)) {
+                    SHOW_HOTSEAT_QSB.getSharedPrefKey().equals(key) ||
+                    PREF_ICON_SHAPE.getSharedPrefKey().equals(key)) {
                 onConfigChanged();
             }
         };
         prefs.addListener(prefListener, FIXED_LANDSCAPE_MODE, ALLAPPS_THEMED_ICONS,
                 SHOW_DESKTOP_LABELS, SHOW_DRAWER_LABELS, ICON_SIZE, FONT_SIZE,
-                ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB);
+                ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB,
+                PREF_ICON_SHAPE);
         lifeCycle.addCloseable(() -> prefs.removeListener(prefListener,
                 FIXED_LANDSCAPE_MODE, ALLAPPS_THEMED_ICONS,
                 SHOW_DESKTOP_LABELS, SHOW_DRAWER_LABELS, ICON_SIZE, FONT_SIZE,
-                ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB));
+                ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB,
+                PREF_ICON_SHAPE));
 
         SharedPreferences.OnSharedPreferenceChangeListener iconPackListener = (sp, key) -> {
             if (IconDatabase.KEY_ICON_PACK.equals(key)) {
