@@ -11,6 +11,13 @@
     <dimen name="dashboard_tile_foreground_image_inset">8dp</dimen>
     <dimen name="preference_icon_foreground_image_inset">12dp</dimen>
 
+    <!-- Dashboard Card Settings -->
+    <dimen name="penguin_cardview_margin_list">16dp</dimen>
+    <dimen name="penguin_cardview_padding">16dp</dimen>
+    <dimen name="penguin_pref_vert">5.5dp</dimen>
+    <dimen name="penguin_top_icon_home">42dp</dimen>
+    <dimen name="penguin_top_icon_home_max">52.5dp</dimen>
+
     <!-- Meminfo in overview -->
     <dimen name="meminfo_claimed_height">16dp</dimen>
 

@@ -63,7 +63,6 @@ import com.android.launcher3.util.SafeCloseable;
 import com.android.launcher3.util.SettingsCache;
 
 import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity;
-import com.android.settingslib.widget.SettingsBasePreferenceFragment;
 
 /**
  * Settings activity for Launcher.
@@ -167,7 +166,7 @@ public class SettingsActivity extends CollapsingToolbarBaseActivity
     /**
      * This fragment shows the launcher preferences.
      */
-    public static class LauncherSettingsFragment extends SettingsBasePreferenceFragment {
+    public static class LauncherSettingsFragment extends PreferenceFragmentCompat {
 
         private @Nullable SafeCloseable mSettingCacheSafeCloseable;
 

@@ -15,14 +15,16 @@
 -->
 
 <androidx.preference.PreferenceScreen
-    xmlns:android="http://schemas.android.com/apk/res/android">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <Preference
         android:key="pref_icon_badging"
         android:title="@string/icons_category_title"
-        android:summary="@string/icons_category_summary"
-        android:icon="@drawable/ic_homepage_icons">
-    <intent
+        android:icon="@drawable/ic_derp_icons_bg"
+        android:layout="@layout/penguin_dashboard_card"
+        app:layout="@layout/penguin_dashboard_card">
+        <intent
             android:action="android.settings.APPLICATION_DETAILS_SETTINGS"
             android:targetPackage="com.android.launcher3"
             android:targetClass="com.android.launcher3.settings.SettingsIcons" />
@@ -31,9 +33,10 @@
     <Preference
         android:key="pref_add_icon_to_home"
         android:title="@string/home_category_title"
-        android:summary="@string/home_category_summary"
-        android:icon="@drawable/ic_homepage_homescreen">
-    <intent
+        android:icon="@drawable/ic_derp_home_bg"
+        android:layout="@layout/penguin_dashboard_card"
+        app:layout="@layout/penguin_dashboard_card">
+        <intent
             android:action="android.settings.APPLICATION_DETAILS_SETTINGS"
             android:targetPackage="com.android.launcher3"
             android:targetClass="com.android.launcher3.settings.SettingsHomescreen" />
@@ -42,9 +45,10 @@
     <Preference
         android:key="app_drawer"
         android:title="@string/app_drawer_category_title"
-        android:summary="@string/app_drawer_category_summary"
-        android:icon="@drawable/ic_homepage_appdrawer">
-    <intent
+        android:icon="@drawable/ic_derp_apps_bg"
+        android:layout="@layout/penguin_dashboard_card"
+        app:layout="@layout/penguin_dashboard_card">
+        <intent
             android:action="android.settings.APPLICATION_DETAILS_SETTINGS"
             android:targetPackage="com.android.launcher3"
             android:targetClass="com.android.launcher3.settings.SettingsAppDrawer" />
@@ -53,9 +57,10 @@
     <Preference
         android:key="recents"
         android:title="@string/recents_category_title"
-        android:summary="@string/recents_category_summary"
-        android:icon="@drawable/ic_homepage_recents">
-    <intent
+        android:icon="@drawable/ic_derp_recent_bg"
+        android:layout="@layout/penguin_dashboard_card"
+        app:layout="@layout/penguin_dashboard_card">
+        <intent
             android:action="android.settings.APPLICATION_DETAILS_SETTINGS"
             android:targetPackage="com.android.launcher3"
             android:targetClass="com.android.launcher3.settings.SettingsRecents" />
@@ -64,9 +69,10 @@
     <Preference
         android:key="misc"
         android:title="@string/misc_category_title"
-        android:summary="@string/misc_category_summary"
-        android:icon="@drawable/ic_homepage_misc">
-    <intent
+        android:icon="@drawable/ic_derp_more_bg"
+        android:layout="@layout/penguin_dashboard_card"
+        app:layout="@layout/penguin_dashboard_card">
+        <intent
             android:action="android.settings.APPLICATION_DETAILS_SETTINGS"
             android:targetPackage="com.android.launcher3"
             android:targetClass="com.android.launcher3.settings.SettingsMisc" />
