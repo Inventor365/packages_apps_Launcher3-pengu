@@ -119,7 +119,10 @@ constructor(
         // on/off live (set by the PenguinOS setup wizard or Launcher settings).
         val nosObserver =
             object : ContentObserver(Handler(Looper.getMainLooper())) {
-                override fun onChange(selfChange: Boolean) = verifyIconState()
+                override fun onChange(selfChange: Boolean) {
+                    Themes.invalidateNosThemedIconsCache()
+                    verifyIconState()
+                }
             }
         context.contentResolver.registerContentObserver(
             Settings.Secure.getUriFor("nos_themed_icons"), false, nosObserver)
@@ -136,10 +139,12 @@ constructor(
         val oldState = iconState
         if (newState == oldState) return
         val hasThemedChanged =
-            newState.themeCode != oldState.themeCode || newState.isCircle != oldState.isCircle
+            newState.themeCode != oldState.themeCode ||
+            newState.isCircle != oldState.isCircle ||
+            newState.iconMask != oldState.iconMask
         iconState = newState
         if (hasThemedChanged) {
-            // trigger listeners only for theme change, not shape change
+            // trigger listeners for theme or shape change
             listeners.forEach { it.onThemeChanged() }
         }
         if (newState.iconShape != oldState.iconShape) {

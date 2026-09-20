@@ -56,6 +56,10 @@ public class Themes {
      * "nos_themed_icons" (mirrored by frameworks/libs/systemui's ThemedIconDelegate) so the
      * setup wizard or settings can toggle the whole NOS icon look from a single switch.
      */
+    public static void invalidateNosThemedIconsCache() {
+        sNosThemedIcons = null;
+    }
+
     public static boolean isNosThemedIconsEnabled(Context context) {
         final Boolean cached = sNosThemedIcons;
         if (cached != null) {

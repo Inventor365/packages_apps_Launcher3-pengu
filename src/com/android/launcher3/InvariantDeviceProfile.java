@@ -578,7 +578,9 @@ public class InvariantDeviceProfile {
         return new Object[]{
                 numColumns, numRows, numSearchContainerColumns, numDatabaseHotseatIcons,
                 iconPack, iconBitmapSize, fillResIconDpi, numDatabaseAllAppsColumns,
-                dbFile, mLocale};
+                dbFile, mLocale,
+                mPrefs.get(PREF_ICON_SHAPE),
+                mPrefs.get(ALLAPPS_THEMED_ICONS)};
     }
 
     /** Updates IDP using the provided context. Notifies listeners of change. */
