@@ -331,6 +331,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
 
         setupSuggestionsPill();
         moveSearchBarToBottom();
+        setupSearchBlur();
 
         if (isAppLibrary()) {
             setupSearchListChrome();
@@ -358,8 +359,6 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         // The search box floats over the list, so the rows have to stop where it starts.
         mSearchRecyclerView.addOnLayoutChangeListener(
                 (v, l, t, r, b, oldL, oldT, oldR, oldB) -> mAH.get(SEARCH).applyPadding());
-
-        setupSearchBlur();
 
         mSearchScrim = findViewById(R.id.app_library_search_scrim);
         mSearchCancel = findViewById(R.id.app_library_search_cancel);
@@ -474,8 +473,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     }
 
     private void setupSearchBlur() {
-        BlurView blur = findViewById(R.id.app_library_search_blur);
-        BlurTarget target = findViewById(R.id.app_library_blur_target);
+        BlurView blur = findViewById(R.id.all_apps_search_blur);
+        BlurTarget target = findViewById(R.id.all_apps_blur_target);
         if (blur == null || target == null) {
             return;
         }
@@ -494,6 +493,35 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 .setOverlayColor(getContext().getColor(R.color.app_library_search_blur_overlay));
         blur.setVisibility(VISIBLE);
         mSearchContainer.setBackground(null);
+        mSearchContainer.addOnLayoutChangeListener(
+                (v, left, top, right, bottom, ol, ot, or_, ob) -> {
+                    RelativeLayout.LayoutParams lp =
+                            (RelativeLayout.LayoutParams) blur.getLayoutParams();
+                    int width = right - left;
+                    int height = bottom - top;
+                    if (lp.width != width || lp.height != height) {
+                        lp.width = width;
+                        lp.height = height;
+                        blur.post(() -> blur.setLayoutParams(lp));
+                    } else {
+                        alignBlurToSearchBox(blur);
+                    }
+                });
+        blur.addOnLayoutChangeListener(
+                (v, l, t, r, b, ol, ot, or_, ob) -> alignBlurToSearchBox(blur));
+    }
+
+    private void alignBlurToSearchBox(BlurView blur) {
+        int[] box = new int[2];
+        int[] self = new int[2];
+        mSearchContainer.getLocationOnScreen(box);
+        blur.getLocationOnScreen(self);
+        float dx = box[0] - self[0];
+        float dy = box[1] - self[1];
+        if (dx != 0f || dy != 0f) {
+            blur.setTranslationX(blur.getTranslationX() + dx);
+            blur.setTranslationY(blur.getTranslationY() + dy);
+        }
     }
 
     public void onSearchBoxTranslated(float translationX) {
@@ -1001,7 +1029,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mTabsProtectionAlpha = tabsAlpha;
             invalidateHeader();
         }
-        if (!isAppLibrary()) {
+        if (mSearchBlur == null) {
             getSearchView().setBackgroundResource(R.drawable.bg_all_apps_searchbox);
         }
         if (mSearchUiManager.getEditText() == null) {
