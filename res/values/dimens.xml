@@ -544,7 +544,8 @@
          step above the gesture area. -->
     <dimen name="app_library_search_scrim_overhang">-64dp</dimen>
     <dimen name="app_library_search_corner_radius">28dp</dimen>
-    <integer name="app_library_search_blur_radius">14</integer>
+    <integer name="app_library_search_blur_radius">8</integer>
+    <dimen name="app_library_search_elevation">6dp</dimen>
     <dimen name="app_library_suggestions_corner_radius">@dimen/rounded_button_radius</dimen>
     <dimen name="app_library_suggestions_margin">16dp</dimen>
     <dimen name="app_library_suggestions_gap">20dp</dimen>
