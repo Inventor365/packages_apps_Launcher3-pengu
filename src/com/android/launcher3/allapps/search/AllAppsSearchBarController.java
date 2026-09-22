@@ -29,10 +29,15 @@ import android.widget.TextView.OnEditorActionListener;
 import com.android.launcher3.ExtendedEditText;
 import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.Utilities;
+import com.android.launcher3.allapps.BaseAllAppsAdapter;
 import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.search.SearchAlgorithm;
 import com.android.launcher3.search.SearchCallback;
+import com.android.launcher3.search.universal.SearchHistory;
+import com.android.launcher3.search.universal.UniversalSearchResults;
 import com.android.launcher3.views.ActivityContext;
+
+import java.util.List;
 
 /**
  * An interface to a search box that AllApps can command.
@@ -67,7 +72,8 @@ public class AllAppsSearchBarController
         mInput.setOnEditorActionListener(this);
         mInput.setOnBackKeyListener(this);
         mSearchAlgorithm = searchAlgorithm;
-        if (LauncherPrefs.isAppLibrary(mInput.getContext())) {
+        if (LauncherPrefs.isAppLibrary(mInput.getContext())
+                || mSearchAlgorithm.hasEmptyQueryResults()) {
             mInput.setOnFocusChangeListener((v, hasFocus) -> {
                 if (hasFocus && mInput.getEditableText().length() == 0) {
                     mSearchAlgorithm.cancel(false);
@@ -140,7 +146,27 @@ public class AllAppsSearchBarController
                 Log.i(TAG, "User tapped ime search button");
             }
             // selectFocusedView should return SearchTargetEvent that is passed onto onClick
-            return mLauncher.getAppsView().getMainAdapterProvider().launchHighlightedItem();
+            return mLauncher.getAppsView().getMainAdapterProvider().launchHighlightedItem()
+                    || launchTopResult();
+        }
+        return false;
+    }
+
+    private boolean launchTopResult() {
+        if (TextUtils.isEmpty(mQuery)) {
+            return false;
+        }
+        List<AdapterItem> items = mLauncher.getAppsView().getSearchResultList().getAdapterItems();
+        for (AdapterItem item : items) {
+            if (item.searchResult != null) {
+                return UniversalSearchResults.launch(mLauncher, mInput, item.searchResult);
+            }
+            if (item.itemInfo != null && BaseAllAppsAdapter.isIconViewType(item.viewType)) {
+                SearchHistory.recordLaunch(mInput.getContext(), SearchHistory.appKey(
+                        item.itemInfo.getTargetComponent(), item.itemInfo.user));
+                return mLauncher.startActivitySafely(
+                        mInput, item.itemInfo.getIntent(), item.itemInfo) != null;
+            }
         }
         return false;
     }

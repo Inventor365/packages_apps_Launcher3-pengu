@@ -37,6 +37,9 @@ import android.view.ViewGroup.MarginLayoutParams;
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.ExtendedEditText;
 import com.android.launcher3.Insettable;
+import com.android.launcher3.Launcher;
+import com.android.launcher3.LauncherPrefs;
+import com.android.launcher3.LauncherState;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.allapps.ActivityAllAppsContainerView;
@@ -46,6 +49,7 @@ import com.android.launcher3.allapps.PrivateProfileManager;
 import com.android.launcher3.allapps.SearchUiManager;
 import com.android.launcher3.search.SearchCallback;
 import com.android.launcher3.search.universal.UniversalSearchAlgorithm;
+import com.android.launcher3.statemanager.StateManager.StateListener;
 import com.android.launcher3.util.ApiWrapper;
 import com.android.launcher3.views.ActivityContext;
 
@@ -69,6 +73,16 @@ public class AppsSearchContainerLayout extends ExtendedEditText
 
     private int mSystemBottomInset;
     private int mImeInset;
+
+    private final StateListener<LauncherState> mDrawerOpenListener = new StateListener<>() {
+        @Override
+        public void onStateTransitionComplete(LauncherState finalState) {
+            if (finalState == LauncherState.ALL_APPS
+                    && LauncherPrefs.SEARCH_AUTO_KEYBOARD.get(getContext())) {
+                showKeyboard();
+            }
+        }
+    };
 
     public AppsSearchContainerLayout(Context context) {
         this(context, null);
@@ -96,6 +110,9 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         super.onAttachedToWindow();
         if(mAppsView != null)
             mAppsView.getAppsStore().addUpdateListener(this);
+        if (mLauncher instanceof Launcher launcher) {
+            launcher.getStateManager().addStateListener(mDrawerOpenListener);
+        }
     }
 
     @Override
@@ -103,6 +120,9 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         super.onDetachedFromWindow();
         if(mAppsView != null)
             mAppsView.getAppsStore().removeUpdateListener(this);
+        if (mLauncher instanceof Launcher launcher) {
+            launcher.getStateManager().removeStateListener(mDrawerOpenListener);
+        }
     }
 
     @Override
@@ -146,9 +166,13 @@ public class AppsSearchContainerLayout extends ExtendedEditText
     @Override
     public void initializeSearch(ActivityAllAppsContainerView<?> appsView) {
         mAppsView = appsView;
-        mSearchBarController.initialize(
-                new UniversalSearchAlgorithm(getContext(), mLauncher.getUiExecutor()),
-                this, mLauncher, this);
+        UniversalSearchAlgorithm algorithm =
+                new UniversalSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
+        algorithm.setQueryHandler(query -> {
+            setText(query);
+            setSelection(query.length());
+        });
+        mSearchBarController.initialize(algorithm, this, mLauncher, this);
     }
 
     @Override
