@@ -210,7 +210,7 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         MarginLayoutParams mlp = (MarginLayoutParams) getLayoutParams();
         mSystemBottomInset = insets.bottom + bottomGap();
         mlp.topMargin = 0;
-        mlp.bottomMargin = mSystemBottomInset + mImeInset;
+        mlp.bottomMargin = mAppsView.isSearchBarAtTop() ? 0 : mSystemBottomInset + mImeInset;
         requestLayout();
     }
 
@@ -225,7 +225,8 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         if (ime != mImeInset) {
             mImeInset = ime;
             MarginLayoutParams mlp = (MarginLayoutParams) getLayoutParams();
-            mlp.bottomMargin = mSystemBottomInset + mImeInset;
+            mlp.bottomMargin = mAppsView.isSearchBarAtTop() ? 0
+                    : mSystemBottomInset + mImeInset;
             requestLayout();
         }
         return super.onApplyWindowInsets(insets);

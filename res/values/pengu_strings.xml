@@ -11,4 +11,6 @@
     <string name="app_library_search_cancel">Cancel</string>
 
     <string name="app_library_replaces_layout">Disable the App Library to change this</string>
+    <string name="search_bar_bottom_title">Redesigned search bar</string>
+    <string name="search_bar_bottom_summary">Put the app drawer search bar at the bottom. Off uses the stock bar at the top.</string>
 </resources>

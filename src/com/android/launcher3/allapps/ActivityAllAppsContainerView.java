@@ -338,11 +338,26 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         }
     }
 
+    public boolean isSearchBarAtTop() {
+        return !LauncherPrefs.SEARCH_BAR_BOTTOM.get(mActivityContext.asContext());
+    }
+
     private void moveSearchBarToBottom() {
         if (!(mSearchContainer.getLayoutParams() instanceof RelativeLayout.LayoutParams searchLp)) {
             return;
         }
-        searchLp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        if (isSearchBarAtTop()) {
+            searchLp.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+            View blurTarget = findViewById(R.id.all_apps_blur_target);
+            if (blurTarget != null && blurTarget.getLayoutParams()
+                    instanceof RelativeLayout.LayoutParams targetLp) {
+                targetLp.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
+                targetLp.addRule(RelativeLayout.BELOW, R.id.search_container_all_apps);
+                targetLp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+            }
+        } else {
+            searchLp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        }
 
         mSearchContainer.addOnLayoutChangeListener(
                 (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
@@ -473,6 +488,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     }
 
     private void setupSearchBlur() {
+        if (isSearchBarAtTop()) {
+            return;
+        }
         BlurView blur = findViewById(R.id.all_apps_search_blur);
         BlurTarget target = findViewById(R.id.all_apps_blur_target);
         if (blur == null || target == null) {
@@ -491,6 +509,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 .setBlurRadius(
                         getResources().getInteger(R.integer.app_library_search_blur_radius))
                 .setOverlayColor(getContext().getColor(R.color.app_library_search_blur_overlay));
+        blur.setElevation(
+                getResources().getDimension(R.dimen.app_library_search_elevation));
         blur.setVisibility(VISIBLE);
         mSearchContainer.setBackground(null);
         mSearchContainer.addOnLayoutChangeListener(
@@ -1127,6 +1147,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 + dp.getAllAppsIconStartMargin(mActivityContext);
     }
 
+
     private void alignParentTop(View v, boolean includeTabsMargin) {
         int topMargin = includeTabsMargin
                 ? getContext().getResources().getDimensionPixelSize(
@@ -1135,7 +1156,12 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                                 R.dimen.all_apps_tabs_margin_top)
                 : 0;
         if (v.getLayoutParams() instanceof RelativeLayout.LayoutParams layoutParams) {
-            layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+            if (isSearchBarAtTop() && v == mHeader) {
+                layoutParams.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
+                layoutParams.addRule(RelativeLayout.BELOW, R.id.search_container_all_apps);
+            } else {
+                layoutParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+            }
             layoutParams.topMargin = topMargin;
         } else if (v.getLayoutParams() instanceof MarginLayoutParams marginParams) {
             marginParams.topMargin = topMargin;
@@ -1925,17 +1951,26 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
          * its margins say where it starts.
          */
         private int spaceUnderSearchBar(View list) {
-            if (mSearchContainer == null || list == null
-                    || mSearchContainer.getParent() != ActivityAllAppsContainerView.this) {
+            if (isSearchBarAtTop() || !canOffsetForSearchBar(list)) {
                 return 0;
             }
-            int listBottom = list.getBottom();
+            return Math.max(0, offsetInContainer(list) + list.getHeight()
+                    - mSearchContainer.getTop());
+        }
+
+        private boolean canOffsetForSearchBar(View list) {
+            return mSearchContainer != null && list != null
+                    && mSearchContainer.getParent() == ActivityAllAppsContainerView.this;
+        }
+
+        private int offsetInContainer(View list) {
+            int top = list.getTop();
             for (ViewParent parent = list.getParent();
                     parent instanceof View && parent != ActivityAllAppsContainerView.this;
                     parent = ((View) parent).getParent()) {
-                listBottom += ((View) parent).getTop();
+                top += ((View) parent).getTop();
             }
-            return Math.max(0, listBottom - mSearchContainer.getTop());
+            return top;
         }
 
         private boolean isWork() {
