@@ -365,15 +365,16 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                         mAH.forEach(AdapterHolder::applyPadding);
                     }
                 });
+
+        if (mSearchRecyclerView != null) {
+            mSearchRecyclerView.addOnLayoutChangeListener(
+                    (v, l, t, r, b, oldL, oldT, oldR, oldB) -> mAH.get(SEARCH).applyPadding());
+        }
     }
 
     private void setupSearchListChrome() {
         mIndexRail = findViewById(R.id.app_library_index_rail);
         mIndexRail.setup(mSearchRecyclerView, mAH.get(SEARCH).mAppsList);
-
-        // The search box floats over the list, so the rows have to stop where it starts.
-        mSearchRecyclerView.addOnLayoutChangeListener(
-                (v, l, t, r, b, oldL, oldT, oldR, oldB) -> mAH.get(SEARCH).applyPadding());
 
         mSearchScrim = findViewById(R.id.app_library_search_scrim);
         mSearchCancel = findViewById(R.id.app_library_search_cancel);
