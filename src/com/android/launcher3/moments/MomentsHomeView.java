@@ -26,7 +26,10 @@ import com.android.launcher3.R;
  */
 public class MomentsHomeView extends FrameLayout implements Insettable {
 
+    private static final long TICK_MS = 30_000;
+
     private final Runnable mOnChanged = this::update;
+    private final Runnable mTick = this::updateRemaining;
     private Launcher mLauncher;
     private ImageView mPillIcon;
     private TextView mPillName;
@@ -61,6 +64,7 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
 
     @Override
     protected void onDetachedFromWindow() {
+        removeCallbacks(mTick);
         MomentsStore.get(getContext()).removeListener(mOnChanged);
         super.onDetachedFromWindow();
     }
@@ -78,11 +82,13 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
             mLauncher.getStateManager().goToState(NORMAL, false);
         }
         setVisibility(show ? VISIBLE : GONE);
+        removeCallbacks(mTick);
         if (!show) {
             return;
         }
+        setBackground(MomentsUi.background(getContext(), moment.palette));
         mPillIcon.setImageResource(MomentsUi.iconRes(moment.icon));
-        mPillName.setText(moment.name);
+        updateRemaining();
         mApps.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(getContext());
         for (String app : moment.apps) {
@@ -96,6 +102,26 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
             mApps.addView(label, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
+    }
+
+    private void updateRemaining() {
+        MomentsStore store = MomentsStore.get(getContext());
+        Moment moment = store.getActive();
+        if (moment == null) {
+            return;
+        }
+        long left = store.getEndsAt() - System.currentTimeMillis();
+        if (store.getEndsAt() <= 0 || left <= 0) {
+            mPillName.setText(moment.name);
+            return;
+        }
+        long minutes = (left + 59_999) / 60_000;
+        String remaining = minutes >= 60
+                ? getContext().getString(R.string.moments_duration_hm, minutes / 60, minutes % 60)
+                : getContext().getString(R.string.moments_duration_m, minutes);
+        mPillName.setText(getContext().getString(R.string.moments_pill_remaining, moment.name,
+                remaining));
+        postDelayed(mTick, TICK_MS);
     }
 
     private void launch(View view, LauncherActivityInfo info) {

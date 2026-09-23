@@ -4,6 +4,7 @@ import android.app.AutomaticZenRule;
 import android.app.INotificationManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.StatusBarManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -30,6 +31,7 @@ import com.android.launcher3.R;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -44,22 +46,52 @@ public final class MomentsController {
 
     private MomentsController() {}
 
+    // The shade, Quick Settings and Recents stay out of reach, like Fairphone's switch. Tied to
+    // this process's binder, so they come back by themselves if the launcher dies.
+    private static final int DISABLE_FLAGS = StatusBarManager.DISABLE_EXPAND
+            | StatusBarManager.DISABLE_NOTIFICATION_ICONS
+            | StatusBarManager.DISABLE_RECENT
+            | StatusBarManager.DISABLE_SEARCH;
+    private static final int DISABLE2_FLAGS = StatusBarManager.DISABLE2_QUICK_SETTINGS
+            | StatusBarManager.DISABLE2_NOTIFICATION_SHADE;
+    private static StatusBarManager sStatusBar;
+
     public static void enter(Context context, Moment moment) {
+        enter(context, moment, MomentsStore.SOURCE_MANUAL, 0);
+    }
+
+    public static void enter(Context context, Moment moment, String source, long endsAt) {
         Context app = context.getApplicationContext();
-        WORKER.execute(() -> apply(app, moment));
+        WORKER.execute(() -> apply(app, moment, source, endsAt));
     }
 
     public static void exit(Context context) {
         Context app = context.getApplicationContext();
-        WORKER.execute(() -> {
-            MomentsStore store = MomentsStore.get(app);
-            Moment active = store.getActive();
-            undoRestrictions(app);
-            if (active != null) {
-                setRuleActive(app, active, false);
-            }
-            store.setActive(null);
-        });
+        WORKER.execute(() -> leave(app));
+    }
+
+    private static void leave(Context context) {
+        MomentsStore store = MomentsStore.get(context);
+        Moment active = store.getActive();
+        undoRestrictions(context);
+        if (active != null) {
+            setRuleActive(context, active, false);
+        }
+        lockSystemUi(context, false);
+        store.setActive(null, null, 0);
+        MomentsScheduler.armTimer(context, 0);
+    }
+
+    private static synchronized void lockSystemUi(Context context, boolean lock) {
+        if (sStatusBar == null) {
+            sStatusBar = context.getSystemService(StatusBarManager.class);
+        }
+        try {
+            sStatusBar.disable(lock ? DISABLE_FLAGS : StatusBarManager.DISABLE_NONE);
+            sStatusBar.disable2(lock ? DISABLE2_FLAGS : StatusBarManager.DISABLE2_NONE);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Could not " + (lock ? "lock" : "unlock") + " the status bar", e);
+        }
     }
 
     public static void delete(Context context, Moment moment) {
@@ -69,8 +101,7 @@ public final class MomentsController {
         store.removeMoment(moment.id);
         WORKER.execute(() -> {
             if (active) {
-                undoRestrictions(app);
-                store.setActive(null);
+                leave(app);
             }
             if (moment.zenRuleId != null) {
                 try {
@@ -84,9 +115,11 @@ public final class MomentsController {
     }
 
     public static void onMomentChanged(Context context, Moment moment) {
-        if (moment.id.equals(MomentsStore.get(context).getActiveId())) {
-            enter(context, moment);
+        MomentsStore store = MomentsStore.get(context);
+        if (moment.id.equals(store.getActiveId())) {
+            enter(context, moment, store.getSource(), store.getEndsAt());
         }
+        MomentsScheduler.reschedule(context);
     }
 
     /**
@@ -96,16 +129,24 @@ public final class MomentsController {
     public static void reconcile(Context context) {
         Context app = context.getApplicationContext();
         WORKER.execute(() -> {
-            Moment active = MomentsStore.get(app).getActive();
-            if (active == null) {
+            MomentsStore store = MomentsStore.get(app);
+            Moment active = store.getActive();
+            long endsAt = store.getEndsAt();
+            if (active != null && endsAt > 0 && System.currentTimeMillis() >= endsAt) {
+                leave(app);
+            } else if (active == null) {
                 undoRestrictions(app);
+                lockSystemUi(app, false);
             } else {
                 setRuleActive(app, active, true);
+                lockSystemUi(app, true);
+                MomentsScheduler.armTimer(app, endsAt);
             }
+            MomentsScheduler.reschedule(app);
         });
     }
 
-    private static void apply(Context context, Moment moment) {
+    private static void apply(Context context, Moment moment, String source, long endsAt) {
         MomentsStore store = MomentsStore.get(context);
         Moment previous = store.getActive();
         undoRestrictions(context);
@@ -122,7 +163,9 @@ public final class MomentsController {
         if (moment.blockOtherApps) {
             blockOtherApps(context, moment);
         }
-        store.setActive(moment.id);
+        lockSystemUi(context, true);
+        store.setActive(moment.id, source, endsAt);
+        MomentsScheduler.armTimer(context, endsAt);
     }
 
     private static Uri conditionId(Context context, Moment moment) {
@@ -198,7 +241,7 @@ public final class MomentsController {
         INotificationManager inm = NotificationManager.getService();
         PackageManager pm = context.getPackageManager();
         Set<String> changed = new HashSet<>();
-        for (String pkg : packagesOf(moment)) {
+        for (String pkg : packagesOf(moment.apps)) {
             int uid;
             try {
                 uid = pm.getPackageUid(pkg, 0);
@@ -225,7 +268,8 @@ public final class MomentsController {
     }
 
     private static void blockOtherApps(Context context, Moment moment) {
-        Set<String> keep = packagesOf(moment);
+        Set<String> keep = packagesOf(moment.apps);
+        keep.addAll(packagesOf(moment.background));
         keep.add(context.getPackageName());
         keep.add(SETTINGS_PACKAGE);
         keep.add(context.getSystemService(TelecomManager.class).getDefaultDialerPackage());
@@ -320,9 +364,9 @@ public final class MomentsController {
         store.setBypassedChannels(failed);
     }
 
-    private static Set<String> packagesOf(Moment moment) {
+    private static Set<String> packagesOf(List<String> apps) {
         Set<String> packages = new HashSet<>();
-        for (String app : moment.apps) {
+        for (String app : apps) {
             ComponentName component = ComponentName.unflattenFromString(app);
             if (component != null) {
                 packages.add(component.getPackageName());

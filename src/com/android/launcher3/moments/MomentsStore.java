@@ -39,6 +39,15 @@ public final class MomentsStore {
     private static final String KEY_LAST = "last";
     private static final String KEY_SUSPENDED = "suspended";
     private static final String KEY_BYPASSED = "bypassed_channels";
+    private static final String KEY_SOURCE = "source";
+    private static final String KEY_ENDS_AT = "ends_at";
+    private static final String KEY_STARTED_AT = "started_at";
+    private static final String KEY_SESSIONS = "sessions";
+    private static final long SESSION_HISTORY_MS = 35L * 24 * 60 * 60 * 1000;
+
+    public static final String SOURCE_MANUAL = "manual";
+    public static final String SOURCE_SCHEDULE = "schedule";
+    public static final String SOURCE_CAR = "car";
 
     private static MomentsStore sInstance;
 
@@ -171,16 +180,73 @@ public final class MomentsStore {
         return moments.isEmpty() ? null : moments.get(0);
     }
 
-    void setActive(String id) {
+    void setActive(String id, String source, long endsAt) {
+        long now = System.currentTimeMillis();
+        long startedAt = mPrefs.getLong(KEY_STARTED_AT, 0);
+        String wasActive = getActiveId();
         SharedPreferences.Editor editor = mPrefs.edit().putString(KEY_ACTIVE, id);
         if (id != null) {
-            editor.putString(KEY_LAST, id);
+            editor.putString(KEY_LAST, id)
+                    .putString(KEY_SOURCE, source)
+                    .putLong(KEY_ENDS_AT, endsAt);
+            if (wasActive == null) {
+                editor.putLong(KEY_STARTED_AT, now);
+            }
+        } else {
+            editor.remove(KEY_SOURCE).remove(KEY_ENDS_AT).remove(KEY_STARTED_AT);
+            if (wasActive != null && startedAt > 0) {
+                editor.putString(KEY_SESSIONS, addSession(startedAt, now));
+            }
         }
         editor.commit();
         notifyChanged();
         // SystemUI only binds a few custom tiles at a time; an active tile has to ask.
         TileService.requestListeningState(mContext,
                 new ComponentName(mContext, MomentsTileService.class));
+    }
+
+    public String getSource() {
+        return mPrefs.getString(KEY_SOURCE, SOURCE_MANUAL);
+    }
+
+    /** 0 when the Moment runs until turned off. */
+    public long getEndsAt() {
+        return mPrefs.getLong(KEY_ENDS_AT, 0);
+    }
+
+    /** {start, end} pairs of past Moments, oldest first, plus the running one if any. */
+    public List<long[]> getSessions() {
+        List<long[]> sessions = new ArrayList<>();
+        try {
+            JSONArray array = new JSONArray(mPrefs.getString(KEY_SESSIONS, "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                JSONArray s = array.getJSONArray(i);
+                sessions.add(new long[]{s.getLong(0), s.getLong(1)});
+            }
+        } catch (JSONException e) {
+            sessions.clear();
+        }
+        long startedAt = mPrefs.getLong(KEY_STARTED_AT, 0);
+        if (getActiveId() != null && startedAt > 0) {
+            sessions.add(new long[]{startedAt, System.currentTimeMillis()});
+        }
+        return sessions;
+    }
+
+    private String addSession(long start, long end) {
+        JSONArray kept = new JSONArray();
+        try {
+            JSONArray array = new JSONArray(mPrefs.getString(KEY_SESSIONS, "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                if (array.getJSONArray(i).getLong(1) > end - SESSION_HISTORY_MS) {
+                    kept.put(array.getJSONArray(i));
+                }
+            }
+        } catch (JSONException e) {
+            kept = new JSONArray();
+        }
+        kept.put(new JSONArray().put(start).put(end));
+        return kept.toString();
     }
 
     Set<String> getSuspended() {
@@ -219,9 +285,11 @@ public final class MomentsStore {
         presets.add(preset("quality_time", R.string.moments_preset_quality_time,
                 Moment.ICON_HEART, ZenPolicy.PEOPLE_TYPE_CONTACTS, false, false, false,
                 phone, camera));
-        presets.add(preset("journey", R.string.moments_preset_journey, Moment.ICON_JOURNEY,
+        Moment journey = preset("journey", R.string.moments_preset_journey, Moment.ICON_JOURNEY,
                 ZenPolicy.PEOPLE_TYPE_CONTACTS, true, false, false,
-                maps, music, messages, phone));
+                maps, music, messages, phone);
+        journey.carTrigger = true;
+        presets.add(journey);
         presets.add(preset("recharge", R.string.moments_preset_recharge, Moment.ICON_MOON,
                 ZenPolicy.PEOPLE_TYPE_STARRED, false, true, true, phone, clock));
         return presets;
@@ -233,6 +301,7 @@ public final class MomentsStore {
         moment.id = id;
         moment.name = mContext.getString(name);
         moment.icon = icon;
+        moment.palette = Moment.presetPalette(id);
         moment.calls = people;
         moment.messages = people;
         moment.appNotifications = appNotifications;

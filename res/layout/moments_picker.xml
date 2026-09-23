@@ -26,6 +26,32 @@
                 android:text="@string/moments_picker_title" />
 
             <LinearLayout
+                android:id="@+id/moments_stats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                android:background="@drawable/moments_field_bg"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/moments_stats_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/moments_text"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/moments_stats_unlocks"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/moments_text_secondary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/moments_cards"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -70,10 +96,10 @@
         android:paddingHorizontal="24dp"
         android:paddingBottom="16dp">
 
-        <TextView
+        <com.android.launcher3.moments.HoldToExitButton
             android:id="@+id/moments_exit"
             style="@style/MomentsButton"
-            android:text="@string/moments_exit"
+            android:text="@string/moments_hold_to_exit"
             android:visibility="gone" />
 
         <TextView

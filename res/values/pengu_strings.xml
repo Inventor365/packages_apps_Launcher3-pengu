@@ -138,7 +138,6 @@
     <string name="moments_summary">A calmer phone with only the apps you choose</string>
     <string name="moments_picker_title">What\'s your next Moment?</string>
     <string name="moments_add">Add Moment</string>
-    <string name="moments_exit">Exit Moments</string>
     <string name="moments_add_tile">Add to Quick Settings</string>
     <string name="moments_edit">Edit Moment</string>
     <string name="moments_back">Back</string>
@@ -171,4 +170,32 @@
     <string name="moments_preset_quality_time">Quality Time</string>
     <string name="moments_preset_journey">Journey</string>
     <string name="moments_preset_recharge">Recharge</string>
+    <string name="moments_hold_to_exit">Hold to exit Moments</string>
+    <string name="moments_ended">%1$s has ended</string>
+    <string name="moments_until_off">Until I turn it off</string>
+    <plurals name="moments_for_minutes">
+        <item quantity="one">For %d minute</item>
+        <item quantity="other">For %d minutes</item>
+    </plurals>
+    <plurals name="moments_for_hours">
+        <item quantity="one">For %d hour</item>
+        <item quantity="other">For %d hours</item>
+    </plurals>
+    <string name="moments_duration_hm">%1$dh %2$dm</string>
+    <string name="moments_duration_m">%1$d min</string>
+    <string name="moments_pill_remaining">%1$s · %2$s left</string>
+    <string name="moments_stats_time">This week: %1$s in Moments</string>
+    <string name="moments_stats_unlocks">Unlocks per hour: %1$s in Moments, %2$s otherwise</string>
+    <string name="moments_background">Keep running in background</string>
+    <string name="moments_background_none">None</string>
+    <string name="moments_background_title">Apps that keep running</string>
+    <string name="moments_background_summary">These stay off your Moment but can keep playing music, navigating or syncing.</string>
+    <string name="moments_schedule">Schedule</string>
+    <string name="moments_schedule_off">Off</string>
+    <string name="moments_schedule_summary">%1$s, %2$s – %3$s</string>
+    <string name="moments_schedule_enabled">Turn on automatically</string>
+    <string name="moments_schedule_starts">Starts %1$s</string>
+    <string name="moments_schedule_ends">Ends %1$s</string>
+    <string name="moments_car">Start when car Bluetooth connects</string>
+    <string name="moments_colour">Colour</string>
 </resources>

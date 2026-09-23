@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.pm.LauncherActivityInfo;
 import android.content.pm.LauncherApps;
 import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Process;
 import android.service.notification.ZenPolicy;
 
@@ -27,6 +29,28 @@ final class MomentsUi {
             default:
                 return R.drawable.ic_moment_sparkle;
         }
+    }
+
+    // {night top, night bottom, day top, day bottom} per palette.
+    private static final int[][] PALETTES = {
+            {0xFF000000, 0xFF7A5A33, 0xFFE4E6EA, 0xFFF2C99A},
+            {0xFF000000, 0xFF1F4E6B, 0xFFE3E8EE, 0xFFA9CBE3},
+            {0xFF000000, 0xFF2E5A3C, 0xFFE5EAE3, 0xFFB5D6B0},
+            {0xFF000000, 0xFF6B2E45, 0xFFEEE4E8, 0xFFE8B4C4},
+            {0xFF000000, 0xFF4B3A73, 0xFFE8E4EF, 0xFFC6B8E6},
+            {0xFF000000, 0xFF3A3A3A, 0xFFEDEDED, 0xFFC8C8C8},
+    };
+
+    static GradientDrawable background(Context context, int palette) {
+        int[] colors = PALETTES[Math.floorMod(palette, PALETTES.length)];
+        boolean night = (context.getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        return new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                night ? new int[]{colors[0], colors[1]} : new int[]{colors[2], colors[3]});
+    }
+
+    static int swatch(int palette) {
+        return PALETTES[Math.floorMod(palette, PALETTES.length)][1];
     }
 
     static final int[] PEOPLE_TYPES = {ZenPolicy.PEOPLE_TYPE_ANYONE,

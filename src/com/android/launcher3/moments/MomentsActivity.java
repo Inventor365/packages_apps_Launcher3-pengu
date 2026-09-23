@@ -3,17 +3,20 @@ package com.android.launcher3.moments;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.StatusBarManager;
+import android.app.TimePickerDialog;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.LauncherActivityInfo;
 import android.content.pm.LauncherApps;
 import android.content.res.ColorStateList;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.os.Process;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,7 +37,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.android.launcher3.R;
 
 import java.text.Collator;
+import java.text.DateFormatSymbols;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
@@ -97,6 +102,17 @@ public class MomentsActivity extends Activity {
     private void showPicker() {
         View view = setScreen(SCREEN_PICKER, R.layout.moments_picker);
         String activeId = mStore.getActiveId();
+        Moment activeMoment = mStore.getActive();
+        mRoot.setBackground(activeMoment == null ? null
+                : MomentsUi.background(this, activeMoment.palette));
+        String[] stats = MomentsStats.summary(this);
+        if (stats != null) {
+            view.findViewById(R.id.moments_stats).setVisibility(View.VISIBLE);
+            ((TextView) view.findViewById(R.id.moments_stats_time)).setText(stats[0]);
+            TextView unlocks = view.findViewById(R.id.moments_stats_unlocks);
+            unlocks.setVisibility(stats.length > 1 ? View.VISIBLE : View.GONE);
+            unlocks.setText(stats.length > 1 ? stats[1] : null);
+        }
         LinearLayout cards = view.findViewById(R.id.moments_cards);
         for (Moment moment : mStore.getMoments()) {
             View card = getLayoutInflater().inflate(R.layout.moments_card, cards, false);
@@ -116,29 +132,54 @@ public class MomentsActivity extends Activity {
                 mEditingIsNew = false;
                 showEditor();
             });
-            card.setOnClickListener(v -> start(moment));
+            card.setOnClickListener(v -> start(moment, 0));
+            card.setOnLongClickListener(v -> {
+                pickDuration(moment);
+                return true;
+            });
             cards.addView(card);
         }
         view.findViewById(R.id.moments_add).setOnClickListener(v -> {
             mEditing = mStore.newMoment();
             mEditingIsNew = true;
-            showApps();
+            showApps(false);
         });
-        View exit = view.findViewById(R.id.moments_exit);
+        HoldToExitButton exit = view.findViewById(R.id.moments_exit);
         exit.setVisibility(activeId == null ? View.GONE : View.VISIBLE);
-        exit.setOnClickListener(v -> {
+        exit.setOnExit(() -> {
             MomentsController.exit(this);
             finish();
         });
-        view.findViewById(R.id.moments_add_tile).setOnClickListener(v -> addTile());
+        View addTile = view.findViewById(R.id.moments_add_tile);
+        addTile.setVisibility(activeId == null ? View.VISIBLE : View.GONE);
+        addTile.setOnClickListener(v -> addTile());
     }
 
-    private void start(Moment moment) {
+    private static final int[] DURATIONS_MIN = {0, 30, 60, 120, 240};
+
+    private void pickDuration(Moment moment) {
+        String[] labels = new String[DURATIONS_MIN.length];
+        for (int i = 0; i < labels.length; i++) {
+            int minutes = DURATIONS_MIN[i];
+            labels[i] = minutes == 0 ? getString(R.string.moments_until_off)
+                    : minutes >= 60 ? getResources().getQuantityString(
+                            R.plurals.moments_for_hours, minutes / 60, minutes / 60)
+                    : getResources().getQuantityString(R.plurals.moments_for_minutes, minutes,
+                            minutes);
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(moment.name)
+                .setItems(labels, (dialog, which) -> start(moment, DURATIONS_MIN[which] == 0 ? 0
+                        : System.currentTimeMillis() + DURATIONS_MIN[which] * 60_000L))
+                .show();
+    }
+
+    private void start(Moment moment, long endsAt) {
         if (moment.apps.isEmpty()) {
             Toast.makeText(this, R.string.moments_needs_apps, Toast.LENGTH_SHORT).show();
             return;
         }
-        MomentsController.enter(this, moment);
+        MomentsController.enter(this, moment, MomentsStore.SOURCE_MANUAL, endsAt);
         startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                 .setPackage(getPackageName()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         finish();
@@ -155,6 +196,7 @@ public class MomentsActivity extends Activity {
     private void showEditor() {
         View view = setScreen(SCREEN_EDITOR, R.layout.moments_editor);
         Moment m = mEditing;
+        mRoot.setBackground(MomentsUi.background(this, m.palette));
         view.findViewById(R.id.moments_back).setOnClickListener(v -> goBack());
 
         ImageView icon = view.findViewById(R.id.moment_icon);
@@ -181,8 +223,39 @@ public class MomentsActivity extends Activity {
         });
 
         TextView apps = view.findViewById(R.id.moment_apps_summary);
-        apps.setText(appsSummary(m));
-        view.findViewById(R.id.moment_apps).setOnClickListener(v -> showApps());
+        apps.setText(appsSummary(m.apps, R.string.moments_no_apps));
+        view.findViewById(R.id.moment_apps).setOnClickListener(v -> showApps(false));
+        TextView background = view.findViewById(R.id.moment_background_summary);
+        background.setText(appsSummary(m.background, R.string.moments_background_none));
+        view.findViewById(R.id.moment_background).setOnClickListener(v -> showApps(true));
+
+        TextView schedule = view.findViewById(R.id.moment_schedule_summary);
+        schedule.setText(scheduleSummary(m));
+        view.findViewById(R.id.moment_schedule).setOnClickListener(
+                v -> editSchedule(m, () -> schedule.setText(scheduleSummary(m))));
+        bindSwitch(view, R.id.moment_car, m.carTrigger, on -> m.carTrigger = on);
+
+        LinearLayout palettes = view.findViewById(R.id.moment_palettes);
+        int size = getResources().getDimensionPixelSize(R.dimen.moments_swatch_size);
+        int gap = getResources().getDimensionPixelSize(R.dimen.moments_swatch_gap);
+        for (int i = 0; i < Moment.PALETTE_COUNT; i++) {
+            int palette = i;
+            View swatch = new View(this);
+            GradientDrawable dot = new GradientDrawable();
+            dot.setShape(GradientDrawable.OVAL);
+            dot.setColor(MomentsUi.swatch(i));
+            dot.setStroke(gap / 3, getColor(i == m.palette ? R.color.moments_text
+                    : R.color.moments_card_stroke));
+            swatch.setBackground(dot);
+            swatch.setContentDescription(getString(R.string.moments_colour));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+            lp.setMarginEnd(gap);
+            swatch.setOnClickListener(v -> {
+                m.palette = palette;
+                showEditor();
+            });
+            palettes.addView(swatch, lp);
+        }
 
         bindPeople(view, R.id.moment_calls, R.id.moment_calls_summary, R.string.moments_calls,
                 () -> m.calls, value -> m.calls = value);
@@ -255,23 +328,99 @@ public class MomentsActivity extends Activity {
         toggle.setOnCheckedChangeListener((button, checked) -> setter.set(checked));
     }
 
-    private String appsSummary(Moment moment) {
+    private String appsSummary(List<String> apps, int emptyText) {
         List<String> labels = new ArrayList<>();
-        for (String app : moment.apps) {
+        for (String app : apps) {
             LauncherActivityInfo info = MomentsUi.resolve(this, app);
             if (info != null) {
                 labels.add(info.getLabel().toString());
             }
         }
-        return labels.isEmpty() ? getString(R.string.moments_no_apps)
-                : TextUtils.join(", ", labels);
+        return labels.isEmpty() ? getString(emptyText) : TextUtils.join(", ", labels);
     }
 
-    private void showApps() {
+    private String scheduleSummary(Moment m) {
+        if (!m.scheduleEnabled || m.scheduleDays == 0) {
+            return getString(R.string.moments_schedule_off);
+        }
+        String[] names = new DateFormatSymbols().getShortWeekdays();
+        List<String> days = new ArrayList<>();
+        for (int day = Calendar.SUNDAY; day <= Calendar.SATURDAY; day++) {
+            if ((m.scheduleDays & (1 << (day - 1))) != 0) {
+                days.add(names[day]);
+            }
+        }
+        return getString(R.string.moments_schedule_summary, TextUtils.join(", ", days),
+                formatMinutes(m.scheduleStart), formatMinutes(m.scheduleEnd));
+    }
+
+    private String formatMinutes(int minutes) {
+        Calendar time = Calendar.getInstance();
+        time.set(Calendar.HOUR_OF_DAY, minutes / 60);
+        time.set(Calendar.MINUTE, minutes % 60);
+        return DateFormat.getTimeFormat(this).format(time.getTime());
+    }
+
+    private void editSchedule(Moment m, Runnable onChanged) {
+        View view = getLayoutInflater().inflate(R.layout.moments_schedule, null);
+        CompoundButton enabled = view.findViewById(R.id.schedule_enabled);
+        enabled.setChecked(m.scheduleEnabled);
+        LinearLayout daysRow = view.findViewById(R.id.schedule_days);
+        String[] names = new DateFormatSymbols().getShortWeekdays();
+        int[] days = {m.scheduleDays};
+        int[] times = {m.scheduleStart, m.scheduleEnd};
+        for (int day = Calendar.SUNDAY; day <= Calendar.SATURDAY; day++) {
+            int bit = 1 << (day - 1);
+            CheckBox chip = (CheckBox) getLayoutInflater().inflate(
+                    R.layout.moments_day_chip, daysRow, false);
+            chip.setText(names[day].substring(0, 1));
+            chip.setContentDescription(names[day]);
+            chip.setChecked((days[0] & bit) != 0);
+            chip.setOnCheckedChangeListener((b, on) -> days[0] = on ? days[0] | bit
+                    : days[0] & ~bit);
+            daysRow.addView(chip);
+        }
+        TextView start = view.findViewById(R.id.schedule_start);
+        TextView end = view.findViewById(R.id.schedule_end);
+        Runnable refresh = () -> {
+            start.setText(getString(R.string.moments_schedule_starts, formatMinutes(times[0])));
+            end.setText(getString(R.string.moments_schedule_ends, formatMinutes(times[1])));
+        };
+        refresh.run();
+        start.setOnClickListener(v -> new TimePickerDialog(this, (p, h, min) -> {
+            times[0] = h * 60 + min;
+            refresh.run();
+        }, times[0] / 60, times[0] % 60, DateFormat.is24HourFormat(this)).show());
+        end.setOnClickListener(v -> new TimePickerDialog(this, (p, h, min) -> {
+            times[1] = h * 60 + min;
+            refresh.run();
+        }, times[1] / 60, times[1] % 60, DateFormat.is24HourFormat(this)).show());
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.moments_schedule)
+                .setView(view)
+                .setPositiveButton(android.R.string.ok, (d, w) -> {
+                    m.scheduleEnabled = enabled.isChecked();
+                    m.scheduleDays = days[0];
+                    m.scheduleStart = times[0];
+                    m.scheduleEnd = times[1];
+                    onChanged.run();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void showApps(boolean background) {
         View view = setScreen(SCREEN_APPS, R.layout.moments_app_chooser);
         Moment m = mEditing;
-        List<String> selected = new ArrayList<>(m.apps);
+        List<String> target = background ? m.background : m.apps;
+        List<String> selected = new ArrayList<>(target);
         view.findViewById(R.id.moments_back).setOnClickListener(v -> goBack());
+        if (background) {
+            ((TextView) view.findViewById(R.id.moments_choose_title)).setText(
+                    R.string.moments_background_title);
+            ((TextView) view.findViewById(R.id.moments_choose_summary)).setText(
+                    R.string.moments_background_summary);
+        }
 
         LauncherApps launcherApps = getSystemService(LauncherApps.class);
         List<LauncherActivityInfo> all = new ArrayList<>(
@@ -328,12 +477,12 @@ public class MomentsActivity extends Activity {
         });
 
         view.findViewById(R.id.moments_continue).setOnClickListener(v -> {
-            if (selected.isEmpty()) {
+            if (selected.isEmpty() && !background) {
                 Toast.makeText(this, R.string.moments_needs_apps, Toast.LENGTH_SHORT).show();
                 return;
             }
-            m.apps.clear();
-            m.apps.addAll(selected);
+            target.clear();
+            target.addAll(selected);
             showEditor();
         });
     }
