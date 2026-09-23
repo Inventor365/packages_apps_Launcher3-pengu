@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <include layout="@layout/moments_back" />
+
+    <TextView
+        style="@style/MomentsTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:text="@string/moments_background_choose" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/moments_backgrounds"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_weight="1"
+        android:clipToPadding="false" />
+
+    <LinearLayout
+        android:id="@+id/moments_background_dots"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginVertical="16dp"
+        android:orientation="horizontal" />
+
+    <TextView
+        android:id="@+id/moments_continue"
+        style="@style/MomentsButton"
+        android:layout_width="match_parent"
+        android:layout_marginHorizontal="20dp" />
+</LinearLayout>

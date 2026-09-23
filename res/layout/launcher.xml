@@ -87,4 +87,6 @@
 
     <include layout="@layout/moments_home" />
 
+    <include layout="@layout/moments_switch_overlay" />
+
 </com.android.launcher3.LauncherRootView>

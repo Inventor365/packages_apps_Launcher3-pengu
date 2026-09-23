@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -43,6 +44,7 @@ public final class MomentsStore {
     private static final String KEY_ENDS_AT = "ends_at";
     private static final String KEY_STARTED_AT = "started_at";
     private static final String KEY_SESSIONS = "sessions";
+    private static final String KEY_ONBOARDING = "onboarding";
     private static final long SESSION_HISTORY_MS = 35L * 24 * 60 * 60 * 1000;
 
     public static final String SOURCE_MANUAL = "manual";
@@ -154,7 +156,24 @@ public final class MomentsStore {
         Moment moment = new Moment();
         moment.id = UUID.randomUUID().toString();
         moment.name = mContext.getString(R.string.moments_new_name);
+        moment.icon = Moment.ICON_EXTRA + new Random().nextInt(6);
+        moment.colors = Moment.COLORS_CUSTOM;
         return moment;
+    }
+
+    public boolean canAddMoment() {
+        return getMoments().size() < Moment.MAX_MOMENTS;
+    }
+
+    /** 0: the home hints at tapping its button, 1: at switching Moments there, 2: done. */
+    int getOnboardingStep() {
+        return mPrefs.getInt(KEY_ONBOARDING, 0);
+    }
+
+    void setOnboardingStep(int step) {
+        if (step > getOnboardingStep()) {
+            mPrefs.edit().putInt(KEY_ONBOARDING, step).apply();
+        }
     }
 
     public String getActiveId() {
@@ -295,23 +314,94 @@ public final class MomentsStore {
         return presets;
     }
 
+    static final String TEMPLATE_CUSTOM = "custom";
+    static final String[] TEMPLATES = {"deep_focus", "journey", "recharge", "quality_time",
+            TEMPLATE_CUSTOM};
+
+    private static final String[] MUSIC = {"com.spotify.music", "com.aspiro.tidal",
+            "deezer.android.app", "com.google.android.apps.youtube.music"};
+
+    /** A new Moment set up like one of Fairphone's templates, with its usual apps. */
+    public Moment fromTemplate(String template) {
+        Moment moment = newMoment();
+        String phone = launchable(mContext.getSystemService(TelecomManager.class)
+                .getDefaultDialerPackage());
+        String messages = launchable(Telephony.Sms.getDefaultSmsPackage(mContext));
+        String camera = resolve(new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA));
+        String maps = resolve(new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0")));
+        String clock = resolve(new Intent(AlarmClock.ACTION_SHOW_ALARMS));
+        String music = firstLaunchable(MUSIC);
+        if (music == null) {
+            music = resolve(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN,
+                    Intent.CATEGORY_APP_MUSIC));
+        }
+        switch (template) {
+            case "deep_focus":
+                moment.icon = Moment.ICON_FOCUS;
+                moment.calls = ZenPolicy.PEOPLE_TYPE_STARRED;
+                moment.messages = ZenPolicy.PEOPLE_TYPE_STARRED;
+                addApps(moment, launchable("com.google.android.gm"),
+                        launchable("com.google.android.calendar"),
+                        launchable("com.google.android.apps.docs"),
+                        launchable("com.google.android.apps.tachyon"),
+                        launchable("com.google.android.keep"));
+                break;
+            case "journey":
+                moment.icon = Moment.ICON_JOURNEY;
+                addApps(moment, firstLaunchable("com.waze"), maps, music, phone);
+                break;
+            case "recharge":
+                moment.icon = Moment.ICON_MOON;
+                moment.calls = ZenPolicy.PEOPLE_TYPE_STARRED;
+                moment.messages = ZenPolicy.PEOPLE_TYPE_STARRED;
+                moment.blueLight = true;
+                addApps(moment, music, firstLaunchable("com.getsomeheadspace.android",
+                        "com.calm.android"), clock);
+                break;
+            case "quality_time":
+                moment.icon = Moment.ICON_HEART;
+                String whatsapp = firstLaunchable("com.whatsapp");
+                addApps(moment, camera, launchable("com.google.android.apps.photos"),
+                        whatsapp != null ? whatsapp : messages);
+                break;
+            default:
+                return moment;
+        }
+        moment.colors = Moment.presetColors(template);
+        return moment;
+    }
+
+    private static void addApps(Moment moment, String... apps) {
+        for (String app : apps) {
+            if (app != null && !moment.apps.contains(app) && moment.apps.size() < Moment.MAX_APPS) {
+                moment.apps.add(app);
+            }
+        }
+    }
+
+    private String firstLaunchable(String... packages) {
+        for (String pkg : packages) {
+            String app = launchable(pkg);
+            if (app != null) {
+                return app;
+            }
+        }
+        return null;
+    }
+
     private Moment preset(String id, int name, int icon, int people, boolean appNotifications,
             boolean grayscale, boolean dimWallpaper, String... apps) {
         Moment moment = new Moment();
         moment.id = id;
         moment.name = mContext.getString(name);
         moment.icon = icon;
-        moment.palette = Moment.presetPalette(id);
+        moment.colors = Moment.presetColors(id);
         moment.calls = people;
         moment.messages = people;
         moment.appNotifications = appNotifications;
         moment.grayscale = grayscale;
         moment.dimWallpaper = dimWallpaper;
-        for (String app : apps) {
-            if (app != null && !moment.apps.contains(app) && moment.apps.size() < Moment.MAX_APPS) {
-                moment.apps.add(app);
-            }
-        }
+        addApps(moment, apps);
         return moment;
     }
 

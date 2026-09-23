@@ -15,14 +15,28 @@
 
     <TextView
         android:id="@+id/app_label"
-        android:layout_width="0dp"
+        style="@style/MomentsBodyMedium"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_weight="1"
         android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="@color/moments_text"
-        android:textSize="16sp" />
+        android:maxLines="1" />
+
+    <ImageView
+        android:id="@+id/app_work_badge"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/moments_work_badge_bg"
+        android:contentDescription="@string/moments_work_app"
+        android:padding="3dp"
+        android:src="@drawable/ic_moment_work"
+        android:visibility="gone" />
+
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <CheckBox
         android:id="@+id/app_check"

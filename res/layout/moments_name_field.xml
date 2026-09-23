@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <EditText
+        android:id="@+id/moment_name_input"
+        style="@style/MomentsBodyMedium"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@drawable/moments_field_bg"
+        android:gravity="center"
+        android:hint="@string/moments_name_hint"
+        android:imeOptions="actionDone"
+        android:importantForAutofill="no"
+        android:inputType="textCapWords"
+        android:maxLength="20"
+        android:paddingHorizontal="16dp"
+        android:textColorHint="@color/moments_text_secondary" />
+
+    <TextView
+        android:id="@+id/moment_name_error"
+        style="@style/MomentsBodySmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/moments_name_too_long"
+        android:textColor="@color/moments_error"
+        android:visibility="gone" />
+</LinearLayout>

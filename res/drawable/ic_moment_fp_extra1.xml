@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ SPDX-FileCopyrightText: 2025. FairPhone B.V.
+ SPDX-License-Identifier: EUPL-1.2
+ From fairphone/fairphone-moments (ui/icons/mode/Extra1.kt).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="@android:color/white"
+        android:fillType="evenOdd"
+        android:pathData="M12.266,19.999C-10.943,37.096,2.913,50.952,20.004,27.739C37.084,50.952,50.94,37.096,27.742,19.999C50.951,2.905,37.095,-10.954,20.004,12.262C2.902,-10.946,-10.954,2.905,12.266,19.999ZM20,25C22.761,25,25,22.761,25,20C25,17.239,22.761,15,20,15C17.239,15,15,17.239,15,20C15,22.761,17.239,25,20,25Z" />
+</vector>

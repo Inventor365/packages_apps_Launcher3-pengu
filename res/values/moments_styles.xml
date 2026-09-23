@@ -10,13 +10,95 @@
         <item name="android:windowLightNavigationBar">@bool/moments_light_bars</item>
         <item name="android:textColorPrimary">@color/moments_text</item>
         <item name="android:textColorSecondary">@color/moments_text_secondary</item>
+        <item name="android:colorAccent">@color/moments_text</item>
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+    </style>
+
+    <!-- Fairphone Moments typography. -->
+    <style name="MomentsTime">
+        <item name="android:fontFamily">@font/moments_bricolage</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textSize">44sp</item>
+        <item name="android:textColor">@color/moments_text</item>
+    </style>
+
+    <style name="MomentsDate">
+        <item name="android:fontFamily">@font/moments_bricolage</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">@color/moments_text</item>
     </style>
 
     <style name="MomentsTitle">
-        <item name="android:textColor">@color/moments_text</item>
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">500</item>
         <item name="android:textSize">28sp</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">-0.02</item>
+        <item name="android:lineSpacingMultiplier">1.2</item>
+        <item name="android:textColor">@color/moments_text</item>
         <item name="android:gravity">center</item>
+    </style>
+
+    <style name="MomentsH5">
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:letterSpacing">-0.02</item>
+        <item name="android:textColor">@color/moments_text</item>
+    </style>
+
+    <style name="MomentsBodyMedium">
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/moments_text</item>
+    </style>
+
+    <style name="MomentsBodySmall">
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/moments_text_secondary</item>
+    </style>
+
+    <style name="MomentsButtonText">
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/moments_text</item>
+    </style>
+
+    <style name="MomentsAppButton">
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">@color/moments_text</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="MomentsSwitchLabel">
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">600</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:lineHeight">18sp</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:gravity">end</item>
+    </style>
+
+    <style name="MomentsSection" parent="MomentsBodySmall">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:paddingTop">24dp</item>
+        <item name="android:paddingBottom">16dp</item>
+    </style>
+
+    <style name="MomentsGroup">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/moments_group_bg</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:clipToOutline">true</item>
     </style>
 
     <style name="MomentsRow">
@@ -24,29 +106,28 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:minHeight">64dp</item>
         <item name="android:background">?android:attr/selectableItemBackground</item>
-        <item name="android:paddingHorizontal">24dp</item>
+        <item name="android:paddingHorizontal">16dp</item>
         <item name="android:paddingVertical">12dp</item>
         <item name="android:orientation">vertical</item>
         <item name="android:gravity">center_vertical</item>
     </style>
 
-    <style name="MomentsRowTitle">
-        <item name="android:textColor">@color/moments_text</item>
-        <item name="android:textSize">17sp</item>
-    </style>
+    <style name="MomentsRowTitle" parent="MomentsBodyMedium" />
 
-    <style name="MomentsRowSummary">
-        <item name="android:textColor">@color/moments_text_secondary</item>
-        <item name="android:textSize">14sp</item>
-    </style>
+    <style name="MomentsRowSummary" parent="MomentsBodySmall" />
 
     <style name="MomentsSwitch">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:minHeight">64dp</item>
-        <item name="android:paddingHorizontal">24dp</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">500</item>
         <item name="android:textColor">@color/moments_text</item>
-        <item name="android:textSize">17sp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:thumbTint">@color/moments_switch_thumb</item>
+        <item name="android:trackTint">@color/moments_switch_track</item>
     </style>
 
     <style name="MomentsButton">
@@ -56,6 +137,7 @@
         <item name="android:gravity">center</item>
         <item name="android:textColor">@color/moments_button_text</item>
         <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">@font/moments_dm_sans</item>
+        <item name="android:textFontWeight">500</item>
     </style>
 </resources>

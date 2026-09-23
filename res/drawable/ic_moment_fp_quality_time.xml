@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ SPDX-FileCopyrightText: 2025. FairPhone B.V.
+ SPDX-License-Identifier: EUPL-1.2
+ From fairphone/fairphone-moments (ui/icons/mode/QualityTime.kt).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="@android:color/white"
+        android:fillType="evenOdd"
+        android:pathData="M19.999,36.742C21.356,38.371,22.713,40,25.428,40C31.677,40,33.482,31.689,33.484,25.431C33.484,22.717,35.113,21.36,36.742,20.002C38.371,18.645,40,17.288,40,14.573C40,8.323,31.677,6.515,25.43,6.515C22.716,6.515,21.358,4.887,20.001,3.258C18.644,1.629,17.287,0,14.572,0C8.321,0,6.514,8.323,6.514,14.569C6.514,17.283,4.885,18.64,3.257,19.998C1.628,21.355,0,22.712,0,25.427C0,31.677,8.321,33.485,14.57,33.485C17.284,33.485,18.642,35.113,19.999,36.742ZM20,27.4C24.087,27.4,27.4,24.087,27.4,20C27.4,15.913,24.087,12.6,20,12.6C15.913,12.6,12.6,15.913,12.6,20C12.6,24.087,15.913,27.4,20,27.4Z" />
+</vector>

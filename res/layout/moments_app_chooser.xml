@@ -6,16 +6,13 @@
     android:paddingHorizontal="20dp"
     android:paddingBottom="16dp">
 
-    <ImageView
-        android:id="@+id/moments_back"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+    <include
+        layout="@layout/moments_back"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="0dp"
         android:layout_marginTop="12dp"
-        android:background="@drawable/moments_circle_bg"
-        android:contentDescription="@string/moments_back"
-        android:padding="12dp"
-        android:src="@drawable/ic_moment_back"
-        android:tint="@color/moments_text" />
+        android:layout_marginBottom="8dp" />
 
     <TextView
         android:id="@+id/moments_choose_title"
@@ -23,19 +20,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="@string/moments_choose_title"
-        android:textSize="22sp" />
+        android:text="@string/moments_choose_title" />
 
     <TextView
         android:id="@+id/moments_choose_summary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        style="@style/MomentsBodySmall"
         android:gravity="center"
         android:paddingHorizontal="16dp"
-        android:text="@string/moments_choose_summary"
-        android:textColor="@color/moments_text_secondary"
-        android:textSize="14sp" />
+        android:text="@string/moments_choose_summary" />
 
     <EditText
         android:id="@+id/moments_search"
@@ -68,6 +63,14 @@
             android:orientation="horizontal"
             android:padding="8dp" />
     </HorizontalScrollView>
+
+    <TextView
+        android:id="@+id/moments_count"
+        style="@style/MomentsBodySmall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/moments_app_list"

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/moments_group_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp">
+
+    <ImageView
+        android:id="@+id/app_icon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/app_label"
+        style="@style/MomentsBodyMedium"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:ellipsize="end"
+        android:maxLines="1" />
+
+    <ImageView
+        android:id="@+id/app_work_badge"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/moments_work_badge_bg"
+        android:contentDescription="@string/moments_work_app"
+        android:padding="3dp"
+        android:src="@drawable/ic_moment_work"
+        android:visibility="gone" />
+
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <ImageView
+        android:id="@+id/app_drag"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/moments_drag"
+        android:padding="8dp"
+        android:src="@drawable/ic_moment_drag"
+        android:tint="@color/moments_text_secondary" />
+</LinearLayout>

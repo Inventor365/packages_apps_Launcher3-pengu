@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="moments_bg_top">#FFE4E6EA</color>
-    <color name="moments_bg_bottom">#FFF2C99A</color>
-    <color name="moments_text">#FF1B1B1D</color>
-    <color name="moments_text_secondary">#FF5F6064</color>
-    <color name="moments_card">#8CFFFFFF</color>
-    <color name="moments_card_stroke">#14000000</color>
+    <color name="moments_bg">#FFCED3DC</color>
+    <color name="moments_text">#FF141414</color>
+    <color name="moments_text_secondary">#FF505050</color>
+    <color name="moments_card">#4DFFFFFF</color>
+    <color name="moments_card_stroke">#FFEAECF1</color>
     <color name="moments_card_active">#FFFFFFFF</color>
-    <color name="moments_card_active_text">#FF1B1B1D</color>
-    <color name="moments_button">#FF111111</color>
+    <color name="moments_card_active_text">#FF141414</color>
+    <color name="moments_button">#FF141414</color>
     <color name="moments_button_text">#FFFFFFFF</color>
-    <color name="moments_accent">#FFD6F25B</color>
+    <color name="moments_tooltip">#FFFFFFFF</color>
+    <color name="moments_accent">#FFD8FF4F</color>
+    <color name="moments_lime">#FFD8FF4F</color>
+    <color name="moments_error">#FFD84D4D</color>
+    <color name="moments_work_badge">#FF4285F4</color>
+    <color name="moments_preview_border">#99999999</color>
 </resources>

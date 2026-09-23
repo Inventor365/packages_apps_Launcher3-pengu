@@ -77,6 +77,7 @@ public final class MomentsController {
         if (active != null) {
             setRuleActive(context, active, false);
         }
+        MomentsDeviceEffects.apply(context, null);
         lockSystemUi(context, false);
         store.setActive(null, null, 0);
         MomentsScheduler.armTimer(context, 0);
@@ -136,6 +137,7 @@ public final class MomentsController {
                 leave(app);
             } else if (active == null) {
                 undoRestrictions(app);
+                MomentsDeviceEffects.apply(app, null);
                 lockSystemUi(app, false);
             } else {
                 setRuleActive(app, active, true);
@@ -157,6 +159,7 @@ public final class MomentsController {
             Log.w(TAG, "Could not set up the mode for " + moment.name);
         }
         setRuleActive(context, moment, true);
+        MomentsDeviceEffects.apply(context, moment);
         if (moment.appNotifications) {
             letAppsThrough(context, moment);
         }
@@ -182,7 +185,7 @@ public final class MomentsController {
                         : ZenPolicy.CONVERSATION_SENDERS_IMPORTANT;
         ZenPolicy policy = new ZenPolicy.Builder()
                 .allowCalls(moment.calls)
-                .allowRepeatCallers(moment.calls != ZenPolicy.PEOPLE_TYPE_NONE)
+                .allowRepeatCallers(moment.repeatCallers)
                 .allowMessages(moment.messages)
                 .allowConversations(conversations)
                 .allowAlarms(true)
@@ -202,6 +205,8 @@ public final class MomentsController {
                 .setDeviceEffects(new ZenDeviceEffects.Builder()
                         .setShouldDisplayGrayscale(moment.grayscale)
                         .setShouldDimWallpaper(moment.dimWallpaper)
+                        .setShouldUseNightMode(moment.uiMode == Moment.UI_DARK)
+                        .setShouldSuppressAmbientDisplay(moment.aodOff)
                         .build())
                 .setIconResId(MomentsUi.iconRes(moment.icon))
                 // Leaving goes through the launcher pill so blocked apps come back with it.
@@ -367,8 +372,9 @@ public final class MomentsController {
     private static Set<String> packagesOf(List<String> apps) {
         Set<String> packages = new HashSet<>();
         for (String app : apps) {
-            ComponentName component = ComponentName.unflattenFromString(app);
-            if (component != null) {
+            ComponentName component = MomentsUi.component(app);
+            // Only this profile's apps can be suspended or let through.
+            if (component != null && !MomentsUi.isWork(app)) {
                 packages.add(component.getPackageName());
             }
         }

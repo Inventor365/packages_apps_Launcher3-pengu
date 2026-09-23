@@ -5,11 +5,14 @@ import static com.android.launcher3.LauncherState.NORMAL;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.LauncherActivityInfo;
+import android.content.pm.LauncherApps;
+import android.content.res.ColorStateList;
 import android.graphics.Rect;
+import android.graphics.drawable.RippleDrawable;
+import android.os.Process;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -31,9 +34,13 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
     private final Runnable mOnChanged = this::update;
     private final Runnable mTick = this::updateRemaining;
     private Launcher mLauncher;
+    private MomentsBackgroundView mBackground;
+    private View mContent;
+    private View mPill;
     private ImageView mPillIcon;
     private TextView mPillName;
     private LinearLayout mApps;
+    private View mTooltip;
 
     public MomentsHomeView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -42,12 +49,29 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
+        mBackground = findViewById(R.id.moments_background);
+        mContent = findViewById(R.id.moments_content);
+        mPill = findViewById(R.id.moments_pill);
         mPillIcon = findViewById(R.id.moments_pill_icon);
         mPillName = findViewById(R.id.moments_pill_name);
         mApps = findViewById(R.id.moments_apps);
-        findViewById(R.id.moments_pill).setOnClickListener(v -> getContext().startActivity(
-                new Intent(getContext(), MomentsActivity.class)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
+        mTooltip = findViewById(R.id.moments_tooltip);
+        mPill.setOnClickListener(v -> {
+            finishOnboardingStep();
+            getContext().startActivity(new Intent(getContext(), MomentsActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        });
+        findViewById(R.id.moments_tooltip_close).setOnClickListener(
+                v -> finishOnboardingStep());
+    }
+
+    private void finishOnboardingStep() {
+        MomentsStore store = MomentsStore.get(getContext());
+        int step = store.getOnboardingStep();
+        if (step < 2 && mTooltip.getVisibility() == VISIBLE) {
+            store.setOnboardingStep(step + 1);
+            mTooltip.setVisibility(GONE);
+        }
     }
 
     public void setup(Launcher launcher) {
@@ -71,7 +95,7 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
 
     @Override
     public void setInsets(Rect insets) {
-        setPadding(insets.left, insets.top, insets.right, insets.bottom);
+        mContent.setPadding(insets.left, insets.top, insets.right, insets.bottom);
     }
 
     private void update() {
@@ -86,9 +110,37 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
         if (!show) {
             return;
         }
-        setBackground(MomentsUi.background(getContext(), moment.palette));
+        Context themed = MomentsUi.themed(getContext(), moment.uiMode);
+        boolean night = MomentsUi.isNight(getContext(), moment.uiMode);
+        int text = themed.getColor(R.color.moments_text);
+        setBackgroundColor(themed.getColor(R.color.moments_bg));
+        mBackground.setColors(moment.colors, night);
+        ((TextView) findViewById(R.id.moments_time)).setTextColor(text);
+        ((TextView) findViewById(R.id.moments_date)).setTextColor(text);
+
+        float density = getResources().getDisplayMetrics().density;
+        int button = MomentsUi.isStatic(moment.colors) && night ? 0x2B979797
+                : themed.getColor(R.color.moments_card);
+        mPill.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33808080),
+                MomentsDrawables.gradientBorder(button,
+                        button | 0xFF000000, (button & 0xFFFFFF) | 0x1A000000, 12 * density,
+                        density), null));
         mPillIcon.setImageResource(MomentsUi.iconRes(moment.icon));
+        mPillIcon.setImageTintList(ColorStateList.valueOf(text));
+        mPillName.setTextColor(text);
         updateRemaining();
+
+        int step = MomentsStore.get(getContext()).getOnboardingStep();
+        mTooltip.setVisibility(step < 2 ? VISIBLE : GONE);
+        mTooltip.setBackground(MomentsDrawables.tooltip(themed.getColor(R.color.moments_tooltip),
+                12 * density, 8 * density));
+        TextView tooltipText = findViewById(R.id.moments_tooltip_text);
+        tooltipText.setText(step == 0 ? R.string.moments_onboarding_customize
+                : R.string.moments_onboarding_switch);
+        tooltipText.setTextColor(text);
+        ((ImageView) findViewById(R.id.moments_tooltip_close)).setImageTintList(
+                ColorStateList.valueOf(text));
+
         mApps.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(getContext());
         for (String app : moment.apps) {
@@ -96,11 +148,14 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
             if (info == null) {
                 continue;
             }
-            TextView label = (TextView) inflater.inflate(R.layout.moments_home_app, mApps, false);
+            View row = inflater.inflate(R.layout.moments_home_app, mApps, false);
+            TextView label = row.findViewById(R.id.app_label);
             label.setText(info.getLabel());
-            label.setOnClickListener(v -> launch(v, info));
-            mApps.addView(label, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            label.setTextColor(text);
+            row.findViewById(R.id.app_work_badge).setVisibility(
+                    MomentsUi.isWork(app) ? VISIBLE : GONE);
+            row.setOnClickListener(v -> launch(v, info));
+            mApps.addView(row);
         }
     }
 
@@ -125,6 +180,12 @@ public class MomentsHomeView extends FrameLayout implements Insettable {
     }
 
     private void launch(View view, LauncherActivityInfo info) {
+        finishOnboardingStep();
+        if (!info.getUser().equals(Process.myUserHandle())) {
+            getContext().getSystemService(LauncherApps.class).startMainActivity(
+                    info.getComponentName(), info.getUser(), null, null);
+            return;
+        }
         Intent intent = new Intent(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER)
                 .setComponent(info.getComponentName())

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <include layout="@layout/moments_back" />
+
+    <TextView
+        style="@style/MomentsTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:text="@string/moments_visible_apps" />
+
+    <TextView
+        style="@style/MomentsBodySmall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:paddingHorizontal="36dp"
+        android:text="@string/moments_visible_apps_order" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/moments_order_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginVertical="20dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/moments_change_apps"
+        style="@style/MomentsButton"
+        android:layout_width="match_parent"
+        android:layout_marginHorizontal="20dp"
+        android:text="@string/moments_change_apps" />
+</LinearLayout>

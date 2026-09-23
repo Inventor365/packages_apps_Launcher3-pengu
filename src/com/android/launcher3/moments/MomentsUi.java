@@ -2,12 +2,13 @@ package com.android.launcher3.moments;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.LauncherActivityInfo;
 import android.content.pm.LauncherApps;
-import android.content.Intent;
 import android.content.res.Configuration;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Process;
+import android.os.UserHandle;
+import android.os.UserManager;
 import android.service.notification.ZenPolicy;
 
 import com.android.launcher3.R;
@@ -16,41 +17,72 @@ final class MomentsUi {
 
     private MomentsUi() {}
 
-    static int iconRes(int icon) {
-        switch (icon) {
-            case Moment.ICON_FOCUS:
-                return R.drawable.ic_moment_focus;
-            case Moment.ICON_HEART:
-                return R.drawable.ic_moment_heart;
-            case Moment.ICON_JOURNEY:
-                return R.drawable.ic_moment_journey;
-            case Moment.ICON_MOON:
-                return R.drawable.ic_moment_moon;
-            default:
-                return R.drawable.ic_moment_sparkle;
-        }
-    }
-
-    // {night top, night bottom, day top, day bottom} per palette.
-    private static final int[][] PALETTES = {
-            {0xFF000000, 0xFF7A5A33, 0xFFE4E6EA, 0xFFF2C99A},
-            {0xFF000000, 0xFF1F4E6B, 0xFFE3E8EE, 0xFFA9CBE3},
-            {0xFF000000, 0xFF2E5A3C, 0xFFE5EAE3, 0xFFB5D6B0},
-            {0xFF000000, 0xFF6B2E45, 0xFFEEE4E8, 0xFFE8B4C4},
-            {0xFF000000, 0xFF4B3A73, 0xFFE8E4EF, 0xFFC6B8E6},
-            {0xFF000000, 0xFF3A3A3A, 0xFFEDEDED, 0xFFC8C8C8},
+    private static final int[] ICONS = {
+            R.drawable.ic_moment_sparkle,
+            R.drawable.ic_moment_fp_deep_focus,
+            R.drawable.ic_moment_fp_quality_time,
+            R.drawable.ic_moment_fp_journey,
+            R.drawable.ic_moment_fp_recharge,
+            R.drawable.ic_moment_fp_extra1,
+            R.drawable.ic_moment_fp_extra2,
+            R.drawable.ic_moment_fp_extra3,
+            R.drawable.ic_moment_fp_extra4,
+            R.drawable.ic_moment_fp_extra5,
+            R.drawable.ic_moment_fp_extra6,
     };
 
-    static GradientDrawable background(Context context, int palette) {
-        int[] colors = PALETTES[Math.floorMod(palette, PALETTES.length)];
-        boolean night = (context.getResources().getConfiguration().uiMode
-                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        return new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                night ? new int[]{colors[0], colors[1]} : new int[]{colors[2], colors[3]});
+    static int iconRes(int icon) {
+        return ICONS[icon >= 0 && icon < ICONS.length ? icon : Moment.ICON_SPARKLE];
     }
 
-    static int swatch(int palette) {
-        return PALETTES[Math.floorMod(palette, PALETTES.length)][1];
+    // Fairphone's LauncherColors as {right, left}, in Moment.COLORS_* order.
+    private static final int[][] COLORS = {
+            {0xB2FFBA63, 0xB2C3D1D0},
+            {0xB2FACAC9, 0xB2EBD1F8},
+            {0xB282C9F1, 0xB2CBCEEA},
+            {0xB2F7CAC9, 0xB2E5D1F8},
+            {0xB2D8FF4F, 0xB2BBD9D6},
+            {0xB2C0AFFF, 0xB2B0CCD8},
+            {0xFF0B1410, 0xFF14241E},
+            {0xFF9DA3AA, 0xFFE0DEDC},
+            {0xFF060505, 0xFF191715},
+            {0xFF192132, 0xFF33427C},
+    };
+
+    static int rightColor(int colors) {
+        return COLORS[Math.floorMod(colors, COLORS.length)][0];
+    }
+
+    static int leftColor(int colors) {
+        return COLORS[Math.floorMod(colors, COLORS.length)][1];
+    }
+
+    /** Green, White, Black and Blue are flat gradients rather than blobs. */
+    static boolean isStatic(int colors) {
+        return Math.floorMod(colors, COLORS.length) >= 6;
+    }
+
+    static boolean isNight(Context context, int uiMode) {
+        if (uiMode == Moment.UI_DARK) {
+            return true;
+        }
+        if (uiMode == Moment.UI_LIGHT) {
+            return false;
+        }
+        return (context.getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    /** A context whose resources follow the Moment's light/dark choice. */
+    static Context themed(Context context, int uiMode) {
+        if (uiMode == Moment.UI_SYSTEM) {
+            return context;
+        }
+        Configuration config = new Configuration(context.getResources().getConfiguration());
+        config.uiMode = (config.uiMode & ~Configuration.UI_MODE_NIGHT_MASK)
+                | (uiMode == Moment.UI_DARK ? Configuration.UI_MODE_NIGHT_YES
+                        : Configuration.UI_MODE_NIGHT_NO);
+        return context.createConfigurationContext(config);
     }
 
     static final int[] PEOPLE_TYPES = {ZenPolicy.PEOPLE_TYPE_ANYONE,
@@ -70,15 +102,59 @@ final class MomentsUi {
         }
     }
 
+    static final int[] SOUND_TITLES = {R.string.moments_sound_device,
+            R.string.moments_sound_loud, R.string.moments_sound_vibrate,
+            R.string.moments_sound_silent};
+    static final int[] SOUND_SUMMARIES = {R.string.moments_sound_device_summary,
+            R.string.moments_sound_loud_summary, R.string.moments_sound_vibrate_summary,
+            R.string.moments_sound_silent_summary};
+    static final int[] UI_MODE_TITLES = {R.string.moments_ui_system,
+            R.string.moments_ui_light, R.string.moments_ui_dark};
+
+    // App entries are flattened ComponentNames, with "#<user serial>" for other profiles.
+
+    static String key(Context context, LauncherActivityInfo info) {
+        String component = info.getComponentName().flattenToString();
+        if (info.getUser().equals(Process.myUserHandle())) {
+            return component;
+        }
+        return component + "#" + context.getSystemService(UserManager.class)
+                .getSerialNumberForUser(info.getUser());
+    }
+
+    static ComponentName component(String app) {
+        int split = app.indexOf('#');
+        return ComponentName.unflattenFromString(split < 0 ? app : app.substring(0, split));
+    }
+
+    /** Null when that profile is gone. */
+    static UserHandle user(Context context, String app) {
+        int split = app.indexOf('#');
+        if (split < 0) {
+            return Process.myUserHandle();
+        }
+        try {
+            return context.getSystemService(UserManager.class).getUserForSerialNumber(
+                    Long.parseLong(app.substring(split + 1)));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    static boolean isWork(String app) {
+        return app.indexOf('#') >= 0;
+    }
+
     /** Null when the app is gone. */
     static LauncherActivityInfo resolve(Context context, String app) {
-        ComponentName component = ComponentName.unflattenFromString(app);
-        if (component == null) {
+        ComponentName component = component(app);
+        UserHandle user = user(context, app);
+        if (component == null || user == null) {
             return null;
         }
         LauncherApps launcherApps = context.getSystemService(LauncherApps.class);
         return launcherApps.resolveActivity(
                 new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                        .setComponent(component), Process.myUserHandle());
+                        .setComponent(component), user);
     }
 }

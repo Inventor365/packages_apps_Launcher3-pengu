@@ -4,16 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <ImageView
-        android:id="@+id/moments_back"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_margin="12dp"
-        android:background="@drawable/moments_circle_bg"
-        android:contentDescription="@string/moments_back"
-        android:padding="12dp"
-        android:src="@drawable/ic_moment_back"
-        android:tint="@color/moments_text" />
+    <include layout="@layout/moments_back" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -21,183 +12,58 @@
         android:layout_weight="1">
 
         <LinearLayout
+            android:id="@+id/moment_settings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
+            android:paddingHorizontal="20dp"
             android:paddingBottom="24dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="24dp"
-                android:layout_marginVertical="16dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/moment_icon"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:background="@drawable/moments_circle_bg"
-                    android:contentDescription="@string/moments_change_icon"
-                    android:padding="16dp"
-                    android:tint="@color/moments_text" />
-
-                <EditText
-                    android:id="@+id/moment_name"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_marginStart="16dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/moments_field_bg"
-                    android:hint="@string/moments_name_hint"
-                    android:importantForAutofill="no"
-                    android:inputType="textCapWords"
-                    android:maxLength="24"
-                    android:paddingHorizontal="16dp"
-                    android:textColor="@color/moments_text"
-                    android:textSize="20sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/moment_apps"
-                style="@style/MomentsRow">
-
-                <TextView
-                    style="@style/MomentsRowTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/moments_apps" />
-
-                <TextView
-                    android:id="@+id/moment_apps_summary"
-                    style="@style/MomentsRowSummary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/moment_calls"
-                style="@style/MomentsRow">
-
-                <TextView
-                    style="@style/MomentsRowTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/moments_calls" />
-
-                <TextView
-                    android:id="@+id/moment_calls_summary"
-                    style="@style/MomentsRowSummary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/moment_messages"
-                style="@style/MomentsRow">
-
-                <TextView
-                    style="@style/MomentsRowTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/moments_messages" />
-
-                <TextView
-                    android:id="@+id/moment_messages_summary"
-                    style="@style/MomentsRowSummary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/moment_background"
-                style="@style/MomentsRow">
-
-                <TextView
-                    style="@style/MomentsRowTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/moments_background" />
-
-                <TextView
-                    android:id="@+id/moment_background_summary"
-                    style="@style/MomentsRowSummary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/moment_schedule"
-                style="@style/MomentsRow">
-
-                <TextView
-                    style="@style/MomentsRowTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/moments_schedule" />
-
-                <TextView
-                    android:id="@+id/moment_schedule_summary"
-                    style="@style/MomentsRowSummary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <Switch
-                android:id="@+id/moment_car"
-                style="@style/MomentsSwitch"
-                android:text="@string/moments_car" />
-
-            <LinearLayout
-                style="@style/MomentsRow">
-
-                <TextView
-                    style="@style/MomentsRowTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/moments_colour" />
-
-                <LinearLayout
-                    android:id="@+id/moment_palettes"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:orientation="horizontal" />
-            </LinearLayout>
-
-            <Switch
-                android:id="@+id/moment_app_notifications"
-                style="@style/MomentsSwitch"
-                android:text="@string/moments_app_notifications" />
-
-            <Switch
-                android:id="@+id/moment_block"
-                style="@style/MomentsSwitch"
-                android:text="@string/moments_block" />
-
-            <Switch
-                android:id="@+id/moment_grayscale"
-                style="@style/MomentsSwitch"
-                android:text="@string/moments_grayscale" />
-
-            <Switch
-                android:id="@+id/moment_dim"
-                style="@style/MomentsSwitch"
-                android:text="@string/moments_dim_wallpaper" />
+            <ImageView
+                android:id="@+id/moment_icon"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/moments_icon_button_bg"
+                android:contentDescription="@string/moments_change_icon"
+                android:padding="18dp"
+                android:tint="@color/moments_text" />
 
             <TextView
-                android:id="@+id/moment_delete"
+                android:id="@+id/moment_name"
+                style="@style/MomentsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="12dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:contentDescription="@string/moments_rename"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp" />
+
+            <TextView
+                android:id="@+id/moment_switch_to"
+                style="@style/MomentsButton"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="24dp"
-                android:background="?android:attr/selectableItemBackground"
+                android:layout_marginTop="12dp"
+                android:paddingHorizontal="24dp"
+                android:text="@string/moments_switch_to" />
+
+            <TextView
+                android:id="@+id/moment_active"
+                style="@style/MomentsBodySmall"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="12dp"
                 android:gravity="center"
-                android:paddingHorizontal="16dp"
-                android:text="@string/moments_delete"
-                android:textColor="@color/moments_text_secondary"
-                android:textSize="15sp" />
+                android:text="@string/moments_active" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="24dp" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

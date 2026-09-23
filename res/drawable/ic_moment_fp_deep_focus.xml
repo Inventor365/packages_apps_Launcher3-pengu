@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ SPDX-FileCopyrightText: 2025. FairPhone B.V.
+ SPDX-License-Identifier: EUPL-1.2
+ From fairphone/fairphone-moments (ui/icons/mode/DeepFocus.kt).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="39"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M24.052,39C19.5,39,19.5,28.074,14.948,28.074C9.708,28.074,0,29.29,0,24.051C0,19.499,10.925,19.499,10.925,14.947C10.925,9.71,9.708,0,14.948,0C19.5,0,19.5,10.926,24.052,10.926C29.292,10.926,39,9.71,39,14.947C39,19.499,28.073,19.499,28.073,24.051C28.073,29.29,29.292,39,24.052,39Z" />
+</vector>

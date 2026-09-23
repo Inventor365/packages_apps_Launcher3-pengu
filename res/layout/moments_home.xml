@@ -3,62 +3,96 @@
     android:id="@+id/moments_home"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/moments_bg"
+    android:background="@android:color/black"
     android:clickable="true"
     android:focusable="true"
     android:visibility="gone">
 
+    <com.android.launcher3.moments.MomentsBackgroundView
+        android:id="@+id/moments_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <LinearLayout
+        android:id="@+id/moments_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center_horizontal"
-        android:orientation="vertical"
-        android:paddingHorizontal="24dp"
-        android:paddingTop="48dp"
-        android:paddingBottom="56dp">
+        android:orientation="vertical">
 
         <TextClock
+            android:id="@+id/moments_time"
+            style="@style/MomentsTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
+            android:layout_marginTop="40dp"
             android:format12Hour="h:mm"
-            android:format24Hour="HH:mm"
-            android:textColor="@color/moments_text"
-            android:textSize="56sp" />
+            android:format24Hour="HH:mm" />
 
         <TextClock
+            android:id="@+id/moments_date"
+            style="@style/MomentsDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="12dp"
             android:format12Hour="EEE, d MMM"
-            android:format24Hour="EEE, d MMM"
-            android:textColor="@color/moments_text"
-            android:textSize="16sp" />
+            android:format24Hour="EEE, d MMM" />
 
         <LinearLayout
             android:id="@+id/moments_pill"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/moments_pill_bg"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
             android:gravity="center_vertical"
+            android:minHeight="48dp"
             android:orientation="horizontal"
-            android:paddingHorizontal="14dp">
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp">
 
             <ImageView
                 android:id="@+id/moments_pill_icon"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:importantForAccessibility="no"
-                android:tint="@color/moments_text" />
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:importantForAccessibility="no" />
 
             <TextView
                 android:id="@+id/moments_pill_name"
+                style="@style/MomentsButtonText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:textColor="@color/moments_text"
-                android:textSize="14sp" />
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/moments_tooltip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="55dp"
+            android:layout_marginTop="20dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingVertical="8dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/moments_tooltip_text"
+                style="@style/MomentsBodySmall"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="4"
+                android:gravity="center" />
+
+            <ImageView
+                android:id="@+id/moments_tooltip_close"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_weight="0"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/moments_close"
+                android:padding="8dp"
+                android:src="@drawable/ic_moment_close" />
         </LinearLayout>
 
         <Space
@@ -68,9 +102,11 @@
 
         <LinearLayout
             android:id="@+id/moments_apps"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
             android:gravity="center_horizontal"
-            android:orientation="vertical" />
+            android:orientation="vertical"
+            android:padding="24dp" />
     </LinearLayout>
 </com.android.launcher3.moments.MomentsHomeView>

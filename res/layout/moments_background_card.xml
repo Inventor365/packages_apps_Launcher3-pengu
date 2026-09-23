@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="218dp"
+    android:layout_height="446dp"
+    android:layout_marginHorizontal="12dp"
+    android:background="@drawable/moments_preview_bg"
+    android:clipToOutline="true"
+    android:foreground="@drawable/moments_preview_border">
+
+    <com.android.launcher3.moments.MomentsBackgroundView
+        android:id="@+id/preview_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="48dp">
+
+        <TextClock
+            android:id="@+id/preview_time"
+            style="@style/MomentsTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:textSize="24sp" />
+
+        <TextClock
+            android:id="@+id/preview_date"
+            style="@style/MomentsDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:format12Hour="EEE, d MMM"
+            android:format24Hour="EEE, d MMM"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:id="@+id/preview_pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="9dp"
+            android:paddingVertical="7dp">
+
+            <ImageView
+                android:id="@+id/preview_icon"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:importantForAccessibility="no" />
+
+            <TextView
+                android:id="@+id/preview_name"
+                style="@style/MomentsButtonText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

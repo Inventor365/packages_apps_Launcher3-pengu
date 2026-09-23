@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/MomentsRow"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/setting_title"
+            style="@style/MomentsRowTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/setting_summary"
+            style="@style/MomentsRowSummary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+    <Switch
+        android:id="@+id/setting_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:thumbTint="@color/moments_switch_thumb"
+        android:trackTint="@color/moments_switch_track"
+        android:visibility="gone" />
+</LinearLayout>

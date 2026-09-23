@@ -7,48 +7,44 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="24dp"
+            android:paddingHorizontal="20dp"
             android:paddingBottom="32dp">
 
             <TextView
                 style="@style/MomentsTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="72dp"
-                android:layout_marginBottom="48dp"
+                android:layout_marginTop="80dp"
+                android:layout_marginBottom="40dp"
                 android:paddingHorizontal="32dp"
                 android:text="@string/moments_picker_title" />
 
             <LinearLayout
                 android:id="@+id/moments_stats"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                style="@style/MomentsGroup"
                 android:layout_marginBottom="20dp"
-                android:background="@drawable/moments_field_bg"
-                android:orientation="vertical"
                 android:padding="16dp"
                 android:visibility="gone">
 
                 <TextView
                     android:id="@+id/moments_stats_time"
+                    style="@style/MomentsBodyMedium"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/moments_text"
-                    android:textSize="16sp" />
+                    android:layout_height="wrap_content" />
 
                 <TextView
                     android:id="@+id/moments_stats_unlocks"
+                    style="@style/MomentsBodySmall"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/moments_text_secondary"
-                    android:textSize="14sp" />
+                    android:layout_marginTop="4dp" />
             </LinearLayout>
 
             <LinearLayout
@@ -69,23 +65,38 @@
                 android:padding="8dp">
 
                 <ImageView
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:background="@drawable/moments_circle_bg"
                     android:importantForAccessibility="no"
-                    android:padding="16dp"
+                    android:padding="12dp"
                     android:src="@drawable/ic_moment_add"
                     android:tint="@color/moments_text" />
 
                 <TextView
+                    style="@style/MomentsBodySmall"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="@string/moments_add"
                     android:textColor="@color/moments_text"
-                    android:textSize="15sp" />
+                    android:textFontWeight="500"
+                    android:textSize="12sp" />
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/moments_max"
+                style="@style/MomentsBodySmall"
+                android:layout_width="160dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="32dp"
+                android:gravity="center"
+                android:text="@string/moments_max_reached"
+                android:textColor="@color/moments_text"
+                android:textSize="10sp"
+                android:textStyle="italic"
+                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 
@@ -93,7 +104,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="24dp"
+        android:paddingHorizontal="20dp"
         android:paddingBottom="16dp">
 
         <com.android.launcher3.moments.HoldToExitButton
@@ -104,6 +115,7 @@
 
         <TextView
             android:id="@+id/moments_add_tile"
+            style="@style/MomentsBodySmall"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:layout_gravity="center_horizontal"
@@ -111,8 +123,6 @@
             android:background="?android:attr/selectableItemBackground"
             android:gravity="center"
             android:paddingHorizontal="16dp"
-            android:text="@string/moments_add_tile"
-            android:textColor="@color/moments_text_secondary"
-            android:textSize="14sp" />
+            android:text="@string/moments_add_tile" />
     </LinearLayout>
 </LinearLayout>
