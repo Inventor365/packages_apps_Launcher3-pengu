@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="outdoor_dock_bg">#F2202124</color>
+    <color name="outdoor_dock_divider">#26FFFFFF</color>
+    <color name="outdoor_dock_icon">#FFE8E8EA</color>
+</resources>

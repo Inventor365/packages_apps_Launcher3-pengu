@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/outdoor_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/outdoor_widget_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/outdoor_widget_icon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_outdoor"
+        android:tint="@color/outdoor_dock_icon" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/outdoor_widget_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/outdoor_title"
+            android:textColor="@color/outdoor_dock_icon"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/outdoor_widget_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/outdoor_dock_icon"
+            android:textSize="13sp" />
+    </LinearLayout>
+</LinearLayout>

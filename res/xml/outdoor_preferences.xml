@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="@string/outdoor_title">
+
+    <com.android.settingslib.widget.MainSwitchPreference
+        android:key="enabled"
+        android:title="@string/outdoor_use"
+        android:defaultValue="false" />
+
+    <PreferenceCategory android:key="dock">
+
+        <Preference
+            android:key="widget"
+            android:title="@string/outdoor_widget" />
+
+        <Preference
+            android:key="apps"
+            android:title="@string/outdoor_apps" />
+
+        <SwitchPreferenceCompat
+            android:key="hide_in_screenshots"
+            android:title="@string/outdoor_hide_in_screenshots"
+            android:summary="@string/outdoor_hide_in_screenshots_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:key="sound_and_display">
+
+        <SwitchPreferenceCompat
+            android:key="enhanced_call"
+            android:title="@string/outdoor_enhanced_call"
+            android:summary="@string/outdoor_enhanced_call_summary"
+            android:defaultValue="false" />
+
+        <SwitchPreferenceCompat
+            android:key="extend_timeout"
+            android:title="@string/outdoor_extend_timeout"
+            android:summary="@string/outdoor_extend_timeout_summary"
+            android:defaultValue="false" />
+
+        <SwitchPreferenceCompat
+            android:key="amplifier"
+            android:title="@string/outdoor_amplifier"
+            android:summary="@string/outdoor_amplifier_summary"
+            android:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:key="about_category">
+
+        <Preference
+            android:key="about"
+            android:title="@string/outdoor_about" />
+    </PreferenceCategory>
+
+    <com.android.settingslib.widget.FooterPreference
+        android:key="footer"
+        android:title="@string/outdoor_footer"
+        android:selectable="false" />
+</androidx.preference.PreferenceScreen>

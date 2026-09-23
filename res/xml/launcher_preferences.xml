@@ -68,6 +68,19 @@
     </Preference>
 
     <Preference
+        android:key="outdoor_mode"
+        android:title="@string/outdoor_title"
+        android:summary="@string/outdoor_summary"
+        android:icon="@drawable/ic_derp_outdoor_bg"
+        android:layout="@layout/penguin_dashboard_card"
+        app:layout="@layout/penguin_dashboard_card">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.android.launcher3"
+            android:targetClass="com.android.launcher3.outdoor.OutdoorSettings" />
+    </Preference>
+
+    <Preference
         android:key="recents"
         android:title="@string/recents_category_title"
         android:icon="@drawable/ic_derp_recent_bg"

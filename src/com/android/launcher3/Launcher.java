@@ -196,6 +196,7 @@ import com.android.launcher3.model.data.PredictedContainerInfo;
 import com.android.launcher3.model.data.WorkspaceItemInfo;
 import com.android.launcher3.moments.MomentsController;
 import com.android.launcher3.moments.MomentsHomeView;
+import com.android.launcher3.outdoor.OutdoorController;
 import com.android.launcher3.pm.PinRequestHelper;
 import com.android.launcher3.popup.PopupContainer;
 import com.android.launcher3.popup.PopupController;
@@ -1217,6 +1218,7 @@ public class Launcher extends StatefulActivity<LauncherState>
         MomentsHomeView momentsHome = findViewById(R.id.moments_home);
         momentsHome.setup(this);
         MomentsController.reconcile(this);
+        OutdoorController.apply(this);
 
         mWorkspace.setup(mDragController);
         // Until the workspace is bound, ensure that we keep the wallpaper offset locked to the

@@ -72,6 +72,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.MANAGE_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.CONTROL_INCALL_EXPERIENCE" />
+    <uses-permission android:name="android.permission.SUBSCRIBE_TO_KEYGUARD_LOCKED_STATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.READ_HOME_APP_SEARCH_DATA" />
     <uses-permission android:name="android.permission.REGISTER_STATS_PULL_ATOM"/>
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
@@ -139,6 +142,59 @@
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="com.android.launcher3.outdoor.OutdoorSettings"
+            android:label="@string/outdoor_title"
+            android:theme="@style/HomeSettings.Theme"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.android.launcher3.action.OUTDOOR_MODE_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="com.android.launcher3.outdoor.OutdoorTileService"
+            android:label="@string/outdoor_title"
+            android:icon="@drawable/ic_outdoor"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>
+
+        <service
+            android:name="com.android.launcher3.outdoor.OutdoorInCallService"
+            android:permission="android.permission.BIND_INCALL_SERVICE"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.InCallService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name="com.android.launcher3.outdoor.OutdoorWidgetProvider"
+            android:label="@string/outdoor_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/outdoor_widget_info" />
+        </receiver>
 
         <receiver
             android:name="com.android.launcher3.moments.MomentsTriggerReceiver"

@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="@color/outdoor_dock_icon">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,4h7v7H4V4zM13,4h7v7h-7V4zM4,13h7v7H4v-7zM16.5,13l0.35,1.4c0.3,0.1 0.57,0.26 0.81,0.46l1.39,-0.42 1,1.73 -1.04,1c0.03,0.16 0.04,0.32 0.04,0.48s-0.01,0.32 -0.04,0.48l1.04,1 -1,1.73 -1.39,-0.42c-0.24,0.2 -0.51,0.36 -0.81,0.46L16.5,23h-2l-0.35,-1.4c-0.3,-0.1 -0.57,-0.26 -0.81,-0.46l-1.39,0.42 -1,-1.73 1.04,-1c-0.03,-0.16 -0.04,-0.32 -0.04,-0.48s0.01,-0.32 0.04,-0.48l-1.04,-1 1,-1.73 1.39,0.42c0.24,-0.2 0.51,-0.36 0.81,-0.46L14.5,13h2zM15.5,16.5c-0.83,0 -1.5,0.67 -1.5,1.5s0.67,1.5 1.5,1.5 1.5,-0.67 1.5,-1.5 -0.67,-1.5 -1.5,-1.5z" />
+</vector>
