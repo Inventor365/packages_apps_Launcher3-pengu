@@ -33,6 +33,14 @@
         android:persistent="true" />
 
     <SwitchPreferenceCompat
+        android:key="pref_search_recent_screenshots"
+        android:title="@string/search_recent_screenshots_title"
+        android:summary="@string/search_recent_screenshots_summary"
+        android:defaultValue="true"
+        android:dependency="pref_app_library"
+        android:persistent="true" />
+
+    <SwitchPreferenceCompat
         android:key="pref_search_bar_bottom"
         android:title="@string/search_bar_bottom_title"
         android:summary="@string/search_bar_bottom_summary"
@@ -88,6 +96,13 @@
             android:key="pref_search_files"
             android:title="@string/search_files_title"
             android:summary="@string/search_files_summary"
+            android:defaultValue="true"
+            android:persistent="true" />
+
+        <SwitchPreferenceCompat
+            android:key="pref_search_photos"
+            android:title="@string/search_photos_title"
+            android:summary="@string/search_photos_summary"
             android:defaultValue="true"
             android:persistent="true" />
 

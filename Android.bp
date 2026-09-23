@@ -543,6 +543,7 @@ android_library {
         "androidx.room_room-ktx",
         // Compose dep
         "androidx.compose.runtime_runtime",
+        "tensorflowlite_java",
     ],
     manifest: "quickstep/AndroidManifest.xml",
     platform_apis: true,

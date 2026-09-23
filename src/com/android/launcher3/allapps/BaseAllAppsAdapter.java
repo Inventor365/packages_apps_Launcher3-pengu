@@ -47,12 +47,15 @@ import com.android.launcher3.allapps.search.SearchAdapterProvider;
 import com.android.launcher3.folder.FolderIcon;
 import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.model.data.FolderInfo;
+import com.android.launcher3.search.universal.FuzzyMatcher;
 import com.android.launcher3.search.universal.SearchHistory;
 import com.android.launcher3.search.universal.UniversalSearchResult;
 import com.android.launcher3.search.universal.UniversalSearchResults;
 import com.android.launcher3.popup.PopupContainerWithArrow;
 import com.android.launcher3.touch.CustomActionsListener;
 import com.android.launcher3.views.ActivityContext;
+
+import java.util.List;
 
 /**
  * Adapter for all the apps.
@@ -83,6 +86,7 @@ public abstract class BaseAllAppsAdapter
     public static final int VIEW_TYPE_SEARCH_SECTION_HEADER = 1 << 13;
     public static final int VIEW_TYPE_SEARCH_TOP_RESULT = 1 << 14;
     public static final int VIEW_TYPE_SEARCH_FILTERS = 1 << 15;
+    public static final int VIEW_TYPE_SEARCH_THUMBNAILS = 1 << 16;
     public static final int NEXT_ID = 11;
 
     // Common view type masks
@@ -134,6 +138,7 @@ public abstract class BaseAllAppsAdapter
         // Source id for a universal search section header
         public int searchSection = -1;
         public UniversalSearchResults.Filters searchFilters = null;
+        public List<UniversalSearchResult> searchThumbnails = null;
         public AdapterItem(int viewType) {
             this.viewType = viewType;
         }
@@ -147,6 +152,12 @@ public abstract class BaseAllAppsAdapter
         public static AdapterItem asSearchTopResult(UniversalSearchResult result) {
             AdapterItem item = new AdapterItem(VIEW_TYPE_SEARCH_TOP_RESULT);
             item.searchResult = result;
+            return item;
+        }
+
+        public static AdapterItem asSearchThumbnails(List<UniversalSearchResult> results) {
+            AdapterItem item = new AdapterItem(VIEW_TYPE_SEARCH_THUMBNAILS);
+            item.searchThumbnails = results;
             return item;
         }
 
@@ -238,7 +249,8 @@ public abstract class BaseAllAppsAdapter
          */
         public boolean isContentSame(AdapterItem other) {
             if (viewType == VIEW_TYPE_SEARCH_RESULT_ROW || viewType == VIEW_TYPE_SEARCH_TOP_RESULT
-                    || viewType == VIEW_TYPE_SEARCH_FILTERS) {
+                    || viewType == VIEW_TYPE_SEARCH_FILTERS
+                    || viewType == VIEW_TYPE_SEARCH_THUMBNAILS) {
                 // Titles, subtitles and live state change per query even for the same id.
                 return false;
             }
@@ -365,6 +377,9 @@ public abstract class BaseAllAppsAdapter
             case VIEW_TYPE_SEARCH_FILTERS:
                 return new ViewHolder(mLayoutInflater.inflate(
                         R.layout.search_filters, parent, false));
+            case VIEW_TYPE_SEARCH_THUMBNAILS:
+                return new ViewHolder(mLayoutInflater.inflate(
+                        R.layout.search_thumbnails, parent, false));
             case VIEW_TYPE_FOLDER: {
                 // Caddy: an auto-categorized folder rendered as a big iOS-style tile. It takes half
                 // the grid width (see GridSpanSizer) so two sit side by side, and is square: the
@@ -418,6 +433,10 @@ public abstract class BaseAllAppsAdapter
                         holder.getItemViewType() == VIEW_TYPE_PRIVATE_SPACE_APP_ICON);
                 if (holder.getItemViewType() != VIEW_TYPE_PRIVATE_SPACE_APP_ICON) {
                     AppInfo app = adapterItem.itemInfo;
+                    String query = SearchHistory.currentQuery();
+                    if (mApps.hasSearchResults() && !query.isEmpty() && app.title != null) {
+                        icon.applyLabel(FuzzyMatcher.highlight(query, app.title));
+                    }
                     icon.setOnClickListener(!mApps.hasSearchResults() ? mOnIconClickListener
                             : v -> {
                                 SearchHistory.recordLaunch(v.getContext(), SearchHistory.appKey(
@@ -466,6 +485,12 @@ public abstract class BaseAllAppsAdapter
             case VIEW_TYPE_SEARCH_FILTERS: {
                 AdapterItem item = mApps.getAdapterItems().get(position);
                 UniversalSearchResults.bindFilters(holder.itemView, item.searchFilters);
+                break;
+            }
+            case VIEW_TYPE_SEARCH_THUMBNAILS: {
+                AdapterItem item = mApps.getAdapterItems().get(position);
+                UniversalSearchResults.bindThumbnails(
+                        mActivityContext, holder.itemView, item.searchThumbnails);
                 break;
             }
             case VIEW_TYPE_EMPTY_SEARCH: {

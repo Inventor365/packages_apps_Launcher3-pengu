@@ -310,6 +310,9 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         @JvmField val SEARCH_SECTION_ORDER = backedUpItem("pref_search_section_order", "")
         @JvmField val SEARCH_MAX_PER_SECTION = backedUpItem("pref_search_max_per_section", 4)
         @JvmField val SEARCH_AUTO_KEYBOARD = backedUpItem("pref_search_auto_keyboard", false)
+        @JvmField val SEARCH_PHOTOS = backedUpItem("pref_search_photos", true)
+        @JvmField
+        val SEARCH_RECENT_SCREENSHOTS = backedUpItem("pref_search_recent_screenshots", true)
         @JvmField val FONT_SIZE = backedUpItem("pref_custom_font_size", 100)
         @JvmField val HOTSEAT_OPACITY = backedUpItem("pref_hotseat_opacity", 40)
         @JvmField val ICON_SIZE = backedUpItem("pref_custom_icon_size", 100)

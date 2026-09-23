@@ -196,6 +196,7 @@ public class SettingsAppDrawer extends CollapsingToolbarBaseActivity
         private static final int REQUEST_READ_CONTACTS = 42;
         private static final int REQUEST_READ_CALENDAR = 43;
         private static final int REQUEST_READ_MEDIA = 44;
+        private static final int REQUEST_READ_MEDIA_PHOTOS = 45;
 
         @Override
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -215,6 +216,8 @@ public class SettingsAppDrawer extends CollapsingToolbarBaseActivity
             wireContactsToggle(screen);
             wireCalendarToggle(screen);
             wireFilesToggle(screen);
+            wireMediaToggle(screen, LauncherPrefs.SEARCH_PHOTOS.getSharedPrefKey(),
+                    REQUEST_READ_MEDIA_PHOTOS);
 
             if (mHighLightKey != null
                     && !isKeyInPreferenceGroup(mHighLightKey, screen)) {
@@ -232,6 +235,22 @@ public class SettingsAppDrawer extends CollapsingToolbarBaseActivity
             if (getActivity() != null && !TextUtils.isEmpty(getPreferenceScreen().getTitle())) {
                 getActivity().setTitle(getPreferenceScreen().getTitle());
             }
+        }
+
+        private void wireMediaToggle(PreferenceScreen screen, String key, int requestCode) {
+            if (!(screen.findPreference(key) instanceof TwoStatePreference toggle)) {
+                return;
+            }
+            if (toggle.isChecked() && !MediaProvider.hasPermission(requireContext())) {
+                toggle.setChecked(false);
+            }
+            toggle.setOnPreferenceChangeListener((preference, value) -> {
+                if (!((Boolean) value) || MediaProvider.hasPermission(requireContext())) {
+                    return true;
+                }
+                requestPermissions(MediaProvider.PERMISSIONS, requestCode);
+                return false;
+            });
         }
 
         private void wireFilesToggle(PreferenceScreen screen) {
@@ -306,6 +325,8 @@ public class SettingsAppDrawer extends CollapsingToolbarBaseActivity
                 key = LauncherPrefs.SEARCH_EVENTS.getSharedPrefKey();
             } else if (requestCode == REQUEST_READ_MEDIA) {
                 key = LauncherPrefs.SEARCH_FILES.getSharedPrefKey();
+            } else if (requestCode == REQUEST_READ_MEDIA_PHOTOS) {
+                key = LauncherPrefs.SEARCH_PHOTOS.getSharedPrefKey();
             } else {
                 return;
             }
