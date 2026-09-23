@@ -28,6 +28,8 @@ import com.android.launcher3.model.BgDataModel.Callbacks
 import com.android.launcher3.model.BgDataModel.ModificationSource
 import com.android.launcher3.model.IModelWriter.ChangeLog
 import com.android.launcher3.model.data.CollectionInfo
+import com.android.launcher3.folder.FolderThumbnailManager
+import com.android.launcher3.model.data.FolderInfo
 import com.android.launcher3.model.data.ItemInfo
 import com.android.launcher3.model.data.LauncherAppWidgetInfo
 import com.android.launcher3.model.data.WorkspaceItemInfo
@@ -165,6 +167,9 @@ open class ModelWriter(
             outChangeLog.itemsRemoved.addAll(items)
             for (item in items) {
                 model.modelDbController.delete(itemIdMatch(item.id), null)
+                if (item is FolderInfo && item.hasOption(FolderInfo.FLAG_CUSTOM_THUMBNAIL)) {
+                    FolderThumbnailManager.delete(context, item.id)
+                }
             }
             bgDataModel.removeItems(context, items, modificationSource)
         }
@@ -173,6 +178,9 @@ open class ModelWriter(
             outChangeLog.itemsRemoved.add(info)
             model.modelDbController.delete(Favorites.CONTAINER + "=" + info.id, null)
             model.modelDbController.delete(Favorites._ID + "=" + info.id, null)
+            if (info is FolderInfo && info.hasOption(FolderInfo.FLAG_CUSTOM_THUMBNAIL)) {
+                FolderThumbnailManager.delete(context, info.id)
+            }
             val itemsToDelete = info.getContents() + info
             bgDataModel.removeItems(context, itemsToDelete, modificationSource)
         }

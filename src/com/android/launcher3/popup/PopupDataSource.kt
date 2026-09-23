@@ -27,6 +27,7 @@ import com.android.launcher3.AbstractFloatingViewHelper
 import com.android.launcher3.DropTargetHandler
 import com.android.launcher3.Flags.enableHomeScreenFilesCopyPaste
 import com.android.launcher3.Flags.enableHomeScreenFilesRenaming
+import com.android.launcher3.Launcher
 import com.android.launcher3.LauncherConstants
 import com.android.launcher3.LauncherSettings.Favorites.ITEM_TYPE_APPWIDGET
 import com.android.launcher3.LauncherSettings.Favorites.ITEM_TYPE_APP_GROUP
@@ -43,6 +44,8 @@ import com.android.launcher3.homescreenfiles.HomeScreenFilesRenameDialogFactory
 import com.android.launcher3.homescreenfiles.HomeScreenFilesUtils
 import com.android.launcher3.homescreenfiles.homeScreenFile
 import com.android.launcher3.logging.StatsLogManager.LauncherEvent
+import com.android.launcher3.folder.FolderThumbnailManager
+import com.android.launcher3.model.data.FolderInfo
 import com.android.launcher3.model.data.ItemInfo
 import com.android.launcher3.model.data.LauncherAppWidgetInfo
 import com.android.launcher3.model.data.WorkspaceItemInfo
@@ -73,12 +76,49 @@ object PopupDataSource {
             dropTargetHandler.prepareToUndoDelete(itemInfo)
             dropTargetHandler.onDeleteComplete(itemInfo, view)
         }
+
+    val setFolderThumbnailPopupData =
+        PopupData(
+            iconResId = R.drawable.ic_folder_thumbnail,
+            labelResId = R.string.folder_thumbnail_set,
+            category = PopupCategory.SYSTEM_SHORTCUT_FIXED,
+        ) { activityContext: ActivityContext, itemInfo: ItemInfo, _: View ->
+            if (itemInfo is FolderInfo && activityContext is Launcher) {
+                AbstractFloatingView.closeAllOpenViews(activityContext)
+                FolderThumbnailManager.startPicker(activityContext, itemInfo)
+            }
+        }
+
+    val resetFolderThumbnailPopupData =
+        PopupData(
+            iconResId = R.drawable.ic_custom_seekbar_reset,
+            labelResId = R.string.folder_thumbnail_reset,
+            category = PopupCategory.SYSTEM_SHORTCUT_FIXED,
+        ) { activityContext: ActivityContext, itemInfo: ItemInfo, _: View ->
+            if (itemInfo is FolderInfo && activityContext is Launcher) {
+                AbstractFloatingView.closeAllOpenViews(activityContext)
+                FolderThumbnailManager.reset(activityContext, itemInfo)
+            }
+        }
 }
 
 object FolderSystemShortcuts : PopupDataMapper {
 
     override fun getPopupDataByItemInfo(itemInfo: ItemInfo): List<PopupData>? =
-        if (itemInfo.itemType == ITEM_TYPE_FOLDER) listOf(PopupDataSource.removePopupData) else null
+        when {
+            itemInfo.itemType != ITEM_TYPE_FOLDER -> null
+            itemInfo is FolderInfo && itemInfo.hasOption(FolderInfo.FLAG_CUSTOM_THUMBNAIL) ->
+                listOf(
+                    PopupDataSource.setFolderThumbnailPopupData,
+                    PopupDataSource.resetFolderThumbnailPopupData,
+                    PopupDataSource.removePopupData,
+                )
+            else ->
+                listOf(
+                    PopupDataSource.setFolderThumbnailPopupData,
+                    PopupDataSource.removePopupData,
+                )
+        }
 }
 
 object AppPairSystemShortcuts : PopupDataMapper {

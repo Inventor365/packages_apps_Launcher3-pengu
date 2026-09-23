@@ -67,6 +67,9 @@ public class FolderInfo extends CollectionInfo {
      */
     public static final int BIG_FOLDER_LARGE_ICON_COUNT = 3;
 
+    /** 0x10 stays unused: older Penguin builds stored a folder size choice there. */
+    public static final int FLAG_CUSTOM_THUMBNAIL = 0x00000020;
+
     /**
      * Different states of folder label.
      */

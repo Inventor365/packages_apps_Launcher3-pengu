@@ -40,6 +40,7 @@ import android.view.animation.AnimationUtils;
 import android.view.animation.Interpolator;
 
 import androidx.annotation.NonNull;
+import androidx.core.graphics.ColorUtils;
 
 import com.android.launcher3.BubbleTextView;
 import com.android.launcher3.CellLayout;
@@ -230,9 +231,11 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         // Set up the Folder background. A big ("caddy") folder expands out of a frosted translucent
         // tile, so the open folder paints that same surface -- the themed folderBackgroundColor is
         // an opaque panel, which read as a different background from the tile it grew from.
+        final boolean hasThumbnail = mFolderIcon.hasCustomThumbnail();
+        final int previewColor = Themes.getAttrColor(mContext, R.attr.folderPreviewColor);
         final int initialColor = bigFolder
                 ? LargeFolderPreview.getPanelColor(mContext)
-                : Themes.getAttrColor(mContext, R.attr.folderPreviewColor);
+                : hasThumbnail ? ColorUtils.setAlphaComponent(previewColor, 0) : previewColor;
         final int finalColor = bigFolder
                 ? LargeFolderPreview.getPanelColor(mContext)
                 : Themes.getAttrColor(mContext, R.attr.folderBackgroundColor);
@@ -276,6 +279,13 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         play(a, getAnimator(mFolder, View.TRANSLATION_Y, yDistance, 0f));
         play(a, getAnimator(mFolder.mContent, getScaleProperty(), initialScale, finalScale));
         play(a, getAnimator(mFolder.mFooter, getScaleProperty(), initialScale, finalScale));
+
+        if (hasThumbnail) {
+            int half = mDuration / 2;
+            Animator contentAlpha = getAnimator(mFolder.mContent, ALPHA, 0f, 1f);
+            contentAlpha.addListener(new PropertyResetListener<>(ALPHA, 1f));
+            play(a, contentAlpha, mIsOpening ? 0 : half, half);
+        }
 
         final int footerAlphaDuration;
         final int footerStartDelay;
@@ -371,6 +381,10 @@ public class FolderAnimationManager implements FolderAnimationCreator {
                 mCellLayoutClipChildren = mCellLayout.getClipChildren();
                 mCellLayoutClipPadding = mCellLayout.getClipToPadding();
 
+                if (hasThumbnail) {
+                    mFolderIcon.setThumbnailShownDuringAnimation(true);
+                }
+
                 mFolder.setClipChildren(false);
                 mFolder.setClipToPadding(false);
                 mContent.setClipChildren(false);
@@ -394,6 +408,10 @@ public class FolderAnimationManager implements FolderAnimationCreator {
                 // Also runs on cancel, which would otherwise leave the cross-fade stuck part way.
                 mFolderIcon.setBigPreviewAlpha(1f);
                 mFolder.setAlpha(1f);
+
+                if (hasThumbnail && isOpening) {
+                    mFolderIcon.setThumbnailShownDuringAnimation(false);
+                }
 
                 mFolder.setClipChildren(mFolderClipChildren);
                 mFolder.setClipToPadding(mFolderClipToPadding);
