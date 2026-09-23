@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="moments_bg_top">#FF000000</color>
+    <color name="moments_bg_bottom">#FF7A5A33</color>
+    <color name="moments_text">#FFFFFFFF</color>
+    <color name="moments_text_secondary">#B3FFFFFF</color>
+    <color name="moments_card">#1AFFFFFF</color>
+    <color name="moments_card_stroke">#1FFFFFFF</color>
+    <color name="moments_card_active">#FFFFFFFF</color>
+    <color name="moments_card_active_text">#FF111111</color>
+    <color name="moments_button">#FFFFFFFF</color>
+    <color name="moments_button_text">#FF111111</color>
+    <color name="moments_accent">#FFD6F25B</color>
+</resources>

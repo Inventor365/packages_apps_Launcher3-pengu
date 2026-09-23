@@ -85,4 +85,6 @@
 
     </com.android.launcher3.dragndrop.DragLayer>
 
+    <include layout="@layout/moments_home" />
+
 </com.android.launcher3.LauncherRootView>

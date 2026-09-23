@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingHorizontal="20dp"
+    android:paddingBottom="16dp">
+
+    <ImageView
+        android:id="@+id/moments_back"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/moments_circle_bg"
+        android:contentDescription="@string/moments_back"
+        android:padding="12dp"
+        android:src="@drawable/ic_moment_back"
+        android:tint="@color/moments_text" />
+
+    <TextView
+        style="@style/MomentsTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/moments_choose_title"
+        android:textSize="22sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:text="@string/moments_choose_summary"
+        android:textColor="@color/moments_text_secondary"
+        android:textSize="14sp" />
+
+    <EditText
+        android:id="@+id/moments_search"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/moments_field_bg"
+        android:drawableStart="@drawable/ic_moment_search"
+        android:drawablePadding="12dp"
+        android:drawableTint="@color/moments_text"
+        android:hint="@string/moments_search"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:paddingHorizontal="16dp"
+        android:textColor="@color/moments_text"
+        android:textSize="16sp" />
+
+    <HorizontalScrollView
+        android:id="@+id/moments_selected_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/moments_field_bg"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/moments_selected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp" />
+    </HorizontalScrollView>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/moments_app_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginVertical="12dp"
+        android:layout_weight="1"
+        android:background="@drawable/moments_field_bg"
+        android:clipToPadding="false"
+        android:paddingVertical="4dp" />
+
+    <TextView
+        android:id="@+id/moments_continue"
+        style="@style/MomentsButton"
+        android:text="@string/moments_continue" />
+</LinearLayout>

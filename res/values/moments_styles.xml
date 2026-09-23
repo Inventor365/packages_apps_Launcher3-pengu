@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="MomentsTheme" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowBackground">@drawable/moments_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/moments_light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/moments_light_bars</item>
+        <item name="android:textColorPrimary">@color/moments_text</item>
+        <item name="android:textColorSecondary">@color/moments_text_secondary</item>
+    </style>
+
+    <style name="MomentsTitle">
+        <item name="android:textColor">@color/moments_text</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="MomentsRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="android:background">?android:attr/selectableItemBackground</item>
+        <item name="android:paddingHorizontal">24dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center_vertical</item>
+    </style>
+
+    <style name="MomentsRowTitle">
+        <item name="android:textColor">@color/moments_text</item>
+        <item name="android:textSize">17sp</item>
+    </style>
+
+    <style name="MomentsRowSummary">
+        <item name="android:textColor">@color/moments_text_secondary</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="MomentsSwitch">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="android:paddingHorizontal">24dp</item>
+        <item name="android:textColor">@color/moments_text</item>
+        <item name="android:textSize">17sp</item>
+    </style>
+
+    <style name="MomentsButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">56dp</item>
+        <item name="android:background">@drawable/moments_button_bg</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">@color/moments_button_text</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+</resources>

@@ -194,6 +194,8 @@ import com.android.launcher3.model.data.ItemInfoWithIcon;
 import com.android.launcher3.model.data.LauncherAppWidgetInfo;
 import com.android.launcher3.model.data.PredictedContainerInfo;
 import com.android.launcher3.model.data.WorkspaceItemInfo;
+import com.android.launcher3.moments.MomentsController;
+import com.android.launcher3.moments.MomentsHomeView;
 import com.android.launcher3.pm.PinRequestHelper;
 import com.android.launcher3.popup.PopupContainer;
 import com.android.launcher3.popup.PopupController;
@@ -1211,6 +1213,10 @@ public class Launcher extends StatefulActivity<LauncherState>
 
         // Setup the drag layer
         mDragLayer.setup(mDragController, mWorkspace);
+
+        MomentsHomeView momentsHome = findViewById(R.id.moments_home);
+        momentsHome.setup(this);
+        MomentsController.reconcile(this);
 
         mWorkspace.setup(mDragController);
         // Until the workspace is bound, ensure that we keep the wallpaper offset locked to the
