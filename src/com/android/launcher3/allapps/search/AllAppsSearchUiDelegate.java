@@ -17,7 +17,6 @@
 package com.android.launcher3.allapps.search;
 
 import android.content.Context;
-import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 
@@ -25,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.launcher3.R;
 import com.android.launcher3.allapps.ActivityAllAppsContainerView;
+import com.android.launcher3.applibrary.AppLibraryTheme;
 import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.views.ActivityContext;
 
@@ -71,10 +71,8 @@ public class AllAppsSearchUiDelegate {
     public LayoutInflater getLayoutInflater() {
         Context context = mAppsView.getContext();
         if (mAppsView.isAppLibrary()) {
-            // The App Library sits on the blurred wallpaper, so its text stays light even in
-            // light theme.
             if (mLibraryContext == null) {
-                mLibraryContext = new ContextThemeWrapper(context, R.style.AppTheme_Dark);
+                mLibraryContext = AppLibraryTheme.wrap(context);
             }
             return LayoutInflater.from(context).cloneInContext(mLibraryContext);
         }

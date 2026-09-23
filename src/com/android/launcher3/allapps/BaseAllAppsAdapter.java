@@ -293,7 +293,9 @@ public abstract class BaseAllAppsAdapter
         if (forceDarkText) {
             mTextColor = activityContext.asContext().getResources().getColor(R.color.all_apps_label_color_dark_forced, null);
         } else {
-            mTextColor = Themes.getAttrColor(activityContext.asContext(), android.R.attr.textColorPrimary);
+            // The inflater's context carries the App Library's always-dark theme.
+            mTextColor = Themes.getAttrColor(inflater.getContext(),
+                    android.R.attr.textColorPrimary);
         }
 
         mOnIconClickListener = mActivityContext.getItemOnClickListener();
