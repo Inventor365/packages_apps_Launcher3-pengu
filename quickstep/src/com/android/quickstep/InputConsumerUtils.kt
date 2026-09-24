@@ -306,11 +306,12 @@ object InputConsumerUtils {
                 tac?.addInputConsumerToCleanUp(base)
             }
 
-            if (deviceState.isSystemUiDialogShowing) {
+            // As on iOS, swiping up from the handle also puts the shade away.
+            if (deviceState.isSystemUiDialogShowing || deviceState.isShadeExpanded) {
                 reasonString =
                     newCompoundString(reasonPrefix)
                         .append(
-                            "%ssystem dialog is showing, using SysUiOverlayInputConsumer",
+                            "%ssystem dialog or shade is showing, using SysUiOverlayInputConsumer",
                             SUBSTRING_PREFIX,
                         )
                 base =

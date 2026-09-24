@@ -511,6 +511,15 @@ public class RecentsAnimationDeviceState implements ExclusionListener {
     }
 
     /**
+     * @return whether the notification shade or quick settings is open
+     */
+    public boolean isShadeExpanded() {
+        return (getSysuiStateFlags()
+                & (SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED | SYSUI_STATE_QUICK_SETTINGS_EXPANDED))
+                != 0;
+    }
+
+    /**
      * @return whether lock-task mode is active
      */
     public boolean isLockToAppActive() {
