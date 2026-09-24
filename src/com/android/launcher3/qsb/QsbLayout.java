@@ -191,11 +191,13 @@ public class QsbLayout extends FrameLayout implements Reorderable, HorizontalIns
     }
 
     static Intent getLensIntent(Context context) {
-        // Primary: launch Lens activity directly by component
-        Intent intent = new Intent()
+        // Primary: launch Lens activity directly by component. Lens only accepts direct launches
+        // that present themselves as its home screen shortcut, and crashes otherwise.
+        Intent intent = new Intent(Intent.ACTION_MAIN)
                 .setComponent(new ComponentName(
                         Utilities.GSA_PACKAGE,
                         Utilities.LENS_ACTIVITY))
+                .putExtra("LensHomescreenShortcut", true)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         if (intent.resolveActivity(context.getPackageManager()) != null) {
             return intent;
