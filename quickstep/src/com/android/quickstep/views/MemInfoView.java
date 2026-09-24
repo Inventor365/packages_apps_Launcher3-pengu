@@ -23,12 +23,14 @@ import static com.android.launcher3.util.NavigationMode.TWO_BUTTONS;
 import static com.android.launcher3.util.NavigationMode.THREE_BUTTONS;
 
 import android.app.ActivityManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.Debug;
 import android.os.Handler;
+import android.provider.Settings;
 import android.text.format.Formatter;
 import android.util.AttributeSet;
 import android.util.FloatProperty;
@@ -215,10 +217,19 @@ public class MemInfoView extends TextView implements Insettable {
 
     public void setListener(Context context) {
         setOnClickListener(view -> {
-            Intent intent = new Intent(Intent.ACTION_MAIN);
+            // Running services is a developer option, and closes itself while those are off.
+            boolean devOptions = Settings.Global.getInt(context.getContentResolver(),
+                    Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0;
+            Intent intent = devOptions
+                    ? new Intent(Intent.ACTION_MAIN).setClassName("com.android.settings",
+                            "com.android.settings.Settings$DevRunningServicesActivity")
+                    : new Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            intent.setClassName("com.android.settings", "com.android.settings.Settings$DevRunningServicesActivity");
-            context.startActivity(intent);
+            try {
+                context.startActivity(intent);
+            } catch (ActivityNotFoundException e) {
+                Log.w(TAG, "Running services are not available", e);
+            }
         });
     }
 
