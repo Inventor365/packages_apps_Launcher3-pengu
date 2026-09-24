@@ -23,7 +23,6 @@ import static com.android.launcher3.LauncherPrefs.nonRestorableItem;
 import static com.android.launcher3.LauncherSettings.Favorites.CONTAINER_ALL_APPS_PREDICTION;
 import static com.android.launcher3.LauncherSettings.Favorites.CONTAINER_HOTSEAT_PREDICTION;
 import static com.android.launcher3.LauncherSettings.Favorites.DESKTOP_ICON_FLAG;
-import static com.android.launcher3.icons.cache.CacheLookupFlag.DEFAULT_LOOKUP_FLAG;
 import static com.android.launcher3.model.PredictionHelper.getBundleForHotseatPredictions;
 import static com.android.launcher3.util.Executors.MODEL_EXECUTOR;
 
@@ -75,7 +74,7 @@ public class QuickstepModelDelegate extends ModelDelegate {
 
     @VisibleForTesting
     final PredictorState mAllPredictionAppsState = new PredictorState(
-            CONTAINER_ALL_APPS_PREDICTION, "all_apps_predictions", DEFAULT_LOOKUP_FLAG);
+            CONTAINER_ALL_APPS_PREDICTION, "all_apps_predictions", DESKTOP_ICON_FLAG);
     @VisibleForTesting
     final PredictorState mHotseatPredictionState = new PredictorState(
             CONTAINER_HOTSEAT_PREDICTION, "hotseat_predictions", DESKTOP_ICON_FLAG);

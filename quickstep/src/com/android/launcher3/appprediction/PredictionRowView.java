@@ -259,6 +259,8 @@ public class PredictionRowView<T extends Context & ActivityContext>
                 predictedItem.cellX = i;
                 predictedItem.cellY = 0;
                 icon.applyFromWorkspaceItem(predictedItem);
+                // Unlike the grid's, these come without their themed icon; load it as it does.
+                icon.verifyHighRes();
             } else {
                 icon.setVisibility(predictionCount == 0 ? GONE : INVISIBLE);
             }

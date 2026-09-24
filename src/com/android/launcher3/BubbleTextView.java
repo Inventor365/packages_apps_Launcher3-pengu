@@ -362,6 +362,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
             setCompoundDrawablePadding(0);
             defaultIconSize = mDeviceProfile.getAllAppsProfile().getIconSizePx();
             mShouldShowLabel = false;
+            mThemeAllAppsIcons = ALLAPPS_THEMED_ICONS.get(context);
         } else if (displayIsAppDrawer()) {
             setTextSize(TypedValue.COMPLEX_UNIT_PX,
                     mDeviceProfile.getAllAppsProfile().getIconTextSizePx());
