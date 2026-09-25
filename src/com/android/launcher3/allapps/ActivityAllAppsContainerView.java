@@ -1956,8 +1956,13 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             if (isSearchBarAtTop() || !canOffsetForSearchBar(list)) {
                 return 0;
             }
-            return Math.max(0, offsetInContainer(list) + list.getHeight()
-                    - mSearchContainer.getTop());
+            // A hidden or unmeasured box reports a top of 0, which padded the list by its whole
+            // height and let it scroll a screen past its end.
+            if (mSearchContainer.getVisibility() != VISIBLE || mSearchContainer.getHeight() == 0) {
+                return 0;
+            }
+            int covered = offsetInContainer(list) + list.getHeight() - mSearchContainer.getTop();
+            return Math.max(0, Math.min(covered, getHeight() - mSearchContainer.getTop()));
         }
 
         private boolean canOffsetForSearchBar(View list) {
