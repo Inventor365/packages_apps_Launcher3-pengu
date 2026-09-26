@@ -1917,6 +1917,11 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mRecyclerView.addItemDecoration(focusedItemDecorator);
             mOnFocusChangeListener = focusedItemDecorator.getFocusListener();
             mAdapter.setIconFocusListener(mOnFocusChangeListener);
+            mRecyclerView.addOnLayoutChangeListener((v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+                if (b - t != oldB - oldT || r - l != oldR - oldL) {
+                    applyPadding();
+                }
+            });
             applyPadding();
         }
 
@@ -1944,6 +1949,11 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 }
                 mRecyclerView.setPadding(mPadding.left, mPadding.top, mPadding.right,
                         mPadding.bottom + bottomOffset);
+                // The see-through box would show rows scrolling on below it.
+                int height = mRecyclerView.getHeight();
+                mRecyclerView.setClipBounds(underSearchBar > 0 && height > underSearchBar
+                        ? new Rect(0, 0, mRecyclerView.getWidth(), height - underSearchBar)
+                        : null);
             }
         }
 

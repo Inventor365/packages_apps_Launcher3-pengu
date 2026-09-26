@@ -271,6 +271,21 @@ public class FloatingHeaderView extends LinearLayout implements
         maybeSetTabVisibility(rvType == AdapterHolder.SEARCH ? GONE : VISIBLE);
 
         updateExpectedHeight();
+        syncToCurrentRV();
+    }
+
+    /**
+     * Brings the header back in over the new list wherever it is scrolled, as scrolling back up
+     * does, so switching pages never leaves the tabs scrolled away.
+     */
+    private void syncToCurrentRV() {
+        if (mAnimator.isStarted()) {
+            mAnimator.cancel();
+        }
+        mTranslationY = 0;
+        mHeaderCollapsed = false;
+        mSnappedScrolledY = -mCurrentRV.computeVerticalScrollOffset() - mMaxTranslation;
+        applyVerticalMove();
     }
 
     /** Update tab visibility to the given state, only if tabs are active (work profile exists). */
