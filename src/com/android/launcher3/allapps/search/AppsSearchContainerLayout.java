@@ -143,6 +143,10 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         int myWidth = rowWidth - iconPadding + getPaddingLeft() + getPaddingRight()
                 - mAppsView.getSearchCancelWidth()
                 - 2 * getResources().getDimensionPixelSize(R.dimen.all_apps_search_side_gap);
+        if (isFloatingPill()) {
+            myWidth = Math.min(myWidth,
+                    getResources().getDimensionPixelSize(R.dimen.all_apps_floating_search_width));
+        }
         super.onMeasure(makeMeasureSpec(myWidth, EXACTLY), heightMeasureSpec);
     }
 
@@ -156,16 +160,24 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         int myWidth = right - left + mAppsView.getSearchCancelWidth();
         int expectedLeft = parent.getPaddingLeft() + (availableWidth - myWidth) / 2;
         setTranslationX(expectedLeft - left);
-        mAppsView.onSearchBoxTranslated(getTranslationX());
 
         if (!mAppsView.isAppLibrary()) {
             offsetTopAndBottom(mContentOverlap);
         }
     }
 
+    /** At the bottom of the drawer the bar floats as a pill, as on One UI. */
+    private boolean isFloatingPill() {
+        return !mAppsView.isSearchBarAtTop();
+    }
+
     @Override
     public void initializeSearch(ActivityAllAppsContainerView<?> appsView) {
         mAppsView = appsView;
+        if (isFloatingPill()) {
+            setMinHeight(getResources().getDimensionPixelSize(
+                    R.dimen.all_apps_floating_search_height));
+        }
         UniversalSearchAlgorithm algorithm =
                 new UniversalSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
         algorithm.setQueryHandler(query -> {

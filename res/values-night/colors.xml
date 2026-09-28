@@ -18,4 +18,6 @@
     <!-- Home screen files -->
     <color name="home_screen_files_folder_icon_color">@color/system_primary_dark</color>
     <color name="all_apps_searchbox_background">#33FFFFFF</color>
+    <!-- Lighter than the drawer, so the pill does not sink into it. -->
+    <color name="all_apps_floating_search_background">@color/materialColorSurfaceBright</color>
 </resources>

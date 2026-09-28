@@ -140,6 +140,9 @@
     <dimen name="all_apps_tabs_button_padding">22dp</dimen>
     <dimen name="all_apps_tabs_container_padding">4dp</dimen>
     <dimen name="all_apps_search_side_gap">12dp</dimen>
+    <!-- Width of the search bar when it floats at the bottom of the drawer. -->
+    <dimen name="all_apps_floating_search_width">256dp</dimen>
+    <dimen name="all_apps_floating_search_height">56dp</dimen>
     <dimen name="all_apps_tabs_button_min_width">104dp</dimen>
     <dimen name="all_apps_tabs_focus_horizontal_inset">5dp</dimen>
     <dimen name="all_apps_tabs_focus_vertical_inset">6dp</dimen>

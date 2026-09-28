@@ -41,14 +41,12 @@ import android.graphics.Path;
 import android.graphics.Path.Direction;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.os.UserManager;
 import android.os.Process;
 import android.util.AttributeSet;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.KeyEvent;
@@ -88,8 +86,6 @@ import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.allapps.search.AllAppsSearchUiDelegate;
 import com.android.launcher3.allapps.search.SearchAdapterProvider;
 
-import eightbitlab.com.blurview.BlurTarget;
-import eightbitlab.com.blurview.BlurView;
 import com.android.launcher3.applibrary.AppLibraryIndexRail;
 import com.android.launcher3.applibrary.AppLibraryRowDecoration;
 import com.android.launcher3.config.FeatureFlags;
@@ -178,7 +174,6 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     private AppLibraryIndexRail mIndexRail;
     private View mSearchCancel;
     private View mSearchScrim;
-    private BlurView mSearchBlur;
 
     /**
      * View that defines the search box. Result is rendered inside {@link #mSearchRecyclerView}.
@@ -331,7 +326,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
 
         setupSuggestionsPill();
         moveSearchBarToBottom();
-        setupSearchBlur();
+        setupFloatingSearch();
 
         if (isAppLibrary()) {
             setupSearchListChrome();
@@ -489,67 +484,13 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         }
     }
 
-    private void setupSearchBlur() {
+    private void setupFloatingSearch() {
         if (isSearchBarAtTop()) {
             return;
         }
-        BlurView blur = findViewById(R.id.all_apps_search_blur);
-        BlurTarget target = findViewById(R.id.all_apps_blur_target);
-        if (blur == null || target == null) {
-            return;
-        }
-        mSearchBlur = blur;
-        blur.setBackgroundResource(R.drawable.bg_app_library_search_glass);
-        blur.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
-        blur.setClipToOutline(true);
-        ColorDrawable glassBase =
-                new ColorDrawable(getContext().getColor(R.color.app_library_search_glass_base));
-        DisplayMetrics metrics = getResources().getDisplayMetrics();
-        glassBase.setBounds(0, 0, metrics.widthPixels, metrics.heightPixels);
-        blur.setupWith(target, 4f, /* applyNoise= */ false)
-                .setFrameClearDrawable(glassBase)
-                .setBlurRadius(
-                        getResources().getInteger(R.integer.app_library_search_blur_radius))
-                .setOverlayColor(getContext().getColor(R.color.app_library_search_blur_overlay));
-        blur.setElevation(
+        mSearchContainer.setBackgroundResource(R.drawable.bg_all_apps_floating_search);
+        mSearchContainer.setElevation(
                 getResources().getDimension(R.dimen.app_library_search_elevation));
-        blur.setVisibility(VISIBLE);
-        mSearchContainer.setBackground(null);
-        mSearchContainer.addOnLayoutChangeListener(
-                (v, left, top, right, bottom, ol, ot, or_, ob) -> {
-                    RelativeLayout.LayoutParams lp =
-                            (RelativeLayout.LayoutParams) blur.getLayoutParams();
-                    int width = right - left;
-                    int height = bottom - top;
-                    if (lp.width != width || lp.height != height) {
-                        lp.width = width;
-                        lp.height = height;
-                        blur.post(() -> blur.setLayoutParams(lp));
-                    } else {
-                        alignBlurToSearchBox(blur);
-                    }
-                });
-        blur.addOnLayoutChangeListener(
-                (v, l, t, r, b, ol, ot, or_, ob) -> alignBlurToSearchBox(blur));
-    }
-
-    private void alignBlurToSearchBox(BlurView blur) {
-        int[] box = new int[2];
-        int[] self = new int[2];
-        mSearchContainer.getLocationOnScreen(box);
-        blur.getLocationOnScreen(self);
-        float dx = box[0] - self[0];
-        float dy = box[1] - self[1];
-        if (dx != 0f || dy != 0f) {
-            blur.setTranslationX(blur.getTranslationX() + dx);
-            blur.setTranslationY(blur.getTranslationY() + dy);
-        }
-    }
-
-    public void onSearchBoxTranslated(float translationX) {
-        if (mSearchBlur != null) {
-            mSearchBlur.setTranslationX(translationX);
-        }
     }
 
     private void setSearchListChromeVisible(boolean visible) {
@@ -1051,9 +992,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mTabsProtectionAlpha = tabsAlpha;
             invalidateHeader();
         }
-        if (mSearchBlur == null) {
-            getSearchView().setBackgroundResource(R.drawable.bg_all_apps_searchbox);
-        }
+        getSearchView().setBackgroundResource(isSearchBarAtTop()
+                ? R.drawable.bg_all_apps_searchbox
+                : R.drawable.bg_all_apps_floating_search);
         if (mSearchUiManager.getEditText() == null) {
             return;
         }
@@ -1949,11 +1890,6 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 }
                 mRecyclerView.setPadding(mPadding.left, mPadding.top, mPadding.right,
                         mPadding.bottom + bottomOffset);
-                // The see-through box would show rows scrolling on below it.
-                int height = mRecyclerView.getHeight();
-                mRecyclerView.setClipBounds(underSearchBar > 0 && height > underSearchBar
-                        ? new Rect(0, 0, mRecyclerView.getWidth(), height - underSearchBar)
-                        : null);
             }
         }
 

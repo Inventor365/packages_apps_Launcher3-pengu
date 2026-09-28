@@ -285,6 +285,7 @@
     <color name="app_library_suggestions_background">#26FFFFFF</color>
     <color name="all_apps_tabs_container_background">#26FFFFFF</color>
     <color name="all_apps_searchbox_background">#66FFFFFF</color>
+    <color name="all_apps_floating_search_background">@color/materialColorSurfaceContainerHigh</color>
 
     <!-- Tint over the App Library's frosted search box, matching the dialer's glass bar. -->
     <color name="app_library_search_blur_overlay">#4DFFFFFF</color>
