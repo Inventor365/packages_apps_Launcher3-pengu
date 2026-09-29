@@ -47,6 +47,7 @@ import com.android.launcher3.allapps.AllAppsStore;
 import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.allapps.PrivateProfileManager;
 import com.android.launcher3.allapps.SearchUiManager;
+import com.android.launcher3.search.SearchAlgorithm;
 import com.android.launcher3.search.SearchCallback;
 import com.android.launcher3.search.universal.UniversalSearchAlgorithm;
 import com.android.launcher3.statemanager.StateManager.StateListener;
@@ -64,6 +65,9 @@ public class AppsSearchContainerLayout extends ExtendedEditText
 
     private final ActivityContext mLauncher;
     private final AllAppsSearchBarController mSearchBarController;
+    private UniversalSearchAlgorithm mUniversalSearch;
+    private SearchAlgorithm<AdapterItem> mAppSearch;
+    private boolean mSpotlight;
     private final SpannableStringBuilder mSearchQueryBuilder;
 
     private ActivityAllAppsContainerView<?> mAppsView;
@@ -178,13 +182,25 @@ public class AppsSearchContainerLayout extends ExtendedEditText
             setMinHeight(getResources().getDimensionPixelSize(
                     R.dimen.all_apps_floating_search_height));
         }
-        UniversalSearchAlgorithm algorithm =
-                new UniversalSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
-        algorithm.setQueryHandler(query -> {
+        mUniversalSearch = new UniversalSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
+        mUniversalSearch.setQueryHandler(query -> {
             setText(query);
             setSelection(query.length());
         });
-        mSearchBarController.initialize(algorithm, this, mLauncher, this);
+        // The drawer searches its apps, as iOS's App Library does; everything else is Spotlight's.
+        mAppSearch = LauncherPrefs.isAppLibrary(getContext()) ? mUniversalSearch
+                : new DefaultAppSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
+        mSearchBarController.initialize(mAppSearch, this, mLauncher, this);
+    }
+
+    /** Turns this field into Spotlight, searching everything, or back into the drawer's. */
+    public void setSpotlight(boolean spotlight) {
+        if (mSpotlight == spotlight) return;
+        mSpotlight = spotlight;
+        mUniversalSearch.setSpotlight(spotlight);
+        mSearchBarController.setSearchAlgorithm(spotlight ? mUniversalSearch : mAppSearch);
+        mSearchBarController.reset();
+        setHint(spotlight ? R.string.home_search_pill : R.string.all_apps_search_bar_hint);
     }
 
     @Override

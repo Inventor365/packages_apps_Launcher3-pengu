@@ -52,6 +52,8 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
     private Pass mLastPass;
 
     private Consumer<String> mQueryHandler = q -> { };
+    // Spotlight shows suggested apps before anything is typed, as iOS does.
+    private volatile boolean mSpotlight;
 
     public UniversalSearchAlgorithm(Context context, LooperExecutor uiExecutor) {
         mContext = context.getApplicationContext();
@@ -65,6 +67,10 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
                 new MediaProvider(), new PhotoProvider(), new CalendarProvider(),
                 new AppSearchProvider(),
                 new ActionProvider(), new WebSuggestionProvider());
+    }
+
+    public void setSpotlight(boolean spotlight) {
+        mSpotlight = spotlight;
     }
 
     public void setQueryHandler(Consumer<String> handler) {
@@ -117,9 +123,11 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
     private AppMatches matchApps(List<AppInfo> apps, String query) {
         String lower = query.trim().toLowerCase(Locale.getDefault());
         if (lower.isEmpty()) {
-            return new AppMatches(mAppLibrary
-                    ? DefaultAppSearchAlgorithm.getTitleMatchResult(apps, "", true)
-                    : new ArrayList<>(), 0);
+            if (mAppLibrary) {
+                return new AppMatches(
+                        DefaultAppSearchAlgorithm.getTitleMatchResult(apps, "", true), 0);
+            }
+            return new AppMatches(mSpotlight ? suggestedApps(apps) : new ArrayList<>(), 0);
         }
         record Scored(AppInfo app, int match, int score) {}
         List<Scored> scored = new ArrayList<>();
@@ -149,6 +157,27 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
             items.add(mAppLibrary ? AdapterItem.asAppRow(app) : AdapterItem.asApp(app));
         }
         return new AppMatches(items, scored.isEmpty() ? 0 : scored.get(0).score);
+    }
+
+    /** The apps opened most from search, then alphabetically, as Spotlight's suggestions. */
+    private ArrayList<AdapterItem> suggestedApps(List<AppInfo> apps) {
+        List<AppInfo> sorted = new ArrayList<>();
+        for (AppInfo app : apps) {
+            if (app.title != null) sorted.add(app);
+        }
+        sorted.sort((a, b) -> {
+            int boostA = SearchHistory.boost(mContext,
+                    SearchHistory.appKey(a.getTargetComponent(), a.user));
+            int boostB = SearchHistory.boost(mContext,
+                    SearchHistory.appKey(b.getTargetComponent(), b.user));
+            return boostA != boostB ? boostB - boostA
+                    : mCollator.compare(a.title.toString(), b.title.toString());
+        });
+        ArrayList<AdapterItem> items = new ArrayList<>();
+        for (int i = 0; i < sorted.size() && i < MAX_GRID_APPS; i++) {
+            items.add(AdapterItem.asApp(sorted.get(i)));
+        }
+        return items;
     }
 
     private void publishEmptyQuery(int token, String query, ArrayList<AdapterItem> appItems,

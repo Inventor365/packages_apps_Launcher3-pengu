@@ -164,6 +164,7 @@ import com.android.launcher3.accessibility.LauncherAccessibilityDelegate;
 import com.android.launcher3.allapps.ActivityAllAppsContainerView;
 import com.android.launcher3.allapps.AllAppsTransitionController;
 import com.android.launcher3.allapps.DiscoveryBounce;
+import com.android.launcher3.allapps.search.AppsSearchContainerLayout;
 import com.android.launcher3.anim.AnimationSuccessListener;
 import com.android.launcher3.anim.PropertyListBuilder;
 import com.android.launcher3.apppairs.AppPairIcon;
@@ -1549,29 +1550,31 @@ public class Launcher extends StatefulActivity<LauncherState>
         }
 
         AbstractFloatingView.closeAllOpenViews(this);
+        // Spotlight, not the drawer: the same field searches everything, and the app list and its
+        // tabs stay hidden behind the results for as long as it is open.
+        AppsSearchContainerLayout search = mAppsView.getSearchView()
+                instanceof AppsSearchContainerLayout layout ? layout : null;
+        View[] drawer = {mAppsView.getAppsRecyclerViewContainer(), mAppsView.getFloatingHeaderView()};
         mAppsView.setSearchBarAtTopOverride(island);
+        if (search != null) search.setSpotlight(true);
+        for (View v : drawer) v.setAlpha(0f);
         getStateManager().addStateListener(new StateManager.StateListener<>() {
             @Override
             public void onStateTransitionComplete(LauncherState finalState) {
                 if (finalState != ALL_APPS) {
+                    if (search != null) search.setSpotlight(false);
+                    for (View v : drawer) v.setAlpha(1f);
                     mAppsView.setSearchBarAtTopOverride(null);
                     getStateManager().removeStateListener(this);
                 }
             }
         });
-        // Straight into search, as iOS opens it: the field arrives first and the app list fades
-        // in behind it.
         getStateManager().goToState(ALL_APPS, false);
         View field = mAppsView.getSearchView();
-        View[] behind = {mAppsView.getAppsRecyclerViewContainer(), mAppsView.getFloatingHeaderView()};
         field.setAlpha(0f);
-        for (View v : behind) v.setAlpha(0f);
         mDragLayer.post(() -> mDragLayer.post(() -> {
             field.setAlpha(1f);
             growFrom(field, from);
-            for (View v : behind) {
-                v.animate().alpha(1f).setDuration(220).setStartDelay(200).start();
-            }
             if (mAppsView.getSearchUiManager().getEditText() != null) {
                 mAppsView.getSearchUiManager().getEditText().requestFocusExplicitly();
             }

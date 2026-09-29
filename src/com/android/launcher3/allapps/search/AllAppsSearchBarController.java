@@ -72,15 +72,23 @@ public class AllAppsSearchBarController
         mInput.setOnEditorActionListener(this);
         mInput.setOnBackKeyListener(this);
         mSearchAlgorithm = searchAlgorithm;
-        if (LauncherPrefs.isAppLibrary(mInput.getContext())
-                || mSearchAlgorithm.hasEmptyQueryResults()) {
-            mInput.setOnFocusChangeListener((v, hasFocus) -> {
-                if (hasFocus && mInput.getEditableText().length() == 0) {
-                    mSearchAlgorithm.cancel(false);
-                    mSearchAlgorithm.doSearch("", mTextConversions, mCallback);
-                }
-            });
-        }
+        mInput.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && mInput.getEditableText().length() == 0 && searchesEmptyQuery()) {
+                mSearchAlgorithm.cancel(false);
+                mSearchAlgorithm.doSearch("", mTextConversions, mCallback);
+            }
+        });
+    }
+
+    /** Swaps what the field searches, keeping the field and its results. */
+    public void setSearchAlgorithm(SearchAlgorithm<AdapterItem> searchAlgorithm) {
+        mSearchAlgorithm.cancel(true);
+        mSearchAlgorithm = searchAlgorithm;
+    }
+
+    private boolean searchesEmptyQuery() {
+        return LauncherPrefs.isAppLibrary(mInput.getContext())
+                || mSearchAlgorithm.hasEmptyQueryResults();
     }
 
     @Override
@@ -114,7 +122,7 @@ public class AllAppsSearchBarController
         mQuery = s.toString();
         if (mQuery.isEmpty()) {
             mSearchAlgorithm.cancel(true);
-            if (LauncherPrefs.isAppLibrary(mInput.getContext())) {
+            if (searchesEmptyQuery()) {
                 mSearchAlgorithm.doSearch("", mTextConversions, mCallback);
             } else {
                 mCallback.clearSearchResult();
