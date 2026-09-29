@@ -28,6 +28,7 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewDebug;
@@ -99,6 +100,7 @@ public class Hotseat extends CellLayout implements Insettable {
     private final MultiPropertyFactory mIconsTranslationXFactory;
 
     private final @Nullable View mQsb;
+    private final View mSearchPill;
 
     public Hotseat(Context context) {
         this(context, null);
@@ -124,6 +126,13 @@ public class Hotseat extends CellLayout implements Insettable {
             mQsb = null;
             mQsbAlphaChannels = null;
         }
+
+        // The Search pill between the home screen and the dock, as on iOS.
+        mSearchPill = LayoutInflater.from(context).inflate(R.layout.home_search_pill, this, false);
+        mSearchPill.setOnClickListener(v -> {
+            if (mActivity instanceof Launcher launcher) launcher.openSearchFromPill(v);
+        });
+        addView(mSearchPill);
 
         mIconsAlphaChannels = new MultiValueAlpha(getShortcutsAndWidgets(),
                 ALPHA_CHANNEL_CHANNELS_COUNT);
@@ -276,6 +285,9 @@ public class Hotseat extends CellLayout implements Insettable {
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
         DeviceProfile grid = mActivity.getDeviceProfile();
 
+        mSearchPill.setVisibility(grid.isVerticalBarLayout()
+                || grid.getDeviceProperties().getTaskbarConfiguration().isTaskbarPresent()
+                ? View.GONE : View.VISIBLE);
         if (grid.isVerticalBarLayout()) {
             if (mQsb != null) mQsb.setVisibility(View.GONE);
             lp.height = ViewGroup.LayoutParams.MATCH_PARENT;
@@ -296,7 +308,13 @@ public class Hotseat extends CellLayout implements Insettable {
         }
 
         Rect padding = grid.getHotseatLayoutPadding(getContext());
-        setPadding(padding.left, padding.top, padding.right, padding.bottom);
+        // The dock reaches up over the Search pill so the pill can take touches; its icons keep
+        // their place below it.
+        int pillSpace = mSearchPill.getVisibility() == View.GONE ? 0
+                : getResources().getDimensionPixelSize(R.dimen.home_search_pill_height)
+                        + 2 * getResources().getDimensionPixelSize(R.dimen.home_search_pill_gap);
+        if (lp.height > 0) lp.height += pillSpace;
+        setPadding(padding.left, padding.top + pillSpace, padding.right, padding.bottom);
         setLayoutParams(lp);
         InsettableFrameLayout.dispatchInsets(this, insets);
     }
@@ -339,6 +357,12 @@ public class Hotseat extends CellLayout implements Insettable {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
+        if (mSearchPill.getVisibility() != View.GONE) {
+            mSearchPill.measure(makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+                    makeMeasureSpec(getResources().getDimensionPixelSize(
+                            R.dimen.home_search_pill_height), MeasureSpec.EXACTLY));
+        }
+
         if (mQsb != null && mQsb.getVisibility() != View.GONE) {
             DeviceProfile dp = mActivity.getDeviceProfile();
             mQsb.measure(
@@ -351,6 +375,16 @@ public class Hotseat extends CellLayout implements Insettable {
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
+
+        if (mSearchPill.getVisibility() != View.GONE) {
+            // Centred just above the dock's icons.
+            int pillWidth = mSearchPill.getMeasuredWidth();
+            int pillLeft = (r - l - pillWidth) / 2;
+            int pillBottom = getPaddingTop()
+                    - getResources().getDimensionPixelSize(R.dimen.home_search_pill_gap);
+            mSearchPill.layout(pillLeft, pillBottom - mSearchPill.getMeasuredHeight(),
+                    pillLeft + pillWidth, pillBottom);
+        }
 
         if (mQsb == null || mQsb.getVisibility() == View.GONE) return;
 

@@ -284,4 +284,6 @@
     <string name="outdoor_full_screen">Temporary full screen</string>
     <string name="outdoor_settings">Settings</string>
     <string name="outdoor_exit">Exit</string>
+    <!-- The pill above the dock that opens universal search -->
+    <string name="home_search_pill">Search</string>
 </resources>

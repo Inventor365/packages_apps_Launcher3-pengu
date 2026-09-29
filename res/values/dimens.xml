@@ -652,4 +652,8 @@
     <!-- Burn-in protection shift amounts -->
     <dimen name="burn_in_protection_horizontal_shift">12dp</dimen>
     <dimen name="burn_in_protection_vertical_shift">6dp</dimen>
+
+    <!-- The Search pill above the dock, as iOS shows between the home screen and the dock. -->
+    <dimen name="home_search_pill_height">30dp</dimen>
+    <dimen name="home_search_pill_gap">14dp</dimen>
 </resources>

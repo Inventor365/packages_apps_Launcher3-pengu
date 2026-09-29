@@ -121,6 +121,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.os.SystemClock;
 import android.os.Trace;
 import android.os.UserHandle;
@@ -130,6 +131,7 @@ import android.util.FloatProperty;
 import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
+import android.view.DisplayCutout;
 import android.view.KeyEvent;
 import android.view.KeyboardShortcutGroup;
 import android.view.Menu;
@@ -140,6 +142,7 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsAnimation;
 import android.view.WindowManager.LayoutParams;
+import android.view.animation.PathInterpolator;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.animation.OvershootInterpolator;
 import android.widget.Toast;
@@ -1525,6 +1528,96 @@ public class Launcher extends StatefulActivity<LauncherState>
      */
     public void toggleAllApps(boolean focusSearch) {
         toggleAllApps(/* alreadyOnHome= */ true, focusSearch);
+    }
+
+    /**
+     * Opens universal search from the home screen's Search pill as iOS does. With the Dynamic
+     * Island on, the field drops out of the island at the top; without it, the field grows out of
+     * the pill in place, above the dock.
+     */
+    public void openSearchFromPill(View pill) {
+        boolean island = Settings.System.getInt(getContentResolver(),
+                "status_bar_show_dynamic_island", 0) != 0;
+        RectF from = new RectF();
+        if (island) {
+            islandBounds(from);
+        } else {
+            int[] location = new int[2];
+            pill.getLocationInWindow(location);
+            from.set(location[0], location[1], location[0] + pill.getWidth(),
+                    location[1] + pill.getHeight());
+        }
+
+        AbstractFloatingView.closeAllOpenViews(this);
+        mAppsView.setSearchBarAtTopOverride(island);
+        getStateManager().addStateListener(new StateManager.StateListener<>() {
+            @Override
+            public void onStateTransitionComplete(LauncherState finalState) {
+                if (finalState != ALL_APPS) {
+                    mAppsView.setSearchBarAtTopOverride(null);
+                    getStateManager().removeStateListener(this);
+                }
+            }
+        });
+        // Straight into search, as iOS opens it: the field arrives first and the app list fades
+        // in behind it.
+        getStateManager().goToState(ALL_APPS, false);
+        View field = mAppsView.getSearchView();
+        View[] behind = {mAppsView.getAppsRecyclerViewContainer(), mAppsView.getFloatingHeaderView()};
+        field.setAlpha(0f);
+        for (View v : behind) v.setAlpha(0f);
+        mDragLayer.post(() -> mDragLayer.post(() -> {
+            field.setAlpha(1f);
+            growFrom(field, from);
+            for (View v : behind) {
+                v.animate().alpha(1f).setDuration(220).setStartDelay(200).start();
+            }
+            if (mAppsView.getSearchUiManager().getEditText() != null) {
+                mAppsView.getSearchUiManager().getEditText().requestFocusExplicitly();
+            }
+        }));
+    }
+
+    /** Where the Dynamic Island sits: a pill around the camera cutout at the top centre. */
+    private void islandBounds(RectF out) {
+        float density = getResources().getDisplayMetrics().density;
+        float width = 126 * density;
+        float height = 37 * density;
+        float centerX = mDragLayer.getWidth() / 2f;
+        float top = 11 * density;
+        WindowInsets insets = mDragLayer.getRootWindowInsets();
+        DisplayCutout cutout = insets != null ? insets.getDisplayCutout() : null;
+        if (cutout != null && !cutout.getBoundingRectTop().isEmpty()) {
+            Rect camera = cutout.getBoundingRectTop();
+            centerX = camera.exactCenterX();
+            top = camera.centerY() - height / 2f;
+        }
+        out.set(centerX - width / 2f, top, centerX + width / 2f, top + height);
+    }
+
+    /** Grows [view] from [from], in window coordinates, into its own place. */
+    private static void growFrom(View view, RectF from) {
+        if (view.getWidth() == 0 || view.getHeight() == 0) return;
+        int[] location = new int[2];
+        view.getLocationInWindow(location);
+        view.setPivotX(0);
+        view.setPivotY(0);
+        view.setScaleX(Math.min(1f, from.width() / view.getWidth()));
+        view.setScaleY(Math.min(1f, from.height() / view.getHeight()));
+        view.setTranslationX(from.left - location[0]);
+        view.setTranslationY(from.top - location[1]);
+        view.animate()
+                .scaleX(1)
+                .scaleY(1)
+                .translationX(0)
+                .translationY(0)
+                .setDuration(420)
+                .setInterpolator(new PathInterpolator(0.3f, 0f, 0.1f, 1f))
+                .withEndAction(() -> {
+                    view.setPivotX(view.getWidth() / 2f);
+                    view.setPivotY(view.getHeight() / 2f);
+                })
+                .start();
     }
 
     private void toggleAllApps(boolean alreadyOnHome, boolean focusSearch) {
