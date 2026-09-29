@@ -78,6 +78,13 @@ public class FloatingIconView extends FrameLayout implements
     private static long sRecycledFetchIconId = sFetchIconId;
 
     public static final float SHAPE_PROGRESS_DURATION = 0.10f;
+
+    // A closing app keeps its content until it is about twice its icon's size, then hands over to
+    // the icon in a few frames, as OxygenOS does, instead of crossfading all the way home.
+    public static final float CLOSE_WINDOW_FADE_START = 0.75f;
+    public static final float CLOSE_WINDOW_FADE_END = 0.87f;
+    public static final float CLOSE_ICON_FADE_START = 0.72f;
+    public static final float CLOSE_ICON_FADE_END = 0.84f;
     private static final RectF sTmpRectF = new RectF();
 
     private Runnable mEndRunnable;

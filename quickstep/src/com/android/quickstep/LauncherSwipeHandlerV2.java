@@ -19,6 +19,10 @@ import static com.android.app.animation.Interpolators.EXAGGERATED_EASE;
 import static com.android.app.animation.Interpolators.LINEAR;
 import static com.android.launcher3.LauncherState.NORMAL;
 import static com.android.launcher3.Utilities.mapBoundToRange;
+import static com.android.launcher3.views.FloatingIconView.CLOSE_ICON_FADE_END;
+import static com.android.launcher3.views.FloatingIconView.CLOSE_ICON_FADE_START;
+import static com.android.launcher3.views.FloatingIconView.CLOSE_WINDOW_FADE_END;
+import static com.android.launcher3.views.FloatingIconView.CLOSE_WINDOW_FADE_START;
 import static com.android.launcher3.views.FloatingIconView.SHAPE_PROGRESS_DURATION;
 import static com.android.quickstep.util.FloatingIconViewHelper.getFloatingIconView;
 
@@ -132,7 +136,9 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
 
         mContainer.getRootView().setForceHideBackArrow(true);
 
-        if (mHandOffAnimationToHome || !canUseWorkspaceView || appCanEnterPip || mIsSwipeForSplit) {
+        // With the app's icon on home, fly the window into it as OxygenOS does rather than handing
+        // off to the shell, whose animation just shrinks the window away in the middle.
+        if (!canUseWorkspaceView || appCanEnterPip || mIsSwipeForSplit) {
             return new LauncherHomeAnimationFactory() {
 
                 @Nullable
@@ -142,6 +148,8 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
                 }
             };
         }
+        // This handler plays the window's flight home itself, so the shell must not as well.
+        mHandOffAnimationToHome = false;
         if (workspaceView instanceof LauncherAppWidgetHostView) {
             return createWidgetHomeAnimationFactory((LauncherAppWidgetHostView) workspaceView,
                     isTargetTranslucent, runningTaskTarget);
@@ -203,12 +211,16 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
                     float progress,
                     float radius,
                     int overlayAlpha) {
-                // We want the icon alpha to be 1 once this threshold is met, so that it can be
-                // seen morphing into the icon shape. But before the threshold, we want to limit
-                // the alpha to reduce the blur effect behind the window.
-                float iconAlpha = Interpolators.clampToProgress(progress, 0f, windowAlphaThreshold);
+                float iconAlpha = Interpolators.clampToProgress(
+                        progress, CLOSE_ICON_FADE_START, CLOSE_ICON_FADE_END);
                 floatingIconView.update(iconAlpha, currentRect, progress, windowAlphaThreshold,
                         radius, false, overlayAlpha);
+            }
+
+            @Override
+            protected float getWindowAlpha(float progress) {
+                return 1 - Interpolators.clampToProgress(
+                        progress, CLOSE_WINDOW_FADE_START, CLOSE_WINDOW_FADE_END);
             }
 
             @Override
@@ -418,7 +430,7 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
         protected void playScalingRevealAnimation() {
             if (mContainer != null) {
                 new ScalingWorkspaceRevealAnim(mContainer, mSiblingAnimation,
-                        getWindowTargetRect(), true /* playAlphaReveal */,
+                        getWindowTargetRect(), false /* playAlphaReveal */,
                         true /* playBlur */).start();
             }
         }

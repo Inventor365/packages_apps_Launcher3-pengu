@@ -30,7 +30,8 @@
 
     <string name="wellbeing_provider_pkg" translatable="false"/>
 
-    <dimen name="max_depth_blur_radius_enhanced">18dp</dimen>
+    <!-- As deep as OxygenOS blurs home behind an app, 400 px on its 420 dpi screens. -->
+    <dimen name="max_depth_blur_radius_enhanced">150dp</dimen>
 
     <!-- Accessibility actions -->
     <item type="id" name="action_move_to_top_or_left" />
