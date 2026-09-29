@@ -656,4 +656,9 @@
     <!-- The Search pill above the dock, as iOS shows between the home screen and the dock. -->
     <dimen name="home_search_pill_height">30dp</dimen>
     <dimen name="home_search_pill_gap">14dp</dimen>
+
+    <!-- Spotlight, opened from the Search pill. -->
+    <dimen name="spotlight_margin">12dp</dimen>
+    <dimen name="spotlight_field_height">66dp</dimen>
+    <dimen name="spotlight_card_radius">44dp</dimen>
 </resources>

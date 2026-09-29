@@ -152,7 +152,6 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     private final SearchTransitionController mSearchTransitionController;
     private final Paint mHeaderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Rect mInsets = new Rect();
-    @Nullable private Boolean mSearchBarAtTopOverride;
     private final AllAppsStore mAllAppsStore;
     private final RecyclerView.OnScrollListener mScrollListener =
             new RecyclerView.OnScrollListener() {
@@ -335,64 +334,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     }
 
     public boolean isSearchBarAtTop() {
-        if (mSearchBarAtTopOverride != null) return mSearchBarAtTopOverride;
         return !LauncherPrefs.SEARCH_BAR_BOTTOM.get(mActivityContext.asContext());
-    }
-
-    /**
-     * Puts the search bar at the top or the bottom regardless of the setting, for as long as
-     * search opened from the home screen's Search pill stays open; {@code null} goes back to the
-     * setting.
-     */
-    public void setSearchBarAtTopOverride(@Nullable Boolean atTop) {
-        boolean wasAtTop = isSearchBarAtTop();
-        mSearchBarAtTopOverride = atTop;
-        if (wasAtTop != isSearchBarAtTop()) {
-            applySearchBarPlacement();
-        }
-    }
-
-    private void applySearchBarPlacement() {
-        if (!(mSearchContainer.getLayoutParams() instanceof RelativeLayout.LayoutParams searchLp)) {
-            return;
-        }
-        boolean atTop = isSearchBarAtTop();
-        searchLp.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
-        searchLp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
-        searchLp.addRule(atTop ? RelativeLayout.ALIGN_PARENT_TOP : RelativeLayout.ALIGN_PARENT_BOTTOM);
-        View blurTarget = findViewById(R.id.all_apps_blur_target);
-        if (blurTarget != null
-                && blurTarget.getLayoutParams() instanceof RelativeLayout.LayoutParams targetLp) {
-            if (atTop) {
-                targetLp.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
-                targetLp.addRule(RelativeLayout.BELOW, R.id.search_container_all_apps);
-                targetLp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
-            } else {
-                targetLp.removeRule(RelativeLayout.BELOW);
-                targetLp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
-                targetLp.addRule(RelativeLayout.ALIGN_PARENT_TOP);
-            }
-        }
-        if (mHeader.getLayoutParams() instanceof RelativeLayout.LayoutParams headerLp) {
-            if (atTop) {
-                headerLp.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
-                headerLp.addRule(RelativeLayout.BELOW, R.id.search_container_all_apps);
-            } else {
-                headerLp.removeRule(RelativeLayout.BELOW);
-                headerLp.addRule(RelativeLayout.ALIGN_PARENT_TOP);
-            }
-        }
-        if (atTop) {
-            mSearchContainer.setBackgroundResource(R.drawable.bg_all_apps_searchbox);
-            mSearchContainer.setElevation(0);
-        } else {
-            setupFloatingSearch();
-        }
-        if (mSearchContainer instanceof Insettable insettable) {
-            insettable.setInsets(mInsets);
-        }
-        mAH.forEach(AdapterHolder::applyPadding);
-        requestLayout();
     }
 
     private void moveSearchBarToBottom() {

@@ -116,6 +116,7 @@ import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
+import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
@@ -142,7 +143,6 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsAnimation;
 import android.view.WindowManager.LayoutParams;
-import android.view.animation.PathInterpolator;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.animation.OvershootInterpolator;
 import android.widget.Toast;
@@ -164,7 +164,6 @@ import com.android.launcher3.accessibility.LauncherAccessibilityDelegate;
 import com.android.launcher3.allapps.ActivityAllAppsContainerView;
 import com.android.launcher3.allapps.AllAppsTransitionController;
 import com.android.launcher3.allapps.DiscoveryBounce;
-import com.android.launcher3.allapps.search.AppsSearchContainerLayout;
 import com.android.launcher3.anim.AnimationSuccessListener;
 import com.android.launcher3.anim.PropertyListBuilder;
 import com.android.launcher3.apppairs.AppPairIcon;
@@ -207,6 +206,7 @@ import com.android.launcher3.popup.PopupController;
 import com.android.launcher3.popup.SystemShortcut;
 import com.android.launcher3.popup.WorkspaceLongPressOptions;
 import com.android.launcher3.quickspace.QuickSpaceView;
+import com.android.launcher3.search.universal.SpotlightView;
 import com.android.launcher3.statemanager.StateManager;
 import com.android.launcher3.statemanager.StateManager.StateHandler;
 import com.android.launcher3.statemanager.StatefulActivity;
@@ -422,6 +422,8 @@ public class Launcher extends StatefulActivity<LauncherState>
         mStartupLatencyLogger.logStart(LAUNCHER_LATENCY_STARTUP_ACTIVITY_ON_CREATE);
 
         super.onCreate(savedInstanceState);
+        // A Spotlight that went down with the old process must not keep the status bar hidden.
+        SpotlightView.setTakingIslandsPlace(this, false);
         mWallpaperThemeManager = new WallpaperThemeManager(this);
 
         LauncherAppState app = LauncherAppState.getInstance(this);
@@ -1541,7 +1543,7 @@ public class Launcher extends StatefulActivity<LauncherState>
                 "status_bar_show_dynamic_island", 0) != 0;
         RectF from = new RectF();
         if (island) {
-            islandBounds(from);
+            spotlightAnchor(from);
         } else {
             int[] location = new int[2];
             pill.getLocationInWindow(location);
@@ -1550,77 +1552,54 @@ public class Launcher extends StatefulActivity<LauncherState>
         }
 
         AbstractFloatingView.closeAllOpenViews(this);
-        // Spotlight, not the drawer: the same field searches everything, and the app list and its
-        // tabs stay hidden behind the results for as long as it is open.
-        AppsSearchContainerLayout search = mAppsView.getSearchView()
-                instanceof AppsSearchContainerLayout layout ? layout : null;
-        View[] drawer = {mAppsView.getAppsRecyclerViewContainer(), mAppsView.getFloatingHeaderView()};
-        mAppsView.setSearchBarAtTopOverride(island);
-        if (search != null) search.setSpotlight(true);
-        for (View v : drawer) v.setAlpha(0f);
-        getStateManager().addStateListener(new StateManager.StateListener<>() {
-            @Override
-            public void onStateTransitionComplete(LauncherState finalState) {
-                if (finalState != ALL_APPS) {
-                    if (search != null) search.setSpotlight(false);
-                    for (View v : drawer) v.setAlpha(1f);
-                    mAppsView.setSearchBarAtTopOverride(null);
-                    getStateManager().removeStateListener(this);
-                }
-            }
-        });
-        getStateManager().goToState(ALL_APPS, false);
-        View field = mAppsView.getSearchView();
-        field.setAlpha(0f);
-        mDragLayer.post(() -> mDragLayer.post(() -> {
-            field.setAlpha(1f);
-            growFrom(field, from);
-            if (mAppsView.getSearchUiManager().getEditText() != null) {
-                mAppsView.getSearchUiManager().getEditText().requestFocusExplicitly();
-            }
-        }));
+        SpotlightView.show(this, from, island);
     }
 
-    /** Where the Dynamic Island sits: a pill around the camera cutout at the top centre. */
-    private void islandBounds(RectF out) {
+    /**
+     * Where Spotlight grows out of and settles back into: the Dynamic Island while it shows
+     * something, otherwise the camera itself. Returns whether the island is showing.
+     */
+    public boolean spotlightAnchor(RectF out) {
+        Rect island = Rect.unflattenFromString(String.valueOf(Settings.Secure.getString(
+                getContentResolver(), "penguin_island_bounds")));
+        if (island != null && !island.isEmpty()) {
+            out.set(island);
+            return true;
+        }
+        islandBounds(out);
+        float radius = out.height() / 2f;
+        out.set(out.centerX() - radius, out.top, out.centerX() + radius, out.bottom);
+        return false;
+    }
+
+    /** Where the Dynamic Island rests: a pill hugging the camera at the top centre. */
+    public void islandBounds(RectF out) {
         float density = getResources().getDisplayMetrics().density;
-        float width = 126 * density;
         float height = 37 * density;
         float centerX = mDragLayer.getWidth() / 2f;
         float top = 11 * density;
         WindowInsets insets = mDragLayer.getRootWindowInsets();
         DisplayCutout cutout = insets != null ? insets.getDisplayCutout() : null;
-        if (cutout != null && !cutout.getBoundingRectTop().isEmpty()) {
-            Rect camera = cutout.getBoundingRectTop();
-            centerX = camera.exactCenterX();
-            top = camera.centerY() - height / 2f;
+        if (cutout != null) {
+            // The lens itself: the cutout's bounding rect can span the whole status bar.
+            RectF camera = new RectF();
+            Path path = cutout.getCutoutPath();
+            if (path != null) {
+                path.computeBounds(camera, true);
+            }
+            if (camera.isEmpty() && !cutout.getBoundingRectTop().isEmpty()) {
+                camera.set(cutout.getBoundingRectTop());
+            }
+            if (!camera.isEmpty()) {
+                float pad = 3 * density;
+                height = camera.height() + 2 * pad;
+                centerX = camera.centerX();
+                top = camera.top - pad;
+            }
         }
+        // iOS's idle island is about three and a half times as wide as it is tall.
+        float width = height * 3.4f;
         out.set(centerX - width / 2f, top, centerX + width / 2f, top + height);
-    }
-
-    /** Grows [view] from [from], in window coordinates, into its own place. */
-    private static void growFrom(View view, RectF from) {
-        if (view.getWidth() == 0 || view.getHeight() == 0) return;
-        int[] location = new int[2];
-        view.getLocationInWindow(location);
-        view.setPivotX(0);
-        view.setPivotY(0);
-        view.setScaleX(Math.min(1f, from.width() / view.getWidth()));
-        view.setScaleY(Math.min(1f, from.height() / view.getHeight()));
-        view.setTranslationX(from.left - location[0]);
-        view.setTranslationY(from.top - location[1]);
-        view.animate()
-                .scaleX(1)
-                .scaleY(1)
-                .translationX(0)
-                .translationY(0)
-                .setDuration(420)
-                .setInterpolator(new PathInterpolator(0.3f, 0f, 0.1f, 1f))
-                .withEndAction(() -> {
-                    view.setPivotX(view.getWidth() / 2f);
-                    view.setPivotY(view.getHeight() / 2f);
-                })
-                .start();
     }
 
     private void toggleAllApps(boolean alreadyOnHome, boolean focusSearch) {

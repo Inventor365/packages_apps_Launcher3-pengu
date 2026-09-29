@@ -80,12 +80,6 @@ public class AllAppsSearchBarController
         });
     }
 
-    /** Swaps what the field searches, keeping the field and its results. */
-    public void setSearchAlgorithm(SearchAlgorithm<AdapterItem> searchAlgorithm) {
-        mSearchAlgorithm.cancel(true);
-        mSearchAlgorithm = searchAlgorithm;
-    }
-
     private boolean searchesEmptyQuery() {
         return LauncherPrefs.isAppLibrary(mInput.getContext())
                 || mSearchAlgorithm.hasEmptyQueryResults();

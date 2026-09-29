@@ -286,4 +286,11 @@
     <string name="outdoor_exit">Exit</string>
     <!-- The pill above the dock that opens universal search -->
     <string name="home_search_pill">Search</string>
+    <!-- Spotlight's field and its suggestions before anything is typed -->
+    <string name="spotlight_hint">Search</string>
+    <string name="spotlight_voice">Voice search</string>
+    <string name="spotlight_clipboard_link">Link on Clipboard</string>
+    <string name="spotlight_open_link">Open Link</string>
+    <string name="spotlight_now_playing">Now Playing</string>
+    <string name="spotlight_play">Play <xliff:g id="title" example="CHANEL">%1$s</xliff:g></string>
 </resources>
