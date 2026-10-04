@@ -34,6 +34,7 @@ import android.content.res.Resources;
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.view.Surface;
 
@@ -143,6 +144,7 @@ public class DeviceProfile {
 
     // Meminfo in overview
     public int memInfoHeight;
+    public int frequentAppsHeight;
     public boolean isTaskbarPresent;
 
     /** Used only as an alternative to mocking when null values cannot be used. */
@@ -252,6 +254,9 @@ public class DeviceProfile {
 
         memInfoHeight = LauncherPrefs.RECENTS_MEMINFO.get(context) ? res.getDimensionPixelSize(
                 R.dimen.meminfo_claimed_height) : 0;
+        frequentAppsHeight = Settings.Secure.getInt(context.getContentResolver(),
+                "recents_frequent_apps", 0) == 1
+                ? res.getDimensionPixelSize(R.dimen.frequent_apps_claimed_height) : 0;
         isTaskbarPresent = mDeviceProperties.getTaskbarConfiguration().isTaskbarPresent();
 
         mMetrics = res.getDisplayMetrics();
@@ -1136,7 +1141,8 @@ public class DeviceProfile {
     public int getOverviewActionsClaimedSpace() {
         int overviewActionsSpace = mDeviceProperties.isLargeScreen()
                 ? 0
-                : (overviewProfile.getActionsTopMarginPx() + overviewProfile.getActionsHeight());
+                : (overviewProfile.getActionsTopMarginPx() + overviewProfile.getActionsHeight()
+                        + frequentAppsHeight);
         return overviewActionsSpace + memInfoHeight + getOverviewActionsClaimedSpaceBelow();
     }
 

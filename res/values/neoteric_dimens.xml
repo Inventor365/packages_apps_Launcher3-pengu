@@ -20,6 +20,9 @@
 
     <!-- Meminfo in overview -->
     <dimen name="meminfo_claimed_height">16dp</dimen>
+    <dimen name="frequent_apps_claimed_height">76dp</dimen>
+    <dimen name="frequent_apps_icon_size">52dp</dimen>
+    <dimen name="frequent_apps_icon_spacing">28dp</dimen>
 
     <!-- QuickSpace -->
     <dimen name="quickspace_title_size">20sp</dimen>
