@@ -65,6 +65,7 @@ constructor(
     private val workspaceBlurRenderNode = RenderNode("workspaceBlur")
     private val workspaceBlurRenderNodeOutline = Outline()
     private val bounds = Rect()
+    private val glassBounds = android.graphics.RectF()
     private val folderBlurDrawable: BackgroundBlurDrawable? by lazy {
         if (!isBlurEnabled()) null
         else
@@ -116,10 +117,11 @@ constructor(
         }
 
         drawCrossWindowBlur(canvas, pathWrapper, view)
-        drawWorkspaceBlur(canvas, pathWrapper?.path, view)
+        drawWorkspaceBlur(canvas, pathWrapper, view)
     }
 
-    private fun drawWorkspaceBlur(canvas: Canvas, path: Path?, view: View) {
+    private fun drawWorkspaceBlur(canvas: Canvas, pathWrapper: PathWrapper?, view: View) {
+        val path = pathWrapper?.path
         if (!workspaceBlurRenderNode.hasDisplayList()) {
             return
         }
@@ -141,12 +143,31 @@ constructor(
         workspaceBlurRenderNode.setOutline(workspaceBlurRenderNodeOutline)
         workspaceBlurRenderNode.setClipToOutline(true)
 
+        val blur =
+            RenderEffect.createBlurEffect(folderBlurRadius, folderBlurRadius, Shader.TileMode.CLAMP)
         workspaceBlurRenderNode.setRenderEffect(
-            RenderEffect.createBlurEffect(
-                folderBlurRadius,
-                folderBlurRadius,
-                Shader.TileMode.CLAMP
-            )
+            if (LiquidGlass.isEnabled(context)) {
+                // The lens sits where the folder is, in the backdrop's own coordinates.
+                if (pathWrapper != null) {
+                    glassBounds.set(pathWrapper.bounds)
+                    glassBounds.offset(view.left.toFloat(), view.top.toFloat())
+                } else {
+                    glassBounds.set(
+                        view.left.toFloat(),
+                        view.top.toFloat(),
+                        view.right.toFloat(),
+                        view.bottom.toFloat(),
+                    )
+                }
+                LiquidGlass.lensEffect(
+                    blur,
+                    glassBounds,
+                    pathWrapper?.cornerRadius ?: cornerRadius,
+                    context.resources.displayMetrics.density,
+                )
+            } else {
+                blur
+            }
         )
         canvas.drawRenderNode(workspaceBlurRenderNode)
     }

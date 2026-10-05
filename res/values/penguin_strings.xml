@@ -26,4 +26,13 @@
     <string name="task_changer_search_summary">Show a search button on the recent apps screen</string>
     <string name="task_changer_circular_title">Circular list</string>
     <string name="task_changer_circular_summary">Bend the list round as it scrolls</string>
+
+    <!-- Folder sizes, from a folder's long-press menu -->
+    <string name="folder_size_small">Small folder</string>
+    <string name="folder_size_large">Large folder</string>
+    <string name="folder_size_extra_large">Extra large folder</string>
+    <string name="folder_size_no_room">No room on this page for that size</string>
+
+    <!-- Widget stacks -->
+    <string name="widget_stack_remove_page">Remove from stack</string>
 </resources>

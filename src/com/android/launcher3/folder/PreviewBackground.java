@@ -31,10 +31,12 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Shader;
 import android.util.Property;
@@ -51,6 +53,7 @@ import com.android.launcher3.celllayout.DelegatedCellDrawing;
 import com.android.launcher3.graphics.PathWrapper;
 import com.android.launcher3.graphics.ShapeDelegate;
 import com.android.launcher3.graphics.ThemeManager;
+import com.android.launcher3.util.LiquidGlass;
 import com.android.launcher3.views.ActivityContext;
 
 /**
@@ -252,7 +255,19 @@ public class PreviewBackground extends DelegatedCellDrawing {
 
         getShape().drawShape(canvas, getOffsetX(), getOffsetY(), getScaledRadius(), mPaint);
         drawShadow(canvas);
+        if (LiquidGlass.isEnabled(mContext)) {
+            float r = getScaledRadius();
+            mGlassPath.reset();
+            getShape().addToPath(mGlassPath, getOffsetX(), getOffsetY(), r);
+            mGlassBounds.set(getOffsetX(), getOffsetY(), getOffsetX() + 2 * r,
+                    getOffsetY() + 2 * r);
+            LiquidGlass.drawRim(canvas, mGlassBounds, r, mGlassPath,
+                    mContext.getResources().getDisplayMetrics().density, 0.8f);
+        }
     }
+
+    private final Path mGlassPath = new Path();
+    private final RectF mGlassBounds = new RectF();
 
     private ShapeDelegate getShape() {
         return ThemeManager.INSTANCE.get(mContext).getFolderShape();
