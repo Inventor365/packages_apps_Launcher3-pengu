@@ -51,6 +51,7 @@ import com.android.app.tracing.traceSection
 import com.android.internal.jank.Cuj.CUJ_LAUNCHER_APP_LAUNCH_FROM_RECENTS
 import com.android.launcher3.AbstractFloatingView
 import com.android.launcher3.Flags.enableRefactorDigitalWellbeingToast
+import com.android.launcher3.LauncherPrefs
 import com.android.launcher3.R
 import com.android.launcher3.Utilities
 import com.android.launcher3.Utilities.getTrimmedStackTrace
@@ -461,6 +462,13 @@ constructor(
 
     // Applied as a complement to gridTranslation, for adjusting the carousel overview and quick
     // switch.
+    /** Pulls the card in towards the centre for the tilt stack. */
+    var tiltTranslationX = 0f
+        set(value) {
+            field = value
+            applyTranslationX()
+        }
+
     var nonGridTranslationX = 0f
         set(value) {
             field = value
@@ -1251,7 +1259,9 @@ constructor(
         traceSection("TaskView.setIconState") {
             if (state is TaskData.Data) {
                 setIcon(container.iconView, state.icon)
-                container.iconView.setText(state.title)
+                container.iconView.setText(
+                    if (LauncherPrefs.RECENTS_APP_LABEL.get(context)) state.title else null
+                )
             } else {
                 setIcon(container.iconView, null)
                 container.iconView.setText(null)
@@ -1791,7 +1801,8 @@ constructor(
                 splitSelectTranslationX +
                 gridEndTranslationX +
                 persistentTranslationX +
-                animateToIconTranslationX
+                animateToIconTranslationX +
+                tiltTranslationX
     }
 
     private fun applyTranslationY() {
