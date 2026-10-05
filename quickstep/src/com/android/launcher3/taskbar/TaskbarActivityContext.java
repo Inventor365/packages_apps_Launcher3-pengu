@@ -212,6 +212,8 @@ import com.android.wm.shell.shared.desktopmode.DesktopModeTransitionSource;
 import com.android.wm.shell.shared.desktopmode.DesktopState;
 import com.android.wm.shell.shared.desktopmode.DesktopTaskToFrontReason;
 
+import com.penguin.dex.launcher.DexFeatures;
+
 import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
@@ -980,9 +982,14 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
         return isThreeButtonNav() && mDeviceProfile.getTaskbarProfile().isStartAlignTaskbar();
     }
 
+    /** Whether this taskbar is a DeX desktop's. */
+    public boolean isDexDesktop() {
+        return mDeviceProfile.getDeviceProperties().getDeviceConfiguration().isExternalDisplay();
+    }
+
     /** Whether this taskbar is a DeX desktop's, drawn as a floating dock. */
     public boolean isDexDock() {
-        return mDeviceProfile.getDeviceProperties().getDeviceConfiguration().isExternalDisplay();
+        return isDexDesktop() && DexFeatures.dock(this);
     }
 
     public boolean isGestureNav() {
