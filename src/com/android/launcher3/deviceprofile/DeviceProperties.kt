@@ -79,8 +79,11 @@ data class DeviceProperties(
                     ENABLE_TASKBAR_URI, if (isLargeScreen) 1 else 0
                 ) != 0
             } ?: (Flags.enableTinyTaskbar() || isLargeScreen)
+            // A DeX desktop always has its taskbar; the setting is the phone screen's.
             val allowTaskbar =
-                if (!isLargeScreen) enableTaskbar && deviceConfiguration.isGestureMode else enableTaskbar
+                if (deviceConfiguration.isExternalDisplay) true
+                else if (!isLargeScreen) enableTaskbar && deviceConfiguration.isGestureMode
+                else enableTaskbar
             val taskbarOrBubbleBarOnPhones =
                 Flags.enableBubbleBar() && Flags.enableBubbleBarOnPhones() && deviceConfiguration.isGestureMode
             return DeviceProperties(
