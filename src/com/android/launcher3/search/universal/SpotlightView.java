@@ -69,6 +69,7 @@ import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.search.SearchCallback;
 import com.android.launcher3.util.ApiWrapper;
 import com.android.launcher3.util.Executors;
+import com.android.launcher3.util.LiquidGlass;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -185,8 +186,17 @@ public class SpotlightView extends AbstractFloatingView
             return;
         }
         mBackdrop.setImageBitmap(backdrop);
-        mBackdrop.setRenderEffect(RenderEffect.createBlurEffect(
-                BACKDROP_BLUR_RADIUS, BACKDROP_BLUR_RADIUS, Shader.TileMode.CLAMP));
+        if (LiquidGlass.isEnabled(getContext()) && mBackdrop.getWidth() > 0) {
+            float cardRadius = getResources().getDimension(R.dimen.spotlight_card_radius);
+            mBackdrop.setRenderEffect(LiquidGlass.lensEffect(
+                    RenderEffect.createBlurEffect(BACKDROP_BLUR_RADIUS, BACKDROP_BLUR_RADIUS,
+                            Shader.TileMode.CLAMP),
+                    new RectF(0, 0, mBackdrop.getWidth(), mBackdrop.getHeight()), cardRadius,
+                    getResources().getDisplayMetrics().density));
+        } else {
+            mBackdrop.setRenderEffect(RenderEffect.createBlurEffect(
+                    BACKDROP_BLUR_RADIUS, BACKDROP_BLUR_RADIUS, Shader.TileMode.CLAMP));
+        }
         // Keep the snapshot lined up with the screen under the card as the card moves and grows.
         mCard.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> alignBackdrop());
         if (mAtTop) {
@@ -203,6 +213,73 @@ public class SpotlightView extends AbstractFloatingView
                     new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT));
         }
+    }
+
+    /**
+     * Liquid Glass: the field turns from the island's solid black into dark glass with a lit rim,
+     * as iOS's Search or Ask field is, and the card's backdrop bends at its edges.
+     */
+    private void applyLiquidGlass() {
+        float density = getResources().getDisplayMetrics().density;
+        mField.setBackground(new Drawable() {
+            private final android.graphics.Paint mFill =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            private final RectF mRect = new RectF();
+
+            @Override
+            public void draw(@NonNull Canvas canvas) {
+                if (mFieldShape.isEmpty()) {
+                    mRect.set(getBounds());
+                } else {
+                    mRect.set(mFieldShape);
+                }
+                float radius = Math.min(mRect.width(), mRect.height()) / 2f;
+                mFill.setColor(0xC8000000);
+                canvas.drawRoundRect(mRect, radius, radius, mFill);
+                LiquidGlass.drawRim(canvas, mRect, radius, null, density, 0.75f);
+            }
+
+            @Override
+            public void setAlpha(int alpha) {}
+
+            @Override
+            public void setColorFilter(@Nullable android.graphics.ColorFilter filter) {}
+
+            @Override
+            public int getOpacity() {
+                return android.graphics.PixelFormat.TRANSLUCENT;
+            }
+        });
+        float cardRadius = getResources().getDimension(R.dimen.spotlight_card_radius);
+        mCard.setForeground(new Drawable() {
+            private final RectF mRect = new RectF();
+
+            @Override
+            public void draw(@NonNull Canvas canvas) {
+                mRect.set(getBounds());
+                LiquidGlass.drawRim(canvas, mRect, cardRadius, null, density, 1f);
+            }
+
+            @Override
+            public void setAlpha(int alpha) {}
+
+            @Override
+            public void setColorFilter(@Nullable android.graphics.ColorFilter filter) {}
+
+            @Override
+            public int getOpacity() {
+                return android.graphics.PixelFormat.TRANSLUCENT;
+            }
+        });
+        mBackdrop.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if ((r - l == or - ol && b - t == ob - ot) || r == l || b == t) {
+                return;
+            }
+            mBackdrop.setRenderEffect(LiquidGlass.lensEffect(
+                    RenderEffect.createBlurEffect(BACKDROP_BLUR_RADIUS, BACKDROP_BLUR_RADIUS,
+                            Shader.TileMode.CLAMP),
+                    new RectF(0, 0, r - l, b - t), cardRadius, density));
+        });
     }
 
     private void alignBackdrop() {
@@ -229,6 +306,9 @@ public class SpotlightView extends AbstractFloatingView
         mCard = findViewById(R.id.spotlight_card);
         mBackdrop = findViewById(R.id.spotlight_backdrop);
         mCard.setClipToOutline(true);
+        if (LiquidGlass.isEnabled(launcher)) {
+            applyLiquidGlass();
+        }
         findViewById(R.id.spotlight_mic).setOnClickListener(v -> {
             try {
                 mLauncher.startActivity(new Intent(RecognizerIntent.ACTION_WEB_SEARCH)

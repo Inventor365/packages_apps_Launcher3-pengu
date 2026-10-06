@@ -87,7 +87,10 @@ object LiquidGlass {
      */
     @JvmStatic
     fun lensEffect(blur: RenderEffect, bounds: RectF, radius: Float, density: Float): RenderEffect {
-        val band = (radius * 1.1f).coerceIn(14f * density, minOf(bounds.width(), bounds.height()) * 0.5f)
+        val half = minOf(bounds.width(), bounds.height()) * 0.5f
+        if (half < 1f) return blur
+        // At least 14dp of curve, but never past the middle of a small slab.
+        val band = maxOf(radius * 1.1f, 14f * density).coerceAtMost(half)
         lens.setFloatUniform("bounds", bounds.left, bounds.top, bounds.right, bounds.bottom)
         lens.setFloatUniform("radius", radius)
         lens.setFloatUniform("band", band)
