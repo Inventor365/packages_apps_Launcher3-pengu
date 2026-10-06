@@ -2,6 +2,8 @@ package com.android.launcher3.search.universal;
 
 import static com.android.launcher3.allapps.BaseAllAppsAdapter.VIEW_TYPE_EMPTY_SEARCH;
 
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.os.Handler;
 
@@ -18,6 +20,7 @@ import com.android.launcher3.util.LooperExecutor;
 
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +39,8 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
     private static final long PROVIDER_TIMEOUT_MS = 150;
     private static final int NO_FILTER = -1;
     private static final int MAX_SCREENSHOTS = 8;
+    private static final long USAGE_WINDOW_MS = 14L * 24 * 60 * 60 * 1000;
+    private static final long USAGE_TTL_MS = 60_000;
 
     private final Context mContext;
     private final LauncherAppState mAppState;
@@ -45,6 +50,10 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
     private final List<SearchProvider> mProviders;
     private final AtomicInteger mRequest = new AtomicInteger();
     private final Collator mCollator = Collator.getInstance();
+
+    // Only touched on the model thread.
+    private Map<String, Long> mUsage;
+    private long mUsageAt;
 
     // Only touched on mWorker.
     private int mFilter = NO_FILTER;
@@ -123,11 +132,16 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
     private AppMatches matchApps(List<AppInfo> apps, String query) {
         String lower = query.trim().toLowerCase(Locale.getDefault());
         if (lower.isEmpty()) {
+            // Spotlight suggests apps even with the App Library on; only the library itself
+            // lists them all.
+            if (mSpotlight) {
+                return new AppMatches(suggestedApps(apps), 0);
+            }
             if (mAppLibrary) {
                 return new AppMatches(
                         DefaultAppSearchAlgorithm.getTitleMatchResult(apps, "", true), 0);
             }
-            return new AppMatches(mSpotlight ? suggestedApps(apps) : new ArrayList<>(), 0);
+            return new AppMatches(new ArrayList<>(), 0);
         }
         record Scored(AppInfo app, int match, int score) {}
         List<Scored> scored = new ArrayList<>();
@@ -159,18 +173,23 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
         return new AppMatches(items, scored.isEmpty() ? 0 : scored.get(0).score);
     }
 
-    /** The apps opened most from search, then alphabetically, as Spotlight's suggestions. */
+    /** The apps opened most from search, then the ones used most lately, as Spotlight's suggestions. */
     private ArrayList<AdapterItem> suggestedApps(List<AppInfo> apps) {
+        Map<String, Long> usage = recentUsage();
+        String self = mContext.getPackageName();
         List<AppInfo> sorted = new ArrayList<>();
         for (AppInfo app : apps) {
-            if (app.title != null) sorted.add(app);
+            if (app.title != null && !self.equals(app.getTargetPackage())) sorted.add(app);
         }
         sorted.sort((a, b) -> {
             int boostA = SearchHistory.boost(mContext,
                     SearchHistory.appKey(a.getTargetComponent(), a.user));
             int boostB = SearchHistory.boost(mContext,
                     SearchHistory.appKey(b.getTargetComponent(), b.user));
-            return boostA != boostB ? boostB - boostA
+            if (boostA != boostB) return boostB - boostA;
+            long usedA = usage.getOrDefault(a.getTargetPackage(), 0L);
+            long usedB = usage.getOrDefault(b.getTargetPackage(), 0L);
+            return usedA != usedB ? Long.compare(usedB, usedA)
                     : mCollator.compare(a.title.toString(), b.title.toString());
         });
         ArrayList<AdapterItem> items = new ArrayList<>();
@@ -178,6 +197,23 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
             items.add(AdapterItem.asApp(sorted.get(i)));
         }
         return items;
+    }
+
+    /** Foreground time per package over the last fortnight. */
+    private Map<String, Long> recentUsage() {
+        long now = System.currentTimeMillis();
+        if (mUsage != null && now - mUsageAt < USAGE_TTL_MS) return mUsage;
+        Map<String, Long> usage = new HashMap<>();
+        UsageStatsManager usm = mContext.getSystemService(UsageStatsManager.class);
+        if (usm != null) {
+            for (UsageStats stats : usm.queryAndAggregateUsageStats(now - USAGE_WINDOW_MS, now)
+                    .values()) {
+                usage.put(stats.getPackageName(), stats.getTotalTimeVisible());
+            }
+        }
+        mUsage = usage;
+        mUsageAt = now;
+        return usage;
     }
 
     private void publishEmptyQuery(int token, String query, ArrayList<AdapterItem> appItems,
