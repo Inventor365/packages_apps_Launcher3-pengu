@@ -251,6 +251,12 @@ public class SpotlightView extends AbstractFloatingView
             }
         });
         float cardRadius = getResources().getDimension(R.dimen.spotlight_card_radius);
+        // The rim is the card's edge now, in place of the drawable's own stroke.
+        android.graphics.drawable.GradientDrawable card =
+                new android.graphics.drawable.GradientDrawable();
+        card.setColor(0x33000000);
+        card.setCornerRadius(cardRadius);
+        mCard.setBackground(card);
         mCard.setForeground(new Drawable() {
             private final RectF mRect = new RectF();
 

@@ -119,15 +119,17 @@ object LiquidGlass {
                     addRoundRect(bounds, radius, radius, Path.Direction.CW)
                 }
         val a = alpha.coerceIn(0f, 1f)
-        rimPaint.strokeWidth = 2.4f * density
+        // A hairline, lit only where the curve faces the light (top-left) and catches its bounce
+        // (bottom-right), fading out along the straight sides, as iOS's glass edges are.
+        rimPaint.strokeWidth = 1.4f * density
         rimPaint.shader =
             LinearGradient(
                 bounds.left,
                 bounds.top,
                 bounds.right,
                 bounds.bottom,
-                intArrayOf(white(0.70f * a), white(0.12f * a), white(0.05f * a), white(0.40f * a)),
-                floatArrayOf(0f, 0.3f, 0.7f, 1f),
+                intArrayOf(white(0.55f * a), white(0.08f * a), 0, white(0.05f * a), white(0.30f * a)),
+                floatArrayOf(0f, 0.22f, 0.5f, 0.78f, 1f),
                 Shader.TileMode.CLAMP,
             )
         sheenPaint.shader =
@@ -135,8 +137,8 @@ object LiquidGlass {
                 0f,
                 bounds.top,
                 0f,
-                bounds.top + bounds.height() * 0.45f,
-                white(0.12f * a),
+                bounds.top + bounds.height() * 0.3f,
+                white(0.05f * a),
                 0,
                 Shader.TileMode.CLAMP,
             )
