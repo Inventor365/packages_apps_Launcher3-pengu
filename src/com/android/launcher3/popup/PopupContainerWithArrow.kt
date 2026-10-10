@@ -15,6 +15,7 @@
  */
 package com.android.launcher3.popup
 
+import android.graphics.Rect
 import android.animation.LayoutTransition
 import android.annotation.SuppressLint
 import android.content.Context
@@ -358,6 +359,24 @@ private constructor(
             deepShortcuts.add(v)
         }
         updateHiddenShortcuts()
+    }
+
+    override fun getTargetObjectLocation(outPos: Rect) {
+        val btv = originalIcon as? BubbleTextView
+        if (btv != null && btv.isMultiSpan) {
+            popupContainer.getDescendantRectRelativeToSelf(originalView, outPos)
+            val bgBounds = btv.multiSpanBackgroundBounds
+            val scale = originalView.scaleX
+            val viewLeft = outPos.left
+            val viewTop = outPos.top
+            outPos.left = viewLeft + Math.round(bgBounds.left * scale)
+            outPos.top = viewTop + Math.round(bgBounds.top * scale)
+            outPos.right = viewLeft + Math.round(bgBounds.right * scale)
+            outPos.bottom = viewTop + Math.round(bgBounds.bottom * scale)
+            return
+        }
+        super.getTargetObjectLocation(outPos)
+        outPos.bottom = outPos.top + (btv?.icon?.bounds?.height() ?: originalView.height)
     }
 
     private fun updateHiddenShortcuts() {

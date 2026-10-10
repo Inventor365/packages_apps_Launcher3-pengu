@@ -67,6 +67,7 @@ import com.android.launcher3.BubbleTextView;
 import com.android.launcher3.Flags;
 import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
+import com.android.launcher3.LauncherSettings;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.graphics.AutomatedIconDelegate;
 import com.android.launcher3.graphics.PreloadIconDelegate;
@@ -74,6 +75,7 @@ import com.android.launcher3.icons.BitmapInfo;
 import com.android.launcher3.icons.FastBitmapDrawable;
 import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.model.data.ItemInfoWithIcon;
+import com.android.launcher3.model.data.WorkspaceItemInfo;
 import com.android.launcher3.pm.PackageInstallInfo;
 import com.android.launcher3.search.StringMatcherUtility;
 import com.android.launcher3.util.IntArray;
@@ -180,6 +182,30 @@ public class BubbleTextViewTest {
         mBubbleTextView.onPreDraw();
 
         assertNotEquals(TWO_LINE, mBubbleTextView.getMaxLines());
+    }
+
+    @Test
+    public void testCustomPixelSizeIsPreservedAcrossSuperIconResize() {
+        mBubbleTextView.setDisplay(BubbleTextView.DISPLAY_WORKSPACE);
+        int defaultSize = mBubbleTextView.getIconSize();
+        WorkspaceItemInfo item = new WorkspaceItemInfo();
+        item.container = LauncherSettings.Favorites.CONTAINER_DESKTOP;
+        item.iconSizeDp = 64;
+        mBubbleTextView.setTag(item);
+        mBubbleTextView.applyWorkspaceIconSize();
+        int customSize = mBubbleTextView.getIconSize();
+
+        item.spanX = 2;
+        item.spanY = 2;
+        mBubbleTextView.applyWorkspaceIconSize();
+        assertEquals(defaultSize, mBubbleTextView.getIconSize());
+        assertEquals(64, item.iconSizeDp);
+
+        item.spanX = 1;
+        item.spanY = 1;
+        mBubbleTextView.applyWorkspaceIconSize();
+        assertEquals(customSize, mBubbleTextView.getIconSize());
+        assertEquals(64, item.iconSizeDp);
     }
 
     @Test

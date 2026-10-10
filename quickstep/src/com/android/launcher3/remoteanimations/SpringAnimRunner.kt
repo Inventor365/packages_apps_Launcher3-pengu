@@ -87,7 +87,7 @@ constructor(
         windowCornerRadius = radius
     }
 
-    fun getCornerRadius(progress: Float): Float =
+    open fun getCornerRadius(progress: Float): Float =
         Utilities.mapRange(progress, startRadius, endRadius)
 
     override fun onUpdate(currentRectF: RectF, progress: Float) {

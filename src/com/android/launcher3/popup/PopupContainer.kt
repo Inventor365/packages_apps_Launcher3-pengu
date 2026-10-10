@@ -127,6 +127,7 @@ open class PopupContainer<T : ActivityContext>(
         activityContext: ActivityContext,
         itemView: View,
         showWallpaperCarousel: Boolean = false,
+        beforeShortcuts: ((ViewGroup) -> Unit)? = null,
     ) {
         if (Flags.expandableLongPressMenu()) {
             showComposePopup(
@@ -146,6 +147,7 @@ open class PopupContainer<T : ActivityContext>(
             val popupWidth = resolveHomescreenPopupWidth(activityContext)
             systemShortcutContainer = inflateAndAdd(R.layout.system_shortcut_rows_container, this)
             if (showWallpaperCarousel) maybeAddWallpaperCarousel(systemShortcutContainer!!)
+            beforeShortcuts?.invoke(systemShortcutContainer!!)
             systemShortcuts.forEach { systemShortcut ->
                 val view: DeepShortcutView =
                     inflateAndAdd(R.layout.system_shortcut, systemShortcutContainer)

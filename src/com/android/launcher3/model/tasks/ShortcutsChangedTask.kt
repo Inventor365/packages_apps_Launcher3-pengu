@@ -25,6 +25,7 @@ import com.android.launcher3.model.ModelTaskController
 import com.android.launcher3.model.data.WorkspaceItemInfo
 import com.android.launcher3.shortcuts.ShortcutKey
 import com.android.launcher3.shortcuts.ShortcutRequest
+import com.android.launcher3.shortcuts.SuperIconShortcutHelper
 import com.android.launcher3.util.ApplicationInfoWrapper
 import com.android.launcher3.util.ItemInfoMatcher
 
@@ -41,6 +42,7 @@ class ShortcutsChangedTask(
         dataModel: BgDataModel,
         apps: AllAppsList,
     ) {
+        SuperIconShortcutHelper.clearCache()
         val context = taskController.context
         val itemFilter: (WorkspaceItemInfo) -> Boolean = {
             it.itemType == ITEM_TYPE_DEEP_SHORTCUT && packageName == it.targetPackage

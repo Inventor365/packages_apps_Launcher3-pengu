@@ -36,6 +36,7 @@ import androidx.annotation.Nullable;
 import com.android.app.animation.Interpolators;
 import com.android.launcher3.Flags;
 import com.android.launcher3.LauncherAnimUtils;
+import com.android.launcher3.BubbleTextView;
 import com.android.launcher3.LauncherState;
 import com.android.launcher3.anim.AnimatorPlaybackController;
 import com.android.launcher3.statehandlers.DesktopVisibilityController;
@@ -169,6 +170,14 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
             @Override protected void playScalingRevealAnimation() { icon.createReveal(false).start(); }
             @Override public void onCancel() { icon.cancel(); }
             @Override public boolean isAnimationReady() { return icon.isAnimationReady(); }
+            @Override public float getEndRadius(RectF cropRectF) {
+                if (workspaceView instanceof BubbleTextView btv && btv.isMultiSpan()) {
+                    float targetWidth = Math.max(1f, icon.getTargetRect().width());
+                    return btv.getIconBackgroundCornerRadius()
+                            * (cropRectF.width() / targetWidth);
+                }
+                return super.getEndRadius(cropRectF);
+            }
             @Override public void setTaskViewArtist(ClipIconView.TaskViewArtist artist) {
                 icon.setTaskViewArtist(artist);
             }

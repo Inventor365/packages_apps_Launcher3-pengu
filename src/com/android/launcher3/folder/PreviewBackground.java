@@ -33,6 +33,7 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Point;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
@@ -55,6 +56,7 @@ import com.android.launcher3.graphics.PathWrapper;
 import com.android.launcher3.graphics.ShapeDelegate;
 import com.android.launcher3.graphics.ThemeManager;
 import com.android.launcher3.util.LiquidGlass;
+import com.android.launcher3.Utilities;
 import com.android.launcher3.views.ActivityContext;
 
 /**
@@ -93,6 +95,8 @@ public class PreviewBackground extends DelegatedCellDrawing {
     private View mInvalidateDelegate;
 
     int previewSize;
+    private int mSpanX = 1;
+    private int mSpanY = 1;
 
     private CellLayout mDrawingDelegate;
 
@@ -145,7 +149,7 @@ public class PreviewBackground extends DelegatedCellDrawing {
                 }
             };
 
-    static void calculateBackgroundBounds(
+    public static void calculateBackgroundBounds(
             DeviceProfile grid,
             int availableSpaceX,
             int availableSpaceY,
@@ -154,45 +158,60 @@ public class PreviewBackground extends DelegatedCellDrawing {
             int spanY,
             Rect outBounds) {
         int previewSize = grid.getFolderProfile().getFolderIconSizePx();
+        Point borderSpace = grid.getWorkspaceProfile().getCellLayoutBorderSpacePx();
+        Point cellSize = grid.getWorkspaceProfile().getCellSize();
+
+        int cellWidth = availableSpaceX > 0
+                ? (spanX > 1 ? (availableSpaceX - (spanX - 1) * borderSpace.x) / spanX
+                        : availableSpaceX)
+                : (cellSize.x > 0 ? cellSize.x : grid.getWorkspaceProfile().getCellWidthPx());
+        int cellHeight = availableSpaceY > 0
+                ? (spanY > 1 ? (availableSpaceY - (spanY - 1) * borderSpace.y) / spanY
+                        : availableSpaceY)
+                : (cellSize.y > 0 ? cellSize.y : grid.getWorkspaceProfile().getCellHeightPx());
 
         int backgroundWidth;
         int backgroundHeight;
         int backgroundLeft;
         int backgroundTop;
 
+        if (topPadding <= 0) {
+            int cellPaddingY = grid.getWorkspaceProfile().getCellYPaddingPx();
+            if (cellPaddingY < 0) {
+                int cHeight = grid.getWorkspaceProfile().getCellHeightPx();
+                cellPaddingY = Math.max(0, (cellHeight - cHeight) / 2);
+            }
+            topPadding = cellPaddingY;
+        }
+
         if (spanX == 1 && spanY == 1) {
             backgroundWidth = previewSize;
             backgroundHeight = previewSize;
-            backgroundLeft = (availableSpaceX - backgroundWidth) / 2;
+            backgroundLeft = availableSpaceX > 0
+                    ? (availableSpaceX - backgroundWidth) / 2
+                    : (cellWidth - previewSize) / 2;
             backgroundTop = topPadding + grid.getFolderProfile().getFolderIconOffsetYPx();
         } else {
-            float standardIconSize = grid.getWorkspaceProfile().getIconSizePx();
-            float itemScale = 0.85f;
-            float itemSize = standardIconSize * itemScale;
-            float idealPadding = itemSize * 0.20f;
-            float idealGap = itemSize * 0.15f;
-
-            float idealWidth = spanX * itemSize + (spanX - 1) * idealGap + 2 * idealPadding;
-            float idealHeight = spanY * itemSize + (spanY - 1) * idealGap + 2 * idealPadding;
-
-            availableSpaceX = availableSpaceX > 0 ? availableSpaceX : Math.round(idealWidth);
-            availableSpaceY = availableSpaceY > 0 ? availableSpaceY : Math.round(idealHeight);
-
-            if (idealWidth > availableSpaceX || idealHeight > availableSpaceY) {
-                float fitScale = Math.min((float) availableSpaceX / idealWidth, (float) availableSpaceY / idealHeight);
-                itemSize *= fitScale;
-                idealPadding *= fitScale;
-                idealGap *= fitScale;
-
-                idealWidth = spanX * itemSize + (spanX - 1) * idealGap + 2 * idealPadding;
-                idealHeight = spanY * itemSize + (spanY - 1) * idealGap + 2 * idealPadding;
-            }
-
-            backgroundWidth = Math.round(idealWidth);
-            backgroundHeight = Math.round(idealHeight);
-            backgroundLeft = Math.round((availableSpaceX - backgroundWidth) / 2f);
-
+            backgroundHeight = (spanY - 1) * (cellHeight + borderSpace.y) + previewSize;
             backgroundTop = topPadding + grid.getFolderProfile().getFolderIconOffsetYPx();
+
+            if (spanX == 1) {
+                backgroundWidth = previewSize;
+                backgroundLeft = availableSpaceX > 0
+                        ? (availableSpaceX - backgroundWidth) / 2
+                        : (cellWidth - previewSize) / 2;
+            } else {
+                int numColumns = grid.inv != null ? grid.inv.numColumns : 4;
+                float bgPaddingHorizDp = numColumns <= 3 ? 18f : (numColumns == 4 ? 10f : 4.7f);
+                int oosBgPaddingHoriz = Utilities.dpToPx(bgPaddingHorizDp);
+                int iconAlignedPaddingHoriz = Math.max(0, (cellWidth - previewSize) / 2);
+                int bgPaddingHoriz = Math.min(oosBgPaddingHoriz, iconAlignedPaddingHoriz);
+                int totalSpanWidth = availableSpaceX > 0
+                        ? availableSpaceX
+                        : (spanX * cellWidth + (spanX - 1) * borderSpace.x);
+                backgroundLeft = bgPaddingHoriz;
+                backgroundWidth = Math.max(previewSize, totalSpanWidth - 2 * bgPaddingHoriz);
+            }
         }
 
         outBounds.set(
@@ -230,6 +249,8 @@ public class PreviewBackground extends DelegatedCellDrawing {
     public void setup(Context context, ActivityContext activity, View invalidateDelegate,
             int availableSpaceX, int availableSpaceY, int topPadding, int spanX, int spanY) {
         mInvalidateDelegate = invalidateDelegate;
+        mSpanX = spanX;
+        mSpanY = spanY;
 
         TypedArray ta = context.getTheme().obtainStyledAttributes(R.styleable.FolderIconPreview);
         mStrokeColor = ta.getColor(R.styleable.FolderIconPreview_folderIconBorderColor, 0);
@@ -415,6 +436,20 @@ public class PreviewBackground extends DelegatedCellDrawing {
             float scale) {
         if (!(shape instanceof ShapeDelegate.RoundedSquare roundedSquare)) {
             return 0f;
+        }
+
+        if ((mSpanX == 2 && mSpanY == 1) || (mSpanX == 1 && mSpanY == 2)) {
+            return Math.min(bounds.width(), bounds.height()) / 2f * scale;
+        }
+
+        if (mSpanX > 1 || mSpanY > 1) {
+            float boxyRadius = previewSize * 0.44f * scale;
+            if (shape instanceof ShapeDelegate.RoundedSquare
+                    && !(shape instanceof ShapeDelegate.Circle)) {
+                boxyRadius = Math.max(boxyRadius,
+                        previewSize / 2f * roundedSquare.getRadiusRatio() * scale);
+            }
+            return Math.min(boxyRadius, Math.min(bounds.width(), bounds.height()) / 2f);
         }
 
         if (shape instanceof ShapeDelegate.Circle) {

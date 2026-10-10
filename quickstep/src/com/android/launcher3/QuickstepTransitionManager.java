@@ -2205,9 +2205,22 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             // FloatingIconView can be seen morphing into the icon shape.
             final float windowAlphaThreshold = 1f - SHAPE_PROGRESS_DURATION;
 
+            final float customEndRadius =
+                    (launcherView instanceof BubbleTextView btv && btv.isMultiSpan())
+                            ? btv.getIconBackgroundCornerRadius() : -1f;
+
             RectFSpringAnim.OnUpdateListener runner = new SpringAnimRunner(targets, targetRect,
                     closingWindowStartRectF, mLauncher, startWindowCornerRadius,
                     CLOSE_WINDOW_FADE_END, CLOSE_WINDOW_FADE_START) {
+                @Override
+                public float getCornerRadius(float progress) {
+                    if (customEndRadius >= 0f) {
+                        return startWindowCornerRadius
+                                + progress * (customEndRadius - startWindowCornerRadius);
+                    }
+                    return super.getCornerRadius(progress);
+                }
+
                 @Override
                 public void onUpdate(RectF currentRectF, float progress) {
                     float iconAlpha = Interpolators.clampToProgress(
