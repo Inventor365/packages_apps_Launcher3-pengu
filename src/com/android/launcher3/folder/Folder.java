@@ -824,6 +824,9 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
                 if (Flags.enableExpressiveFolderExpansion()) {
                     Trace.beginSection("FolderSpringAnimationOpen");
                 }
+                // The expanded folder renders its own title in the footer. Hide only the
+                // collapsed workspace label; the folder contents and footer remain unchanged.
+                mFolderIcon.setFolderOpen(true);
                 // A big folder cross-fades its content against the tile's big preview instead of
                 // flying small preview items (see FolderAnimationManager), so the tile has to stay
                 // drawn for the whole animation; it is hidden below, once the content is opaque.
@@ -1069,6 +1072,7 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         mContent.setAlpha(1f);
         setAlpha(1f);
         if (mFolderIcon != null) {
+            mFolderIcon.setFolderOpen(false);
             mFolderIcon.setVisibility(View.VISIBLE);
             mFolderIcon.setIconVisible(true);
             mFolderIcon.setBigPreviewAlpha(1f);
