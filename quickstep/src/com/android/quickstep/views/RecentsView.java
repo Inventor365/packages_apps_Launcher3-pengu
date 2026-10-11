@@ -2707,6 +2707,9 @@ public abstract class RecentsView<
         updateTaskStackListenerState();
     }
 
+    /** Called as a gesture from an app leans towards switching to the next app or away from it. */
+    public void setLikelyToStartNewTask(boolean likely) {}
+
     /**
      * Called when a gesture from an app is starting.
      */
