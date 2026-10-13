@@ -261,6 +261,7 @@ public class FloatingHeaderView extends LinearLayout implements
 
     /** Set the active AllApps RV which will adjust the alpha of the header when scrolled. */
     void setActiveRV(int rvType) {
+        AllAppsRecyclerView previousRV = mCurrentRV;
         if (mCurrentRV != null) {
             mCurrentRV.removeOnScrollListener(mOnScrollListener);
         }
@@ -271,7 +272,9 @@ public class FloatingHeaderView extends LinearLayout implements
         maybeSetTabVisibility(rvType == AdapterHolder.SEARCH ? GONE : VISIBLE);
 
         updateExpectedHeight();
-        syncToCurrentRV();
+        if (mCurrentRV != previousRV) {
+            syncToCurrentRV();
+        }
     }
 
     /**
