@@ -105,6 +105,7 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
     private SpringAnimation mRectYSpring;
     private SpringAnimation mRectScaleAnim;
     private boolean mAnimsStarted;
+    private boolean mPaused;
     private boolean mRectXAnimEnded;
     private boolean mRectYAnimEnded;
     private boolean mRectScaleAnimEnded;
@@ -164,7 +165,7 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
     }
 
     public void onTargetPositionChanged() {
-        if (isEnded()) {
+        if (isEnded() || mPaused) {
             return;
         }
 
@@ -203,12 +204,70 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
      * @param velocityPxPerMs Velocity of swipe in px/ms.
      */
     public void start(Context context, @Nullable DeviceProfile profile, PointF velocityPxPerMs) {
+        startSprings(context, velocityPxPerMs);
+        for (Animator.AnimatorListener animatorListener : mAnimatorListeners) {
+            animatorListener.onAnimationStart(null);
+        }
+    }
+
+    /**
+     * Holds the rect where it is, without ending the animation, so it can follow a finger.
+     */
+    public void pause() {
+        if (!mAnimsStarted || mPaused || isEnded()) {
+            return;
+        }
+        mPaused = true;
+        mRectXSpring.cancel();
+        mRectYSpring.cancel();
+        mRectScaleAnim.cancel();
+    }
+
+    /**
+     * Moves a paused rect by the given offset. Dragging down grows it back towards its start size.
+     */
+    public void dragBy(float dx, float dy) {
+        if (!mPaused) {
+            return;
+        }
+        mCurrentCenterX += dx;
+        mCurrentY += dy;
+        mCurrentScaleProgress = Utilities.boundToRange(
+                mCurrentScaleProgress - dy / mStartRect.height(), 0f, 1f);
+        onUpdate();
+    }
+
+    /**
+     * Springs a paused rect on to its target, starting at the given velocity.
+     */
+    public void resume(Context context, PointF velocityPxPerMs) {
+        if (!mPaused) {
+            return;
+        }
+        mPaused = false;
+        mRectXAnimEnded = false;
+        mRectYAnimEnded = false;
+        mRectScaleAnimEnded = false;
+        startSprings(context, velocityPxPerMs);
+    }
+
+    public boolean isRunning() {
+        return mAnimsStarted && !isEnded();
+    }
+
+    public RectF getCurrentRect() {
+        return mCurrentRect;
+    }
+
+    private void startSprings(Context context, PointF velocityPxPerMs) {
         // Only tell caller that we ended if both x and y animations have ended.
         OnAnimationEndListener onXEndListener = ((animation, canceled, centerX, velocityX) -> {
+            if (mPaused) return;
             mRectXAnimEnded = true;
             maybeOnEnd();
         });
         OnAnimationEndListener onYEndListener = ((animation, canceled, centerY, velocityY) -> {
+            if (mPaused) return;
             mRectYAnimEnded = true;
             maybeOnEnd();
         });
@@ -268,6 +327,7 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
                         .setMaxValue(1f)
                         .setMinimumVisibleChange(minVisibleChange)
                         .addEndListener((animation, canceled, value, velocity) -> {
+                            if (mPaused) return;
                             mRectScaleAnimEnded = true;
                             maybeOnEnd();
                         });
@@ -279,12 +339,10 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
         mRectYSpring.start();
 
         mRectScaleAnim.start();
-        for (Animator.AnimatorListener animatorListener : mAnimatorListeners) {
-            animatorListener.onAnimationStart(null);
-        }
     }
 
     public void end() {
+        mPaused = false;
         if (mAnimsStarted) {
             if (mRectXSpring.canSkipToEnd()) {
                 mRectXSpring.skipToEnd();
