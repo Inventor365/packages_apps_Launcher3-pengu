@@ -1982,6 +1982,11 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         if (draggableView != null) {
             draggableView.getSourceVisualDragBounds(dragRect);
             dragLayerY += dragRect.top;
+            // The preview is placed centred on the view; a big folder in an edge column draws
+            // its panel against that edge instead, so shift the drag preview to match it.
+            if (child instanceof FolderIcon folderIcon && folderIcon.isBigFolder()) {
+                dragLayerX += Math.round(scale * (dragRect.centerX() - child.getWidth() / 2f));
+            }
         }
 
 
@@ -2539,7 +2544,7 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                 ItemInfo item = d.dragInfo;
                 int minSpanX = item.spanX;
                 int minSpanY = item.spanY;
-                if (item.minSpanX > 0 && item.minSpanY > 0) {
+                if (!(item instanceof FolderInfo) && item.minSpanX > 0 && item.minSpanY > 0) {
                     minSpanX = item.minSpanX;
                     minSpanY = item.minSpanY;
                 }
@@ -2955,7 +2960,7 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
 
             int minSpanX = item.spanX;
             int minSpanY = item.spanY;
-            if (item.minSpanX > 0 && item.minSpanY > 0) {
+            if (!(item instanceof FolderInfo) && item.minSpanX > 0 && item.minSpanY > 0) {
                 minSpanX = item.minSpanX;
                 minSpanY = item.minSpanY;
             }
@@ -3068,7 +3073,13 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                 // Check visible pages
                 IntSet visiblePageIndices = getVisiblePageIndices();
                 for (int visiblePageIndex : visiblePageIndices) {
-                    layout = verifyInsidePage(visiblePageIndex, d.x, d.y);
+                    // A large folder can be held off-centre; use its rendered centre so
+                    // its bottom row remains droppable when the finger overlaps the hotseat.
+                    boolean multiCellFolder = d.dragInfo instanceof FolderInfo
+                            && (d.dragInfo.spanX > 1 || d.dragInfo.spanY > 1);
+                    layout = verifyInsidePage(visiblePageIndex,
+                            multiCellFolder ? centerX : d.x,
+                            multiCellFolder ? centerY : d.y);
                     if (layout != null) break;
                 }
             }
@@ -3348,7 +3359,7 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
             if (findNearestVacantCell) {
                 int minSpanX = item.spanX;
                 int minSpanY = item.spanY;
-                if (item.minSpanX > 0 && item.minSpanY > 0) {
+                if (!(item instanceof FolderInfo) && item.minSpanX > 0 && item.minSpanY > 0) {
                     minSpanX = item.minSpanX;
                     minSpanY = item.minSpanY;
                 }
