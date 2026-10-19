@@ -19,7 +19,7 @@
         <com.android.launcher3.settings.CaddyCardSelectorPreference
             android:key="pref_drawer_list"
             android:summary="@string/drawer_list_summary"
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:persistent="true"
             launcher:iconSpaceReserved="false" />
 

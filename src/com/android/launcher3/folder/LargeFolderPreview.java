@@ -60,6 +60,15 @@ public class LargeFolderPreview {
 
     // Fraction of the available (above-label) area used by the square preview.
     private static final float PREVIEW_SIZE_FRACTION = 0.94f;
+
+    /** Max preview size of a drawer category tile, in dp. */
+    private static final float MAX_DRAWER_PREVIEW_SIZE_DP = 168f;
+
+    /** Content height for a compact category tile before its label and row gap. */
+    public static int getDrawerTileSize(Context context) {
+        return Math.round(MAX_DRAWER_PREVIEW_SIZE_DP
+                * context.getResources().getDisplayMetrics().density / PREVIEW_SIZE_FRACTION);
+    }
     // Hard cap on the preview side, in dp, for *workspace* folders only. A workspace big folder
     // spans 2x2 grid cells, so sizing it only off the cell made the same folder visibly bigger on
     // a 4x4 grid (~170dp) than on a 5x5 (~136dp). Icon size is no use as a reference because it
