@@ -235,9 +235,8 @@ public class UniversalSearchAlgorithm implements SearchAlgorithm<AdapterItem> {
             PhotoIndex.indexSoon(mContext);
         }
         items.addAll(appItems);
-        if (items.isEmpty() && !mAppLibrary) {
-            return;
-        }
+        // An empty list still has to be published. Otherwise removing or clearing the last
+        // recent search leaves that row on screen.
         publish(token, query, items, callback);
     }
 
