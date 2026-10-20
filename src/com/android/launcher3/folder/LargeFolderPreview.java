@@ -35,7 +35,6 @@ import androidx.annotation.Nullable;
 
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.LauncherAppState;
-import com.android.launcher3.allapps.AllAppsGridAdapter;
 import com.android.launcher3.graphics.ThemeManager;
 import com.android.launcher3.icons.cache.CacheLookupFlag;
 import com.android.launcher3.model.data.ItemInfo;
@@ -202,15 +201,6 @@ public class LargeFolderPreview {
         }
     }
 
-    private int drawerTileContentWidth() {
-        DeviceProfile dp = ActivityContext.lookupContext(mIcon.getContext()).getDeviceProfile();
-        if (dp == null) {
-            return 0;
-        }
-        int margin = dp.getAllAppsProfile().getLeftRightMargin();
-        int recyclerWidth = dp.getDeviceProperties().getAvailableWidthPx() - (2 * margin);
-        return Math.max(0, (recyclerWidth / AllAppsGridAdapter.FOLDERS_PER_ROW) - margin);
-    }
 
     private boolean shouldUseTheme() {
         Context context = mIcon.getContext();
@@ -276,18 +266,12 @@ public class LargeFolderPreview {
     public int updateGeometry(int width, int height, int top, int labelHeight) {
         int availableHeight = height - top - labelHeight;
         int side = Math.round(Math.min(width, availableHeight) * PREVIEW_SIZE_FRACTION);
-        // See MAX_PREVIEW_SIZE_DP: keeps the tile the same size on every workspace grid. Min()
-        // means the cap can only ever shrink the preview, never push it outside a tighter cell.
-        // Drawer category tiles (forceBigPreview) are excluded: their tile is already sized off
-        // the drawer's own half-row width, which does not vary with the workspace grid, so the
-        // cap only made them smaller for no reason.
-        if (!mIcon.mInfo.forceBigPreview) {
-            int drawerSide = drawerTileContentWidth();
-            int cap = drawerSide > 0
-                    ? Math.round(drawerSide * PREVIEW_SIZE_FRACTION)
-                    : Math.round(MAX_PREVIEW_SIZE_DP * mDensity * grid() / 2f);
-            side = Math.min(side, cap);
-        }
+        // Bound the preview in dp rather than a fraction of the physical screen width.
+        // A density change must scale both workspace and drawer previews. The allocated
+        // cell still limits the result so a larger display size never overflows the grid.
+        float spanScale = mIcon.mInfo.forceBigPreview ? 1f : grid() / 2f;
+        float maxDp = mIcon.mInfo.forceBigPreview ? MAX_DRAWER_PREVIEW_SIZE_DP : MAX_PREVIEW_SIZE_DP;
+        side = Math.min(side, Math.round(maxDp * mDensity * spanScale));
         if (side <= 0 || width <= 0) {
             mPreviewBottom = top;
             return mPreviewBottom;
