@@ -100,7 +100,6 @@ public class Hotseat extends CellLayout implements Insettable {
     private final MultiPropertyFactory mIconsTranslationXFactory;
 
     private final @Nullable View mQsb;
-    private final View mSearchPill;
 
     public Hotseat(Context context) {
         this(context, null);
@@ -112,9 +111,21 @@ public class Hotseat extends CellLayout implements Insettable {
 
     public Hotseat(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-
-        if (Flags.enableQsbOnHotseat()) {
+        if (Utilities.showHomeSearchPill(context)) {
+            // ColorOS-style search pill: opens the drawer with launcher search focused.
+            mQsb = LayoutInflater.from(context).inflate(R.layout.home_search_pill, this, false);
+            mQsb.setOnClickListener(v -> {
+                if (mActivity instanceof Launcher launcher) {
+                    launcher.openSearchFromPill(v);
+                }
+            });
+        } else if (Utilities.showQSB(context)) {
             mQsb = LauncherComponentProvider.get(context).getQsbWidgetFactory().createView(this);
+        } else {
+            mQsb = null;
+        }
+
+        if (mQsb != null) {
             addView(mQsb);
             if (mQsb instanceof Reorderable qsbReorderable) {
                 mQsbTranslationX = qsbReorderable.getTranslateDelegate()
@@ -123,16 +134,8 @@ public class Hotseat extends CellLayout implements Insettable {
             mQsbAlphaChannels = new MultiValueAlpha(mQsb, ALPHA_CHANNEL_CHANNELS_COUNT);
             mQsbAlphaChannels.setUpdateVisibility(true);
         } else {
-            mQsb = null;
             mQsbAlphaChannels = null;
         }
-
-        // The Search pill between the home screen and the dock, as on iOS.
-        mSearchPill = LayoutInflater.from(context).inflate(R.layout.home_search_pill, this, false);
-        mSearchPill.setOnClickListener(v -> {
-            if (mActivity instanceof Launcher launcher) launcher.openSearchFromPill(v);
-        });
-        addView(mSearchPill);
 
         mIconsAlphaChannels = new MultiValueAlpha(getShortcutsAndWidgets(),
                 ALPHA_CHANNEL_CHANNELS_COUNT);
@@ -190,7 +193,7 @@ public class Hotseat extends CellLayout implements Insettable {
             if (dp.shouldAdjustHotseatForBubbleBar(getContext(), hasBubbles)) {
                 getShortcutsAndWidgets().setTranslationProvider(
                         cellX -> dp.getHotseatAdjustedTranslation(getContext(), cellX));
-                if (mQsb instanceof HorizontalInsettableView) {
+                if (mQsb != null && mQsb instanceof HorizontalInsettableView) {
                     HorizontalInsettableView insettableQsb = (HorizontalInsettableView) mQsb;
                     final float insetFraction =
                             (float) dp.getWorkspaceProfile().getIconSizePx()
@@ -201,7 +204,7 @@ public class Hotseat extends CellLayout implements Insettable {
                 }
             } else {
                 getShortcutsAndWidgets().setTranslationProvider(null);
-                if (mQsb instanceof HorizontalInsettableView) {
+                if (mQsb != null && mQsb instanceof HorizontalInsettableView) {
                     ((HorizontalInsettableView) mQsb).setHorizontalInsets(0);
                 }
             }
@@ -256,7 +259,7 @@ public class Hotseat extends CellLayout implements Insettable {
         //TODO(b/381109832) refactor & simplify adjustment logic
         boolean shouldAdjustQsb =
                 shouldAdjustHotseat || (shouldAdjust && dp.shouldAlignBubbleBarWithQSB());
-        if (mQsb instanceof HorizontalInsettableView horizontalInsettableQsb) {
+        if (mQsb != null && mQsb instanceof HorizontalInsettableView horizontalInsettableQsb) {
             final float currentInsetFraction = horizontalInsettableQsb.getHorizontalInsets();
             final float targetInsetFraction = shouldAdjustQsb
                     ? (float) dp.getWorkspaceProfile().getIconSizePx() / dp.getHotseatProfile()
@@ -285,9 +288,7 @@ public class Hotseat extends CellLayout implements Insettable {
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
         DeviceProfile grid = mActivity.getDeviceProfile();
 
-        mSearchPill.setVisibility(grid.isVerticalBarLayout()
-                || grid.getDeviceProperties().getTaskbarConfiguration().isTaskbarPresent()
-                ? View.GONE : View.VISIBLE);
+        int topOverlap = 0;
         if (grid.isVerticalBarLayout()) {
             if (mQsb != null) mQsb.setVisibility(View.GONE);
             lp.height = ViewGroup.LayoutParams.MATCH_PARENT;
@@ -299,22 +300,20 @@ public class Hotseat extends CellLayout implements Insettable {
                 lp.width = grid.getHotseatProfile().getBarSizePx() + insets.right;
             }
         } else {
-            if (mQsb != null) {
-                mQsb.setVisibility(grid.isHotseatQsbEnabled() ? View.VISIBLE : View.GONE);
-            }
+            if (mQsb != null) mQsb.setVisibility(View.VISIBLE);
             lp.gravity = Gravity.BOTTOM;
             lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            lp.height = grid.getHotseatProfile().getBarSizePx();
+
+            // Since QSB is laid out relative to bottom, it expects a certain amount of available
+            // space in its parent (hotseat). If hotseatBarSizePx is less than that, we let it go
+            // beyond and offset the content accordingly.
+            int totalHeightForQsb = grid.getQsbOffsetY() + grid.getHotseatProfile().getQsbHeight();
+            topOverlap = Math.max(0, totalHeightForQsb - grid.getHotseatProfile().getBarSizePx());
+            lp.height = grid.getHotseatProfile().getBarSizePx() + topOverlap;
         }
 
         Rect padding = grid.getHotseatLayoutPadding(getContext());
-        // The dock reaches up over the Search pill so the pill can take touches; its icons keep
-        // their place below it.
-        int pillSpace = mSearchPill.getVisibility() == View.GONE ? 0
-                : getResources().getDimensionPixelSize(R.dimen.home_search_pill_height)
-                        + 2 * getResources().getDimensionPixelSize(R.dimen.home_search_pill_gap);
-        if (lp.height > 0) lp.height += pillSpace;
-        setPadding(padding.left, padding.top + pillSpace, padding.right, padding.bottom);
+        setPadding(padding.left, padding.top + topOverlap, padding.right, padding.bottom);
         setLayoutParams(lp);
         InsettableFrameLayout.dispatchInsets(this, insets);
     }
@@ -357,16 +356,18 @@ public class Hotseat extends CellLayout implements Insettable {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        if (mSearchPill.getVisibility() != View.GONE) {
-            mSearchPill.measure(makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
-                    makeMeasureSpec(getResources().getDimensionPixelSize(
-                            R.dimen.home_search_pill_height), MeasureSpec.EXACTLY));
-        }
-
-        if (mQsb != null && mQsb.getVisibility() != View.GONE) {
+        if (mQsb != null && mQsb.getVisibility() != View.GONE
+                && mQsb.getId() == R.id.home_search_pill) {
+            DeviceProfile dp = mActivity.getDeviceProfile();
+            int height = Math.min(dp.getHotseatProfile().getQsbHeight(),
+                    getResources().getDimensionPixelSize(R.dimen.home_search_pill_height));
+            mQsb.measure(
+                    makeMeasureSpec(dp.getHotseatProfile().getQsbWidth(), MeasureSpec.AT_MOST),
+                    makeMeasureSpec(height, MeasureSpec.EXACTLY));
+        } else if (mQsb != null && mQsb.getVisibility() != View.GONE) {
             DeviceProfile dp = mActivity.getDeviceProfile();
             mQsb.measure(
-                    makeMeasureSpec(dp.getHotseatQsbWidth(), MeasureSpec.EXACTLY),
+                    makeMeasureSpec(dp.getHotseatProfile().getQsbWidth(), MeasureSpec.EXACTLY),
                     makeMeasureSpec(dp.getHotseatProfile().getQsbHeight(), MeasureSpec.EXACTLY)
             );
         }
@@ -375,16 +376,6 @@ public class Hotseat extends CellLayout implements Insettable {
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
-
-        if (mSearchPill.getVisibility() != View.GONE) {
-            // Centred just above the dock's icons.
-            int pillWidth = mSearchPill.getMeasuredWidth();
-            int pillLeft = (r - l - pillWidth) / 2;
-            int pillBottom = getPaddingTop()
-                    - getResources().getDimensionPixelSize(R.dimen.home_search_pill_gap);
-            mSearchPill.layout(pillLeft, pillBottom - mSearchPill.getMeasuredHeight(),
-                    pillLeft + pillWidth, pillBottom);
-        }
 
         if (mQsb == null || mQsb.getVisibility() == View.GONE) return;
 
@@ -400,25 +391,19 @@ public class Hotseat extends CellLayout implements Insettable {
         }
         int right = left + qsbMeasuredWidth;
 
-        int height = b - t;
-        int qsbHeight = dp.getHotseatProfile().getQsbHeight();
-        int bottomOffset;
-        int subtraction;
-        if (dp.getHotseatProfile().isQsbInline()) {
-            bottomOffset = dp.getHotseatBarBottomPadding();
-            subtraction = (qsbHeight - dp.getHotseatProfile().getCellHeightPx()) / 2;
-        } else if (dp.getDeviceProperties().getTaskbarConfiguration().isTaskbarPresent()) {
-            int offsetY = (dp.getHotseatProfile().getBarSizePx() - qsbHeight)
-                    + dp.getHotseatProfile().getQsbShadowHeight();
-            int bottom = height - offsetY;
-            mQsb.layout(left, bottom - qsbHeight, right, bottom);
-            return;
-        } else {
-            bottomOffset = dp.getHotseatProfile().getBarBottomSpacePx();
-            subtraction = dp.getHotseatProfile().getQsbShadowHeight();
+        int bottom = b - t - dp.getQsbOffsetY();
+        int top = bottom - dp.getHotseatProfile().getQsbHeight();
+        if (mQsb.getId() == R.id.home_search_pill) {
+            // Centre the smaller pill in the slot reserved for the search bar.
+            int slotHeight = bottom - top;
+            top += (slotHeight - mQsb.getMeasuredHeight()) / 2;
+            bottom = top + mQsb.getMeasuredHeight();
+            if (!dp.getHotseatProfile().isQsbInline()) {
+                left = (r - l - qsbMeasuredWidth) / 2;
+                right = left + qsbMeasuredWidth;
+            }
         }
-        int bottom = height - (bottomOffset - subtraction);
-        mQsb.layout(left, bottom - qsbHeight, right, bottom);
+        mQsb.layout(left, top, right, bottom);
     }
 
     /**
@@ -460,7 +445,7 @@ public class Hotseat extends CellLayout implements Insettable {
     @Nullable
     @Override
     public View mapOverItems(ItemOperator op) {
-        if (mQsb != null && mQsb.getVisibility() != View.GONE
+        if (mQsb != null
                 && mQsb.getTag() instanceof ItemInfo info
                 && op.evaluate(info, mQsb)) {
             return mQsb;

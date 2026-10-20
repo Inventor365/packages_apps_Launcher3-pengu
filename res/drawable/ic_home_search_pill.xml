@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-     SPDX-FileCopyrightText: The PenguinOS Project
-     SPDX-License-Identifier: Apache-2.0
--->
-<!-- The search glyph at the pill's text size, as iOS sets it. -->
+<!-- Search glyph sized for the home search pill (PenguinOS, Apache-2.0). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:width="14dp"
-        android:height="14dp"
+        android:width="18dp"
+        android:height="18dp"
         android:drawable="@drawable/ic_allapps_search" />
 </layer-list>
