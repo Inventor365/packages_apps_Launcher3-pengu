@@ -131,6 +131,8 @@ public class DeviceProfile {
     private HotseatProfile mHotseatProfile;
 
     private final boolean mIsHotseatQsbEnabled;
+    /** Whether the hotseat reserves its search slot, for the Google bar or the search pill. */
+    private final boolean mHasHotseatSearchSlot;
 
     private SysuiProfile mSysuiProfile;
 
@@ -188,6 +190,7 @@ public class DeviceProfile {
         mHotseatProfile = new HotseatProfile(false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, false);
         mIsHotseatQsbEnabled = false;
+        mHasHotseatSearchSlot = false;
         mTaskbarProfile = new TaskbarProfile(0, 0, 0, 0, 0, false, false, false);
         mFolderProfile = new FolderProfile(0, 0, 0, 0, 0, new Point(), 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0);
@@ -244,6 +247,8 @@ public class DeviceProfile {
                 mDeviceProperties.createWindowBounds());
 
         mIsHotseatQsbEnabled = LauncherPrefs.isHotseatQsbEnabled(context);
+        mHasHotseatSearchSlot =
+                mIsHotseatQsbEnabled || Utilities.showHomeSearchPill(context);
 
         final Resources res = context.getResources();
 
@@ -298,7 +303,8 @@ public class DeviceProfile {
                     responsiveAspectRatio, mDeviceProperties.getHeightPx());
         }
 
-        int qsbHeight = mIsHotseatQsbEnabled ? res.getDimensionPixelSize(R.dimen.qsb_widget_height) : 0;
+        int qsbHeight =
+                mHasHotseatSearchSlot ? res.getDimensionPixelSize(R.dimen.qsb_widget_height) : 0;
 
         HotseatProfileInitialValues hotseatProfileInitialValues =
                 HotseatProfileInitialValues.Factory.createHotseatProfileInitialValues(
@@ -878,7 +884,7 @@ public class DeviceProfile {
             // This is needed because of b/235886078 since QSB needs to span to the icon borders
             int iconExtraSpacePx = getWorkspaceProfile().getIconSizePx() - getIconVisibleSizePx(
                     getWorkspaceProfile().getIconSizePx());
-            int qsbWidth = (mIsHotseatQsbEnabled ? getAdditionalQsbSpace() : 0)
+            int qsbWidth = (mHasHotseatSearchSlot ? getAdditionalQsbSpace() : 0)
                     + iconExtraSpacePx / 2;
 
             int availableWidthPxForHotseat = mDeviceProperties.getAvailableWidthPx() - Math.abs(
@@ -923,7 +929,7 @@ public class DeviceProfile {
                 startSpacing = (mDeviceProperties.getAvailableWidthPx() - hotseatWidth) / 2;
                 endSpacing = startSpacing;
             }
-            if (mIsHotseatQsbEnabled) {
+            if (mHasHotseatSearchSlot) {
                 startSpacing += getAdditionalQsbSpace();
             }
 
@@ -1009,13 +1015,13 @@ public class DeviceProfile {
     }
 
     private int getAdditionalQsbSpace() {
-        if (!mIsHotseatQsbEnabled) return 0;
+        if (!mHasHotseatSearchSlot) return 0;
         return mHotseatProfile.isQsbInline() ? mHotseatProfile.getQsbWidth()
                 + mHotseatProfile.getBorderSpace() : 0;
     }
 
     public int getHotseatQsbWidth() {
-        if (!mIsHotseatQsbEnabled) return 0;
+        if (!mHasHotseatSearchSlot) return 0;
         int iconExtraSpacePx = getWorkspaceProfile().getIconSizePx() - getIconVisibleSizePx(
                 getWorkspaceProfile().getIconSizePx());
         if (mHotseatProfile.isQsbInline()) {
@@ -1046,7 +1052,7 @@ public class DeviceProfile {
      * Returns the number of pixels the QSB is translated from the bottom of the screen.
      */
     public int getQsbOffsetY() {
-        if (!mIsHotseatQsbEnabled) return 0;
+        if (!mHasHotseatSearchSlot) return 0;
         if (mHotseatProfile.isQsbInline()) {
             return getHotseatBarBottomPadding()
                     - ((getHotseatProfile().getQsbHeight()
