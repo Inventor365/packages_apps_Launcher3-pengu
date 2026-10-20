@@ -208,6 +208,7 @@ import com.android.launcher3.util.TouchController;
 import com.android.launcher3.util.WindowBlurState;
 import com.android.launcher3.views.FloatingIconView;
 import com.android.quickstep.BaseContainerInterface;
+import com.android.quickstep.LaunchInDesktopShortcut;
 import com.android.quickstep.LauncherActivityInterface;
 import com.android.quickstep.OverviewComponentObserver;
 import com.android.quickstep.OverviewComponentObserver.OverviewChangeListener;
@@ -587,6 +588,7 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
         shortcuts.add(UNINSTALL);
         shortcuts.add(WellbeingModel.PAUSE_APPS);
         shortcuts.add(FLOATING);
+        shortcuts.add(LaunchInDesktopShortcut.FACTORY);
         shortcuts.add(WIDGETS);
         shortcuts.add(KILL_APP);
         shortcuts.add(INSTALL);
