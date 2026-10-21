@@ -372,7 +372,7 @@ public class SpotlightView extends AbstractFloatingView
         mHost = launcher;
         mAtTop = atTop;
         // Tablet search has the same placement on home, over apps and on a desktop.
-        mTopAligned = atTop || launcher.getDeviceProfile().isTablet;
+        mTopAligned = atTop || launcher.getDeviceProfile().getDeviceProperties().isLargeScreen();
         mIsland.set(from);
         if (atTop) {
             ((Launcher) launcher).islandBounds(mIslandAtRest);
@@ -1246,7 +1246,7 @@ public class SpotlightView extends AbstractFloatingView
                 if (isFinishing()) return;
                 float density = getResources().getDisplayMetrics().density;
                 WindowInsets insets = mLayer.getRootWindowInsets();
-                float edge = mDeviceProfile.isTablet
+                float edge = mDeviceProfile.getDeviceProperties().isLargeScreen()
                         ? (insets == null ? 0 : insets.getInsets(
                                 WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()).top)
                                 + 32 * density
