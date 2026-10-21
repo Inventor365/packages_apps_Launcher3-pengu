@@ -111,6 +111,7 @@ public class SpotlightView extends AbstractFloatingView
     private ImageView mHomeBlur;
     private final Adapter mAdapter = new Adapter();
     private boolean mAtTop;
+    private boolean mTopAligned;
     private boolean mHadWindowFocus;
     // The Dynamic Island the field grows out of and shrinks back into.
     private final RectF mIsland = new RectF();
@@ -370,6 +371,8 @@ public class SpotlightView extends AbstractFloatingView
     private void setup(BaseActivity launcher, boolean atTop, RectF from) {
         mHost = launcher;
         mAtTop = atTop;
+        // Tablet search has the same placement on home, over apps and on a desktop.
+        mTopAligned = atTop || launcher.getDeviceProfile().isTablet;
         mIsland.set(from);
         if (atTop) {
             ((Launcher) launcher).islandBounds(mIslandAtRest);
@@ -423,14 +426,15 @@ public class SpotlightView extends AbstractFloatingView
             // Over a desktop window there is no home snapshot to blur, so darken the scrim.
             // SearchActivity also blurs the windows behind this one.
             mScrim.setBackgroundColor(0xB3000000);
-            // Search stays by the thumb: the card stacks above the field, the field above the
-            // keyboard.
-            content.removeView(mField);
-            content.addView(mField);
-            content.setGravity(android.view.Gravity.BOTTOM);
-            ((ViewGroup.MarginLayoutParams) mCard.getLayoutParams()).topMargin = 0;
-            ((ViewGroup.MarginLayoutParams) mCard.getLayoutParams()).bottomMargin =
-                    getResources().getDimensionPixelSize(R.dimen.spotlight_margin);
+            // Phones keep search by the thumb; tablets keep the field above the results.
+            if (!mTopAligned) {
+                content.removeView(mField);
+                content.addView(mField);
+                content.setGravity(android.view.Gravity.BOTTOM);
+                ((ViewGroup.MarginLayoutParams) mCard.getLayoutParams()).topMargin = 0;
+                ((ViewGroup.MarginLayoutParams) mCard.getLayoutParams()).bottomMargin =
+                        getResources().getDimensionPixelSize(R.dimen.spotlight_margin);
+            }
         }
 
         mScrim.setOnClickListener(v -> close(true));
@@ -1240,8 +1244,14 @@ public class SpotlightView extends AbstractFloatingView
             sCurrent = new java.lang.ref.WeakReference<>(this);
             mLayer.post(() -> {
                 if (isFinishing()) return;
-                float bottom = mLayer.getHeight() - 32 * getResources().getDisplayMetrics().density;
-                attach(this, new RectF(0, bottom, mLayer.getWidth(), bottom), false, null);
+                float density = getResources().getDisplayMetrics().density;
+                WindowInsets insets = mLayer.getRootWindowInsets();
+                float edge = mDeviceProfile.isTablet
+                        ? (insets == null ? 0 : insets.getInsets(
+                                WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()).top)
+                                + 32 * density
+                        : mLayer.getHeight() - 32 * density;
+                attach(this, new RectF(0, edge, mLayer.getWidth(), edge), false, null);
             });
         }
 
