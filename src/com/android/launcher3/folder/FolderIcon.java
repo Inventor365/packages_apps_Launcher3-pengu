@@ -1130,6 +1130,15 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     protected boolean shouldIgnoreTouchDown(MotionEvent event) {
         mTouchArea.set(getPaddingLeft(), getPaddingTop(), getWidth() - getPaddingRight(),
                 getHeight() - getPaddingBottom());
+        if (!isBigFolder() && mFolderName != null) {
+            // On large grids the cell is much wider than the folder, so only the preview and the
+            // label below it count; taps in the rest of the cell go to the workspace.
+            Rect preview = new Rect();
+            getPreviewBounds(preview);
+            int bottom = mFolderName.getVisibility() == VISIBLE
+                    ? mFolderName.getBottom() : preview.bottom;
+            mTouchArea.intersect(preview.left, preview.top, preview.right, bottom);
+        }
         return !mTouchArea.contains((int) event.getX(), (int) event.getY());
     }
 

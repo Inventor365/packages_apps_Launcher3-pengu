@@ -758,6 +758,10 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         if (!shouldAnimateOpen(items)) {
             return;
         }
+        // A tap that lands while this folder is still animating closed would otherwise bind the
+        // items and then cancel the close, whose closeComplete() unbinds them again and leaves the
+        // open animation with no preview icons. Finish the close first.
+        cancelRunningAnimations();
         Folder openFolder = getOpen(mActivityContext);
         closeOpenFolder(openFolder);
 
@@ -800,6 +804,12 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         cancelRunningAnimations();
         Log.d("b/383526431", "animateOpen: content child count after cancelling"
                 + " animation: " + mContent.getTotalChildCount());
+
+        if (getIconsInReadingOrder().isEmpty()) {
+            Log.w(TAG, "animateOpen: no icons bound, opening without animation");
+            closeComplete(false);
+            return;
+        }
 
         AnimatorSet animatorSet = getFolderAnimationManager()
                 .createAnimatorSet(/* isOpening */ true);
