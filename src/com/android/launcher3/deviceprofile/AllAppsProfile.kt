@@ -411,6 +411,59 @@ data class AllAppsProfile(
             allAppsTopPadding: Int,
             displayOptionSpec: DisplayOptionSpec,
         ) =
+            tightenForPortraitTablet(
+                createAllAppsProfileBase(
+                    res,
+                    inv,
+                    metric,
+                    isScalableGrid,
+                    typeIndex,
+                    workspaceProfile,
+                    deviceProperties,
+                    context,
+                    allAppsTopPadding,
+                    displayOptionSpec,
+                ),
+                deviceProperties,
+            )
+
+        /**
+         * A tablet in portrait keeps the landscape-sized drawer: wide side margins and tall rows
+         * that leave most of the screen empty. Widen the drawer and close up the rows.
+         */
+        private fun tightenForPortraitTablet(
+            profile: AllAppsProfile,
+            deviceProperties: DeviceProperties,
+        ): AllAppsProfile {
+            if (!deviceProperties.isLargeScreen ||
+                deviceProperties.isLandscape ||
+                deviceProperties.isTwoPanels
+            ) {
+                return profile
+            }
+            val sideMargin = max(1, deviceProperties.availableWidthPx / 40)
+            val contentHeight =
+                profile.iconSizePx +
+                    Utilities.calculateTextHeight(profile.iconTextSizePx) +
+                    profile.borderSpacePx.y
+            return profile.copy(
+                leftRightMargin = min(profile.leftRightMargin, sideMargin),
+                cellHeightPx = min(profile.cellHeightPx, contentHeight + profile.borderSpacePx.y),
+            )
+        }
+
+        private fun createAllAppsProfileBase(
+            res: Resources,
+            inv: InvariantDeviceProfile,
+            metric: DisplayMetrics,
+            isScalableGrid: Boolean,
+            typeIndex: Int,
+            workspaceProfile: WorkspaceProfile,
+            deviceProperties: DeviceProperties,
+            context: Context,
+            allAppsTopPadding: Int,
+            displayOptionSpec: DisplayOptionSpec,
+        ) =
             when {
                 isScalableGrid -> {
                     createAllAppsProfileScalableGrid(

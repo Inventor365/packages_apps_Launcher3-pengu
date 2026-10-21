@@ -755,6 +755,24 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     }
 
     @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (isBigFolder() && mFolderName != null && mFolderName.getVisibility() != GONE
+                && mFolderName.getLayoutParams() instanceof FrameLayout.LayoutParams lp) {
+            // The label's margin was worked out while measuring, before the icon's final size and
+            // label height were known, which can leave it past the bottom edge (clipped to a
+            // sliver) in portrait. Place it just below the preview as drawn.
+            int labelTop = mLargeFolderPreview.updateGeometry(right - left, bottom - top,
+                    getPaddingTop(), getBigFolderLabelHeight()) + getBigFolderLabelGap();
+            if (labelTop != mFolderName.getTop()) {
+                lp.topMargin = labelTop;
+                mFolderName.layout(mFolderName.getLeft(), labelTop, mFolderName.getRight(),
+                        Math.max(labelTop, bottom - top - getPaddingBottom()));
+            }
+        }
+    }
+
+    @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         if (isBigFolder()) {
             // Big folders fill the 2x2 cell; skip the 1x1 vertical-centering and place the label
@@ -1130,13 +1148,14 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     protected boolean shouldIgnoreTouchDown(MotionEvent event) {
         mTouchArea.set(getPaddingLeft(), getPaddingTop(), getWidth() - getPaddingRight(),
                 getHeight() - getPaddingBottom());
-        if (!isBigFolder() && mFolderName != null) {
-            // On large grids the cell is much wider than the folder, so only the preview and the
-            // label below it count; taps in the rest of the cell go to the workspace.
+        if (mFolderName != null) {
+            // On large grids the cell is much wider (and, for big folders, taller) than the folder,
+            // so only the preview and the label line below it count; taps in the rest of the cell
+            // go to the workspace.
             Rect preview = new Rect();
             getPreviewBounds(preview);
-            int bottom = mFolderName.getVisibility() == VISIBLE
-                    ? mFolderName.getBottom() : preview.bottom;
+            int bottom = preview.bottom + (mFolderName.getVisibility() == VISIBLE
+                    ? getBigFolderLabelHeight() : 0);
             mTouchArea.intersect(preview.left, preview.top, preview.right, bottom);
         }
         return !mTouchArea.contains((int) event.getX(), (int) event.getY());
