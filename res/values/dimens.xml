@@ -111,6 +111,8 @@
     <dimen name="min_page_snap_velocity">1500dp</dimen>
 
     <!-- All Apps -->
+    <!-- Height of the all apps drawer as a part of the screen height, on large screens in portrait. -->
+    <item name="all_apps_large_screen_portrait_height_fraction" format="float" type="dimen">0.66</item>
     <dimen name="all_apps_search_bar_field_height">52dp</dimen>
     <!-- all_apps_search_bar_field_height / 2 -->
     <dimen name="all_apps_search_bar_content_overlap">26dp</dimen>

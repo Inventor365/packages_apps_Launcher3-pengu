@@ -324,6 +324,15 @@ public class DeviceProfile {
                 );
 
         int allAppsTopPadding = mDeviceProperties.getInsets().top;
+        if (mDeviceProperties.isLargeScreen() && !mDeviceProperties.isLandscape()) {
+            // In portrait the drawer would fill the whole screen height, far more than its grid
+            // needs. The panel, the content and the swipe range all follow this padding, in the
+            // launcher and in the taskbar's drawer alike, so keep the drawer to a part of the screen.
+            final int drawerHeight = Math.round(mDeviceProperties.getHeightPx()
+                    * res.getFloat(R.dimen.all_apps_large_screen_portrait_height_fraction));
+            allAppsTopPadding = Math.max(allAppsTopPadding,
+                    mDeviceProperties.getHeightPx() - drawerHeight);
+        }
 
         // Needs to be calculated after hotseatBarSizePx is correct,
         // for the available height to be correct
