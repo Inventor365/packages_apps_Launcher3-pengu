@@ -159,7 +159,7 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
      * Use {@link #getStashDuration()} to query duration.
      */
     @VisibleForTesting
-    static final long TRANSIENT_TASKBAR_STASH_DURATION = 417;
+    static final long TRANSIENT_TASKBAR_STASH_DURATION = 250;
 
     /**
      * How long to stash/unstash when keyboard is appearing/disappearing.
@@ -182,7 +182,7 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
     /**
      * How long to delay the icon/stash handle alpha.
      */
-    public static final int TASKBAR_STASH_DURATION_WITHOUT_ICON_ALIGNMENT = 400;
+    public static final int TASKBAR_STASH_DURATION_WITHOUT_ICON_ALIGNMENT = 250;
 
     /**
      * How long take to icon alpha to change during stash animation.
