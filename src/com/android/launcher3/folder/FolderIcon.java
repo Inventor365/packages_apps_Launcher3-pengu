@@ -1352,6 +1352,7 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
             // If we are animating to the accepting state, animate the dot out.
             mDotParams.scale = Math.max(0, mDotScale - mBackground.getAcceptScaleProgress());
+            // Keep folder previews unobstructed; numeric counts are shown on individual app icons.
             mDotRenderer.draw(canvas, mDotParams);
         }
     }
