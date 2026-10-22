@@ -3939,7 +3939,8 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
     public View mapOverVisibleItems(@NonNull ItemOperator op) {
         IntSet visibleScreenIds = getVisiblePageIndices();
         View result = mapOverItems((info, view) -> {
-            if (visibleScreenIds.contains(info.screenId)) {
+            // Skip views that carry no item info.
+            if (info != null && visibleScreenIds.contains(info.screenId)) {
                 return op.evaluate(info, view);
             }
             return false; // Continue iterating if not on a visible screen
