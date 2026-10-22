@@ -590,6 +590,12 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
                 );
     }
 
+    /** Whether the taskbar is auto-hidden in desktop mode with no handle drawn in its place. */
+    private boolean isAutoHiddenInDesktopMode() {
+        return hasAnyFlag(FLAG_STASHED_IN_APP_AUTO) && isInApp() && mActivity.isInDesktopMode()
+                && !mControllers.stashedHandleViewController.isStashedHandleVisible();
+    }
+
     /**
      * Returns the height that taskbar will inset when inside apps.
      *
@@ -597,6 +603,11 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
      * @see android.view.WindowInsets.Type#systemBars()
      */
     public int getContentHeightToReportToApps() {
+        if (isAutoHiddenInDesktopMode()) {
+            // Freeform windows are sized from this inset. Nothing is drawn when the taskbar is
+            // auto-hidden in desktop mode, so reserving the stashed height leaves a black strip.
+            return 0;
+        }
         boolean isTransient = mActivity.isTransientTaskbar();
         if (mActivity.isUserSetupComplete() && (mActivity.isPhoneGestureNavMode() || isTransient)) {
             return getStashedHeight();
