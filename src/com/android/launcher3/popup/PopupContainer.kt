@@ -42,6 +42,7 @@ import com.android.launcher3.data.wallpaper.service.WallpaperService
 import com.android.launcher3.dragndrop.DragController
 import com.android.launcher3.dragndrop.DragOptions
 import com.android.launcher3.folder.Folder
+import com.android.launcher3.folder.FolderIcon
 import com.android.launcher3.logging.StatsLogManager.LauncherEvent
 import com.android.launcher3.logging.StatsLogManager.LauncherEvent.IGNORE
 import com.android.launcher3.model.data.ItemInfo
@@ -350,6 +351,19 @@ open class PopupContainer<T : ActivityContext>(
             return
         }
         popupContainer.getDescendantRectRelativeToSelf(originalView, outPos)
+        if (originalView is FolderIcon && originalView.isBigFolder) {
+            // A big folder view spans its whole cell footprint but only draws the preview panel, so
+            // anchor to the panel or the popup floats far from what was pressed.
+            val panel = Rect()
+            originalView.getPreviewBounds(panel)
+            outPos.set(
+                outPos.left + panel.left,
+                outPos.top + panel.top,
+                outPos.left + panel.right,
+                outPos.top + panel.bottom,
+            )
+            return
+        }
         outPos.top += originalView.paddingTop
         outPos.left += originalView.paddingLeft
         outPos.right -= originalView.paddingRight
