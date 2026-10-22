@@ -2573,11 +2573,19 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
     }
 
     void notifyUpdateLayoutParams() {
+        notifyUpdateLayoutParams(/* forceUpdate= */ false);
+    }
+
+    /**
+     * @param forceUpdate Update the window even if the layout params look unchanged, for edits the
+     *                    diff cannot see such as the size of an inset provider changed in place.
+     */
+    void notifyUpdateLayoutParams(boolean forceUpdate) {
         if (mDragLayer.isAttachedToWindow()) {
             // Copy the current windowLayoutParams to mLastUpdatedLayoutParams and compare the diff.
             // If there is no change, we will skip the call to updateViewLayout.
             int changes = mLastUpdatedLayoutParams.copyFrom(mWindowLayoutParams);
-            if (changes == 0) {
+            if (changes == 0 && !forceUpdate) {
                 return;
             }
             mWindowManager.updateViewLayout(mDragLayer.getRootView(), mWindowLayoutParams);

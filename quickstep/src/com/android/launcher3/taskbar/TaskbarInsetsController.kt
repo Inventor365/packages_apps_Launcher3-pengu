@@ -115,6 +115,8 @@ class TaskbarInsetsController(val context: TaskbarActivityContext) : LoggableTas
         gestureNavSettingsObserver.unregister()
     }
 
+    private var lastProvidedInsetsSignature: String? = null
+
     fun onTaskbarOrBubblebarWindowHeightOrInsetsChanged() =
         traceSection("$TAG.onTaskbarOrBubblebarWindowHeightOrInsetsChanged") {
             val taskbarStashController = controllers.taskbarStashController
@@ -197,7 +199,16 @@ class TaskbarInsetsController(val context: TaskbarActivityContext) : LoggableTas
             for (provider in windowLayoutParams.providedInsets) {
                 setProviderInsets(provider, windowLayoutParams.gravity, context.display.rotation)
             }
-            context.notifyUpdateLayoutParams()
+            // The provided insets are reused and edited in place, so the window manager is only told
+            // about a changed size if we say so: the layout params diff cannot see it.
+            val insetsSignature =
+                windowLayoutParams.providedInsets.contentToString() +
+                    windowLayoutParams.paramsForRotation.orEmpty().joinToString {
+                        it.providedInsets.contentToString()
+                    }
+            val insetsChanged = insetsSignature != lastProvidedInsetsSignature
+            lastProvidedInsetsSignature = insetsSignature
+            context.notifyUpdateLayoutParams(insetsChanged)
         }
 
     /**
