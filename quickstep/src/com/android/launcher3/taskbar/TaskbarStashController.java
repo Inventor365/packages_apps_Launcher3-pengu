@@ -590,10 +590,9 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
                 );
     }
 
-    /** Whether the taskbar is auto-hidden in desktop mode with no handle drawn in its place. */
-    private boolean isAutoHiddenInDesktopMode() {
-        return hasAnyFlag(FLAG_STASHED_IN_APP_AUTO) && isInApp() && mActivity.isInDesktopMode()
-                && !mControllers.stashedHandleViewController.isStashedHandleVisible();
+    /** Whether the taskbar auto-hides over apps in desktop mode, whether it is shown right now. */
+    private boolean isAutoHidingInDesktopMode() {
+        return isInApp() && mActivity.isInDesktopMode() && shouldAllowTaskbarToAutoStash();
     }
 
     /**
@@ -603,9 +602,10 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
      * @see android.view.WindowInsets.Type#systemBars()
      */
     public int getContentHeightToReportToApps() {
-        if (isAutoHiddenInDesktopMode()) {
-            // Freeform windows are sized from this inset. Nothing is drawn when the taskbar is
-            // auto-hidden in desktop mode, so reserving the stashed height leaves a black strip.
+        if (isAutoHidingInDesktopMode()) {
+            // Freeform windows are maximized to the bounds left by this inset. An auto-hiding
+            // taskbar overlaps windows like on a desktop OS, so reserve nothing even while it is
+            // shown: a window maximized then would keep a black strip once the taskbar hides.
             return 0;
         }
         boolean isTransient = mActivity.isTransientTaskbar();

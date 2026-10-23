@@ -177,9 +177,17 @@ public class KeyboardQuickSwitchViewController {
         // Calculate the additional margin space that the KQS should move up for the transient
         // taskbar. The value of spaceForTaskbar is the distance between the bottom of the KQS
         // view with 0 bottom margin to the top of the transient taskbar view.
-        final int spaceForTaskbar = isTransientTaskbar ? dp.getTaskbarProfile().getHeight()
-                + dp.getTaskbarProfile().getBottomMargin()
-                - dp.getTaskbarProfile().getStashedTaskbarHeight() : 0;
+        // The overlay sits above the inset the taskbar reports, which is nothing while it
+        // auto-hides on a desktop: then the KQS clears the whole taskbar by itself.
+        final int reportedInset =
+                mControllers.taskbarStashController.getContentHeightToReportToApps();
+        final int spaceForTaskbar;
+        if (isTransientTaskbar) {
+            spaceForTaskbar = dp.getTaskbarProfile().getHeight()
+                    + dp.getTaskbarProfile().getBottomMargin() - reportedInset;
+        } else {
+            spaceForTaskbar = reportedInset == 0 ? dp.getTaskbarProfile().getHeight() : 0;
+        }
         final int marginBottom = spaceForTaskbar + resources.getDimensionPixelSize(
                 R.dimen.keyboard_quick_switch_margin_bottom);
 
