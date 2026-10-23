@@ -25,6 +25,7 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.PictureDrawable
 import android.hardware.HardwareBuffer
 import android.os.Build
+import android.os.SystemProperties
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -47,6 +48,9 @@ object ViewEx {
         return current
     }
 
+    private val HARDWARE_SNAPSHOTS =
+        SystemProperties.getBoolean("persist.sys.launcher.hardware_snapshots", false)
+
     /** Returns a drawable containing a snapshot of the provided view. */
     @JvmStatic
     fun View.captureSnapshotAsDrawable(debugString: String, width: Int, height: Int): Drawable {
@@ -60,8 +64,7 @@ object ViewEx {
             return PictureDrawable(picture)
         }
 
-        // Capture with RenderNode to retain the clip outlines
-        if (Build.VERSION.SDK_INT >= 34) {
+        if (Build.VERSION.SDK_INT >= 34 && HARDWARE_SNAPSHOTS) {
             val renderNode = RenderNode(debugString)
             renderNode.setPosition(0, 0, width, height)
             draw(renderNode.beginRecording())
