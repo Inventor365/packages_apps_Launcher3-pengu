@@ -39,6 +39,7 @@ import com.android.launcher3.LauncherAnimUtils.SCALE_INDEX_WORKSPACE_STATE
 import com.android.launcher3.LauncherAnimUtils.VIEW_ALPHA
 import com.android.launcher3.LauncherAnimUtils.WORKSPACE_SCALE_PROPERTY_FACTORY
 import com.android.launcher3.LauncherState
+import com.android.launcher3.QuickstepTransitionManager
 import com.android.launcher3.R
 import com.android.launcher3.anim.AnimatorListeners
 import com.android.launcher3.anim.PendingAnimation
@@ -66,9 +67,8 @@ class ScalingWorkspaceRevealAnim(
 ) {
     companion object {
         private const val FADE_DURATION_MS = 200L
-        // OxygenOS settles home and clears its blur in about half a second, so the icon a window
-        // flies into is sharp again by the time it lands.
         private const val SCALE_DURATION_MS = 500L
+        private const val COS_SCALE_DURATION_MS = 300L
         private const val MAX_ALPHA = 1f
         private const val MIN_ALPHA = 0f
         internal const val MAX_SIZE = 1f
@@ -89,9 +89,12 @@ class ScalingWorkspaceRevealAnim(
             )
 
         val BLUR_INTERPOLATOR = Interpolators.clampToProgress(EMPHASIZED, 0f, 0.4f)
+        val COS_BLUR_INTERPOLATOR = Interpolators.clampToProgress(LINEAR, 0f, 0.8f)
     }
 
-    private val animation = PendingAnimation(SCALE_DURATION_MS)
+    private val cos = QuickstepTransitionManager.cosExperience(launcher)
+    private val duration = if (cos) COS_SCALE_DURATION_MS else SCALE_DURATION_MS
+    private val animation = PendingAnimation(duration)
     private var blurLayer: SurfaceControl? = null
     private var surfaceTransactionApplier: SurfaceTransactionApplier =
         SurfaceTransactionApplier(launcher.dragLayer)
@@ -118,7 +121,7 @@ class ScalingWorkspaceRevealAnim(
             LauncherState.BACKGROUND_APP,
             setupConfig,
         )
-        if (playBlur) {
+        if (playBlur && !cos) {
             addBlurLayer()
         }
 
@@ -149,7 +152,7 @@ class ScalingWorkspaceRevealAnim(
         if (playAlphaReveal) {
             // Fade in quickly at the beginning of the animation, so the content doesn't look like
             // it's popping into existence out of nowhere.
-            val fadeClamp = FADE_DURATION_MS.toFloat() / SCALE_DURATION_MS
+            val fadeClamp = FADE_DURATION_MS.toFloat() / duration
             workspace.alpha = MIN_ALPHA
             animation.setFloat(
                 workspace,
@@ -170,14 +173,19 @@ class ScalingWorkspaceRevealAnim(
         }
 
         val transitionConfig = StateAnimationConfig()
-        transitionConfig.duration = SCALE_DURATION_MS
+        transitionConfig.duration = duration
 
         var depthController: LauncherDepthController? = null
         if (playBlur) {
             // Match the Wallpaper depth to the rest of the content.
             depthController = (launcher as? QuickstepLauncher)?.depthController
-            transitionConfig.setInterpolator(StateAnimationConfig.ANIM_DEPTH, SCALE_INTERPOLATOR)
-            depthController?.pauseBlursOnWindows(true) // Blurring is handled by the scrim layer.
+            transitionConfig.setInterpolator(
+                StateAnimationConfig.ANIM_DEPTH,
+                if (cos) COS_BLUR_INTERPOLATOR else SCALE_INTERPOLATOR,
+            )
+            if (!cos) {
+                depthController?.pauseBlursOnWindows(true)
+            }
             depthController?.stateDepth?.value = LauncherState.BACKGROUND_APP.getDepth(launcher)
             depthController?.setStateWithAnimation(
                 LauncherState.NORMAL,
@@ -188,8 +196,9 @@ class ScalingWorkspaceRevealAnim(
             // Add a blur animation to the scrim layer.
             val maxBlurRadius =
                 launcher.resources.getDimensionPixelSize(R.dimen.max_depth_blur_radius_enhanced)
+            val blurInterpolator = if (cos) COS_BLUR_INTERPOLATOR else BLUR_INTERPOLATOR
             val blurAnimator = ValueAnimator.ofFloat(1f, 0f)
-            blurAnimator.interpolator = BLUR_INTERPOLATOR
+            blurAnimator.interpolator = blurInterpolator
             blurAnimator.addUpdateListener {
                 applyBlur(maxBlurRadius * blurAnimator.animatedValue as Float)
             }
@@ -198,7 +207,7 @@ class ScalingWorkspaceRevealAnim(
             // Make sure that the contrast scrim animates correctly (alongside the blur) if needed.
             transitionConfig.setInterpolator(
                 StateAnimationConfig.ANIM_SCRIM_FADE,
-                BLUR_INTERPOLATOR,
+                blurInterpolator,
             )
             launcher.workspace.stateTransitionAnimation.setScrim(
                 animation,

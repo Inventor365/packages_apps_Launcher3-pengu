@@ -23,6 +23,7 @@ import android.content.Context;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.os.SystemClock;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
@@ -32,6 +33,7 @@ import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 
 import com.android.launcher3.DeviceProfile;
+import com.android.launcher3.QuickstepTransitionManager;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.util.DynamicResource;
@@ -130,6 +132,9 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
     protected final float mDampingX;
     protected final float mDampingY;
     protected final float mRectStiffness;
+    private final float mRectDamping;
+    private final boolean mCos;
+    private long mCosStartTime;
 
     public RectFSpringAnim(SpringConfig config) {
         mStartRect = config.startRect;
@@ -144,6 +149,8 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
         mDampingX = config.dampingX;
         mDampingY = config.dampingY;
         mRectStiffness = config.rectStiffness;
+        mRectDamping = config.rectDamping;
+        mCos = config.cos;
 
         mCurrentY = getTrackedYFromRect(mStartRect);
     }
@@ -255,6 +262,19 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
         return mAnimsStarted && !isEnded();
     }
 
+    public float getCosFadeProgress() {
+        if (mCosStartTime == 0) {
+            return 0f;
+        }
+        float t = Math.max(0, SystemClock.uptimeMillis() - mCosStartTime - 60) / 1000f;
+        float wt = (float) Math.sqrt(3000) * t;
+        return 1 - (1 + wt) * (float) Math.exp(-wt);
+    }
+
+    public boolean isCos() {
+        return mCos;
+    }
+
     public RectF getCurrentRect() {
         return mCurrentRect;
     }
@@ -295,6 +315,11 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
         yVelocityPxPerS = adjustVelocity(
                 yVelocityPxPerS, minVelocityYPxPerS, maxVelocityYPxPerS, fallOffFactor);
 
+        if (mCos) {
+            if ((endX - startX) * xVelocityPxPerS < 0) xVelocityPxPerS *= 0.25f;
+            if ((endY - startY) * yVelocityPxPerS < 0) yVelocityPxPerS *= 0.25f;
+        }
+
         mRectXSpring =
                 new SpringAnimation(this, RECT_CENTER_X)
                         .setSpring(
@@ -316,14 +341,21 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
                         .setStartVelocity(yVelocityPxPerS)
                         .addEndListener(onYEndListener);
 
-        float dampingZ = rp.getFloat(R.dimen.swipe_up_rect_scale_damping_ratio_v2);
+        float scaleVelocity = velocityPxPerMs.y * minVisibleChange;
+        if (mCos) {
+            scaleVelocity = Utilities.boundToRange(
+                    -velocityPxPerMs.y * 1000 / mStartRect.height(), 0f, 8f);
+            mCosStartTime = SystemClock.uptimeMillis();
+        }
+        float dampingZ = mRectDamping >= 0 ? mRectDamping
+                : rp.getFloat(R.dimen.swipe_up_rect_scale_damping_ratio_v2);
         mRectScaleAnim =
                 new SpringAnimation(this, RECT_SCALE_PROGRESS)
                         .setSpring(
                                 new SpringForce(1f)
                                         .setStiffness(mRectStiffness)
                                         .setDampingRatio(dampingZ))
-                        .setStartVelocity(velocityPxPerMs.y * minVisibleChange)
+                        .setStartVelocity(scaleVelocity)
                         .setMaxValue(1f)
                         .setMinimumVisibleChange(minVisibleChange)
                         .addEndListener((animation, canceled, value, velocity) -> {
@@ -384,6 +416,11 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
                     mTargetRect.width());
             float currentHeight = Utilities.mapRange(mCurrentScaleProgress, mStartRect.height(),
                     mTargetRect.height());
+            if (mCos && mStartRect.width() > 0 && mTargetRect.width() > 0) {
+                currentHeight = currentWidth * Utilities.mapRange(mCurrentScaleProgress,
+                        mStartRect.height() / mStartRect.width(),
+                        mTargetRect.height() / mTargetRect.width());
+            }
             switch (mTracking) {
                 case TRACKING_TOP:
                     mCurrentRect.set(mCurrentCenterX - currentWidth / 2,
@@ -475,6 +512,8 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
         protected float dampingX;
         protected float dampingY;
         protected float rectStiffness;
+        protected float rectDamping = -1f;
+        protected boolean cos;
         protected float minVisChange;
         protected int maxVelocityPxPerS;
 
@@ -504,6 +543,15 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
             dampingX = rp.getFloat(R.dimen.swipe_up_rect_x_damping_ratio);
             dampingY = rp.getFloat(R.dimen.swipe_up_rect_y_damping_ratio);
             rectStiffness = rp.getFloat(R.dimen.swipe_up_rect_scale_stiffness_v2);
+            if (QuickstepTransitionManager.cosExperience(context)) {
+                stiffnessX = 380f;
+                dampingX = 0.9f;
+                stiffnessY = 340f;
+                dampingY = 0.9f;
+                rectStiffness = 380f;
+                rectDamping = 0.95f;
+                cos = true;
+            }
 
             this.startRect = startRect;
             this.targetRect = targetRect;

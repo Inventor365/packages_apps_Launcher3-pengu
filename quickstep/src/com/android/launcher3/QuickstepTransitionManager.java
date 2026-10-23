@@ -255,6 +255,11 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
      * drive time based animators the way OxygenOS drives its app transitions. Values reach 1 at
      * the end rather than asymptotically.
      */
+    public static boolean cosExperience(android.content.Context context) {
+        return Settings.Secure.getInt(context.getContentResolver(),
+                "penguin_cos_experience", 0) == 1;
+    }
+
     private static final class SpringInterpolator implements Interpolator {
         private static final int TABLE_SIZE = 256;
         private final float[] mTable = new float[TABLE_SIZE];
@@ -425,10 +430,14 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         // OxygenOS's app launch: the window, its corners and home behind it all follow one
         // critically damped spring, a touch quicker than its recordings so opening keeps pace with
         // closing: three quarters of the way at 133 ms and 90% at 200 ms.
-        mOpeningInterpolator = new SpringInterpolator(400, 1, APP_LAUNCH_DURATION);
-        mOpeningRadiusInterpolator = mOpeningInterpolator;
+        boolean cos = cosExperience(launcher);
+        mOpeningInterpolator = new SpringInterpolator(cos ? 420 : 400, cos ? 1.12 : 1,
+                APP_LAUNCH_DURATION);
+        mOpeningRadiusInterpolator = cos
+                ? new SpringInterpolator(400, 1, APP_LAUNCH_DURATION) : mOpeningInterpolator;
         mContentScaleInterpolator = new SpringInterpolator(400, 1, CONTENT_SCALE_DURATION);
-        mIconAlphaInterpolator = new SpringInterpolator(4000, 1, APP_LAUNCH_ALPHA_DURATION);
+        mIconAlphaInterpolator = new SpringInterpolator(cos ? 2000 : 4000, 1,
+                APP_LAUNCH_ALPHA_DURATION);
         mBlurInterpolator = new SpringInterpolator(400, 1, (long) (APP_LAUNCH_DURATION * 0.75f));
         mLatencyTracker = LatencyTracker.getInstance(launcher);
 

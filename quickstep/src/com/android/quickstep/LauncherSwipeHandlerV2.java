@@ -211,16 +211,24 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
                     float progress,
                     float radius,
                     int overlayAlpha) {
-                float iconAlpha = Interpolators.clampToProgress(
-                        progress, CLOSE_ICON_FADE_START, CLOSE_ICON_FADE_END);
+                float iconAlpha = isCosFade() ? mSiblingAnimation.getCosFadeProgress()
+                        : Interpolators.clampToProgress(
+                                progress, CLOSE_ICON_FADE_START, CLOSE_ICON_FADE_END);
                 floatingIconView.update(iconAlpha, currentRect, progress, windowAlphaThreshold,
                         radius, false, overlayAlpha);
             }
 
             @Override
             protected float getWindowAlpha(float progress) {
+                if (isCosFade()) {
+                    return 1 - mSiblingAnimation.getCosFadeProgress();
+                }
                 return 1 - Interpolators.clampToProgress(
                         progress, CLOSE_WINDOW_FADE_START, CLOSE_WINDOW_FADE_END);
+            }
+
+            private boolean isCosFade() {
+                return mSiblingAnimation != null && mSiblingAnimation.isCos();
             }
 
             @Override
