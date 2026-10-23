@@ -20,6 +20,7 @@ import com.android.launcher3.ConstantItem
 import com.android.launcher3.LauncherModel
 import com.android.launcher3.LifecycleTracker
 import com.android.launcher3.ModelReloader
+import com.android.launcher3.cos.LockscreenClockWidget
 import com.android.launcher3.dagger.LauncherAppSingleton
 import com.android.launcher3.graphics.ThemeManager.Companion.ICON_FACTORY_DAGGER_KEY
 import com.android.launcher3.graphics.theme.IconThemeFactory
@@ -88,6 +89,12 @@ abstract class LauncherModelModule {
         @Named(NAMED_CUSTOM_WIDGETS)
         @JvmStatic
         fun monoSearchCustomWidget(): CustomWidget = OseCustomWidget
+
+        @Provides
+        @IntoSet
+        @Named(NAMED_CUSTOM_WIDGETS)
+        @JvmStatic
+        fun lockscreenClockWidget(): CustomWidget = LockscreenClockWidget
 
         @Provides
         @JvmStatic

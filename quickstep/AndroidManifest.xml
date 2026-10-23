@@ -22,6 +22,7 @@
      xmlns:tools="http://schemas.android.com/tools"
      package="com.android.launcher3">
 
+    <uses-permission android:name="android.permission.CUSTOMIZE_SYSTEM_UI" />
     <uses-permission android:name="android.permission.BROADCAST_CLOSE_SYSTEM_DIALOGS" />
     <uses-permission android:name="android.permission.CONTROL_REMOTE_APP_TRANSITION_ANIMATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>

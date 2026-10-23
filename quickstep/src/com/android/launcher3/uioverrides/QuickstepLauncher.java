@@ -149,6 +149,7 @@ import com.android.launcher3.anim.PendingAnimation;
 import com.android.launcher3.apppairs.AppPairIcon;
 import com.android.launcher3.appprediction.PredictionRowView;
 import com.android.launcher3.config.FeatureFlags;
+import com.android.launcher3.cos.CosClock;
 import com.android.launcher3.dagger.LauncherComponentProvider;
 import com.android.launcher3.data.AppDatabase;
 import com.android.launcher3.desktop.DesktopRecentsTransitionController;
@@ -214,6 +215,7 @@ import com.android.quickstep.RecentsAnimationDeviceState;
 import com.android.quickstep.RecentsModel;
 import com.android.quickstep.SystemUiProxy;
 import com.android.quickstep.TaskUtils;
+import com.android.quickstep.cos.CosClockUnlock;
 import com.android.quickstep.fallback.RecentsState;
 import com.android.quickstep.fallback.RecentsStateUtilsKt;
 import com.android.quickstep.split.SplitScreenAppResolver;
@@ -311,6 +313,8 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
      * recover. In all other cases this will remain null.
      */
     private PendingSplitSelectInfo mPendingSplitSelectInfo = null;
+
+    private CosClockUnlock mCosClockUnlock;
 
     @Nullable
     private DesktopRecentsTransitionController mDesktopRecentsTransitionController;
@@ -856,6 +860,11 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
         new TraceStateLoggerHelper(this).startTraceStateLogger();
 
         AppDatabase.INSTANCE.get(this).checkpointSync();
+        if (CosClock.isEnabled(this)) {
+            mCosClockUnlock = new CosClockUnlock(this);
+            SystemUiProxy.INSTANCE.get(this).setLauncherUnlockAnimationController(
+                    getComponentName().getClassName(), mCosClockUnlock);
+        }
     }
 
     @Override
@@ -989,6 +998,9 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
     @Override
     protected void onStop() {
         super.onStop();
+        if (mCosClockUnlock != null) {
+            mCosClockUnlock.dispatchClockState();
+        }
         TaskbarInteractor ti = mTaskbarInteractor;
         if (ti != null) {
             ti.onLauncherStop();
