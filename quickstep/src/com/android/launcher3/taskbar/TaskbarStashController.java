@@ -1651,8 +1651,8 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
      * returns appropriate timeout for taskbar to stash depending on accessibility being on/off.
      */
     private long getTaskbarAutoHideTimeout() {
-        return mAccessibilityManager.getRecommendedTimeoutMillis((int) NO_TOUCH_TIMEOUT_TO_STASH_MS,
-                FLAG_CONTENT_CONTROLS);
+        return mAccessibilityManager.getRecommendedTimeoutMillis(
+                (int) PenguinTaskbarSettings.autoHideTimeoutMs(mActivity), FLAG_CONTENT_CONTROLS);
     }
 
     private void onTaskbarTimeout(Alarm alarm) {

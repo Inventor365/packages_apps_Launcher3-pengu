@@ -55,8 +55,6 @@ import com.android.systemui.shared.system.InputMonitorCompat;
  */
 public class TaskbarUnstashInputConsumer extends DelegateInputConsumer {
 
-    private static final int HOVER_TASKBAR_UNSTASH_TIMEOUT = 500;
-
     private static final int NUM_MOTION_MOVE_THRESHOLD = 3;
 
     private static final Handler sUnstashHandler = new Handler(getTaskbarUiThread().getLooper());
@@ -80,6 +78,7 @@ public class TaskbarUnstashInputConsumer extends DelegateInputConsumer {
     private final boolean mIsTransientTaskbar;
 
     private boolean mIsStashedTaskbarHovered = false;
+    private final long mHoverUnstashDelay;
     private final Rect mStashedTaskbarHandleBounds = new Rect();
     private final Rect mBottomEdgeBounds = new Rect();
     private final int mBottomScreenEdge;
@@ -103,6 +102,7 @@ public class TaskbarUnstashInputConsumer extends DelegateInputConsumer {
         mTaskbarApiProxy = taskbarApiProxy;
         mTaskbarUiState = taskbarApiProxy.getTaskbarUiState();
         mIsTransientTaskbar = taskbarApiProxy.isTransient();
+        mHoverUnstashDelay = taskbarApiProxy.getHoverUnstashDelayMs();
         mOverviewCommandHelper = overviewCommandHelper;
         mDisplayManager = displayManager;
         mTouchSlop = touchSlop;
@@ -305,7 +305,7 @@ public class TaskbarUnstashInputConsumer extends DelegateInputConsumer {
                         mTaskbarApiProxy.onSwipeToUnstashTaskbar(false);
                     }
                     mIsStashedTaskbarHovered = false;
-                }, HOVER_TASKBAR_UNSTASH_TIMEOUT);
+                }, mHoverUnstashDelay);
             }
         } else if (!isStashedTaskbarHovered(x, y)) {
             // If exit hovering stashed taskbar, remove hint and clear pending unstash calls.

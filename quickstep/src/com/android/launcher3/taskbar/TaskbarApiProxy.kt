@@ -57,6 +57,10 @@ class TaskbarApiProxy(private val taskbarActivityContext: TaskbarActivityContext
         }
     }
 
+    /** How long the pointer rests on the bottom edge under the stashed taskbar to unstash it. */
+    @AnyThread
+    fun getHoverUnstashDelayMs(): Long = PenguinTaskbarSettings.hoverDelayMs(taskbarActivityContext)
+
     @AnyThread
     fun startTaskbarUnstashHint(isHovered: Boolean) {
         getTaskbarUiThread().execute { taskbarActivityContext.startTaskbarUnstashHint(isHovered) }
