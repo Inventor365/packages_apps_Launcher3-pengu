@@ -630,6 +630,7 @@ public class TouchInteractionHandler extends ContextWrapper {
                         mDesktopState,
                         mDesktopVisibilityController);
                 inputResource.uncheckedConsumer = inputResource.consumer;
+                inputResource.consumerTaskbar = mTaskbarManager.getTaskbarForDisplay(displayId);
             } else if ((deviceState.isFullyGesturalNavMode() || isTrackpadMultiFingerSwipe(event))
                     && deviceState.canTriggerAssistantAction(event)) {
                 reasonString.append(deviceState.isFullyGesturalNavMode()
@@ -732,7 +733,10 @@ public class TouchInteractionHandler extends ContextWrapper {
                 && !tac.isPhoneMode();
         return event.isHoverEvent()
                 && inputResource != null
-                && (inputResource.uncheckedConsumer.getType() & TYPE_CURSOR_HOVER) == 0
+                && ((inputResource.uncheckedConsumer.getType() & TYPE_CURSOR_HOVER) == 0
+                        // A recreated taskbar (a setting changed) leaves the hover consumer
+                        // talking to the old one, so a hovering pointer could not unstash it.
+                        || inputResource.consumerTaskbar != tac)
                 && isTaskbarPresent;
     }
 
@@ -1000,6 +1004,8 @@ public class TouchInteractionHandler extends ContextWrapper {
         private @NonNull InputConsumer uncheckedConsumer = InputConsumer.DEFAULT_NO_OP;
         private @NonNull InputConsumer consumer = InputConsumer.DEFAULT_NO_OP;
         private @NonNull GestureState gestureState = DEFAULT_STATE;
+        // The taskbar the consumer was created for.
+        private @Nullable TaskbarActivityContext consumerTaskbar;
 
         private InputResource(int displayId) {
             this.displayId = displayId;
