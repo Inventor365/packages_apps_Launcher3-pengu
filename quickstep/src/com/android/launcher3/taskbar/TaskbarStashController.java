@@ -1153,6 +1153,13 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
 
             }
         }
+        if (mActivity.isDesktopDock() && animationType != TRANSITION_HANDLE_FADE) {
+            // The dock slides whole, as a Mac's: its background and icons are opaque for the
+            // entire slide rather than fading, and the background never waits for the gesture.
+            iconAlphaStartDelay = backgroundAndHandleAlphaStartDelay = isStashed ? duration : 0;
+            iconAlphaDuration = backgroundAndHandleAlphaDuration = 0;
+            shouldDelayBackground = false;
+        }
 
         play(as, mTaskbarStashedHandleAlpha.animateToValue(stashedHandleAlphaTarget),
                 backgroundAndHandleAlphaStartDelay,

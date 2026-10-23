@@ -444,6 +444,9 @@
     <dimen name="transient_taskbar_padding">12dp</dimen>
     <dimen name="transient_taskbar_min_width">150dp</dimen>
     <dimen name="transient_taskbar_bottom_margin">24dp</dimen>
+    <!-- Desktop dock (Settings > System > Taskbar) -->
+    <dimen name="taskbar_dock_bounce_height">12dp</dimen>
+    <dimen name="taskbar_dock_glass_blur_radius">40dp</dimen>
     <dimen name="transient_taskbar_shadow_blur">40dp</dimen>
     <dimen name="transient_taskbar_stroke_width">1dp</dimen>
     <dimen name="transient_taskbar_key_shadow_distance">10dp</dimen>

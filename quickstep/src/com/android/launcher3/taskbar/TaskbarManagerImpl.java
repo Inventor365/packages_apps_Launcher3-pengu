@@ -394,6 +394,10 @@ public class TaskbarManagerImpl {
                 NAV_BAR_LAYOUT_URI, false, gestureNavbarSettingsObserver);
         mBaseContext.getContentResolver().registerContentObserver(
                 GESTURE_NAVBAR_AUTO_HIDE_URI, false, gestureNavbarSettingsObserver);
+        for (Uri uri : PenguinTaskbarSettings.DOCK_URIS) {
+            mBaseContext.getContentResolver().registerContentObserver(
+                    uri, false, gestureNavbarSettingsObserver);
+        }
         cleanupTasks.addTask(getTaskbarUiThread(), () -> mBaseContext.getContentResolver()
                 .unregisterContentObserver(gestureNavbarSettingsObserver));
 

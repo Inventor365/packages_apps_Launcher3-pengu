@@ -15,6 +15,7 @@
  */
 package com.android.launcher3.util
 
+import android.view.Display.DEFAULT_DISPLAY
 import androidx.annotation.VisibleForTesting
 import com.android.launcher3.LauncherPrefs
 import com.android.launcher3.LauncherPrefs.Companion.TASKBAR_PINNING
@@ -22,6 +23,7 @@ import com.android.launcher3.dagger.LauncherAppComponent
 import com.android.launcher3.dagger.LauncherAppSingleton
 import com.android.launcher3.display.LauncherDisplayInfo
 import com.android.launcher3.statehandlers.DesktopVisibilityController
+import com.android.launcher3.taskbar.PenguinTaskbarSettings
 import com.android.launcher3.util.window.WindowManagerProxy
 import javax.inject.Inject
 
@@ -55,11 +57,13 @@ constructor(
         val displayId =
             windowManagerProxy.getDisplay(info.context)?.displayId
                 ?: return launcherPrefs.get(TASKBAR_PINNING)
-        return if (
-            info.showDesktopTaskbarForFreeformDisplay ||
-                desktopVisibilityController.isInDesktopMode(displayId)
-        ) {
+        return if (info.showDesktopTaskbarForFreeformDisplay) {
             true
+        } else if (desktopVisibilityController.isInDesktopMode(displayId)) {
+            // As TaskbarFeatureEvaluator: the desktop dock is the transient taskbar.
+            displayId != DEFAULT_DISPLAY ||
+                info.navigationMode != NavigationMode.NO_BUTTON ||
+                !PenguinTaskbarSettings.showsDesktopDock(info.context, launcherPrefs)
         } else {
             launcherPrefs.get(TASKBAR_PINNING)
         }

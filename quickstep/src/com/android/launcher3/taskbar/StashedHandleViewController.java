@@ -249,6 +249,7 @@ public class StashedHandleViewController implements TaskbarControllers.LoggableT
         int taskbarBottomMargin = deviceProfile.getTaskbarProfile().getBottomMargin();
         mStashedHandleView.getLayoutParams().height =
                 SettingsCache.INSTANCE.get(activity).getValue(NAVIGATION_BAR_HINT_URI)
+                        && !activity.isDesktopDock()
                 ? mTaskbarSize + taskbarBottomMargin : 0;
 
         mTaskbarStashedHandleAlpha.get(ALPHA_INDEX_STASHED).setValue(

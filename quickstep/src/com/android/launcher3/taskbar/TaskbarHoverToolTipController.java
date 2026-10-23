@@ -94,6 +94,10 @@ public class TaskbarHoverToolTipController implements View.OnHoverListener {
             mHoverToolTipView.close(/* animate= */ false);
             mActivity.setAutohideSuspendFlag(FLAG_AUTOHIDE_SUSPEND_HOVERING_ICONS, false);
         } else if (event.getAction() == ACTION_HOVER_ENTER) {
+            if (mActivity.isDesktopDock()
+                    && PenguinTaskbarSettings.isDockBounceEnabled(mActivity)) {
+                TaskbarDockBounce.bounce(mHoverView);
+            }
             maybeRevealHoverToolTip();
             mActivity.setAutohideSuspendFlag(FLAG_AUTOHIDE_SUSPEND_HOVERING_ICONS, true);
         }

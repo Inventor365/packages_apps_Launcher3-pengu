@@ -982,6 +982,11 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
         return isThreeButtonNav() && mDeviceProfile.getTaskbarProfile().isStartAlignTaskbar();
     }
 
+    /** Whether this taskbar is a desktop's dock (Settings > System > Taskbar). */
+    public boolean isDesktopDock() {
+        return mIsTransient && isPrimaryDisplay() && isInDesktopMode();
+    }
+
     /** Whether this taskbar is a DeX desktop's. */
     public boolean isDexDesktop() {
         return mDeviceProfile.getDeviceProperties().getDeviceConfiguration().isExternalDisplay();
