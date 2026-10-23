@@ -19,10 +19,12 @@ import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
+import android.util.Log
 import android.util.Property
 import android.view.Gravity
 import android.view.MotionEvent
@@ -145,6 +147,15 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             taskbarVisibilityIcon.background.setTint(
                 resources.getColor(android.R.color.system_neutral2_500, context.theme)
             )
+        }
+
+        requireViewById<View>(R.id.taskbar_settings_option).setOnClickListener {
+            close(true)
+            try {
+                context.startActivity(PenguinTaskbarSettings.settingsIntent())
+            } catch (e: ActivityNotFoundException) {
+                Log.w(TAG, "Cannot open the taskbar settings", e)
+            }
         }
     }
 

@@ -6,6 +6,7 @@
 package com.android.launcher3.taskbar
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import com.android.launcher3.LauncherPrefs
@@ -25,6 +26,16 @@ object PenguinTaskbarSettings {
     private const val DEFAULT_AUTOHIDE_TIMEOUT_S = 5
     private const val MAX_AUTOHIDE_TIMEOUT_S = 30
     private const val DEFAULT_DOCK_BLUR_PERCENT = 60
+
+    private const val ACTION_TASKBAR_SETTINGS = "android.settings.TASKBAR_SETTINGS"
+    private const val SETTINGS_PACKAGE = "com.android.settings"
+
+    /** Opens Settings > System > Taskbar. */
+    @JvmStatic
+    fun settingsIntent(): Intent =
+        Intent(ACTION_TASKBAR_SETTINGS)
+            .setPackage(SETTINGS_PACKAGE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /** Settings the taskbar is built from, so it is recreated when one of them changes. */
     @JvmField

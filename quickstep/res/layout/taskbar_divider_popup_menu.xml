@@ -69,4 +69,42 @@
             android:text="@string/always_show_taskbar" />
 
     </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/taskbar_settings_option"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_gravity="center_vertical"
+        android:elevation="2dp"
+        android:focusable="true"
+        android:clickable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:background="@drawable/rounded_popup_ripple"
+        android:paddingEnd="10dp"
+        android:paddingStart="10dp"
+        android:theme="@style/PopupItem">
+
+        <View
+            android:layout_margin="6dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:importantForAccessibility="no"
+            android:background="@drawable/ic_setting"
+            android:backgroundTint="@color/materialColorOnSurface" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:paddingStart="12dp"
+            android:gravity="start|center_vertical"
+            android:textAlignment="viewStart"
+            android:fontFamily="@*android:string/config_bodyFontFamilyMedium"
+            android:lines="1"
+            android:textSize="14sp"
+            android:textColor="@color/materialColorOnSurface"
+            android:text="@string/taskbar_settings" />
+
+    </LinearLayout>
 </com.android.launcher3.taskbar.TaskbarDividerPopupView>
