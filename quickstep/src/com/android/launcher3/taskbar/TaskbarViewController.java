@@ -1050,19 +1050,17 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
      */
     private void animateDockIconsForReveal(ViewGroup parent, AnimatorSet reveal, AnimatorSet as,
             boolean isStashed, long duration) {
-        View dragLayer = mActivity.getDragLayer();
+        // As far as the dock's background travels (TaskbarBackgroundRenderer#drawDesktopDock),
+        // so the icons stay inside it all the way and leave the screen with it.
+        float hiddenY = mActivity.getTransientTaskbarProfile().getHeight()
+                + mActivity.getResources().getDimensionPixelSize(
+                        R.dimen.transient_taskbar_bottom_margin);
         for (int i = parent.getChildCount() - 1; i >= 0; i--) {
             View child = parent.getChildAt(i);
             if (child instanceof TaskbarPinnedAppIconContainer tic) {
                 animateDockIconsForReveal(tic, reveal, as, isStashed, duration);
                 continue;
             }
-            float top = child.getTop();
-            for (View v = parent; v != null && v != dragLayer;
-                    v = v.getParent() instanceof View p ? p : null) {
-                top += v.getTop();
-            }
-            float hiddenY = dragLayer.getHeight() - top;
             float[] transY = isStashed ? new float[] {hiddenY} : new float[] {hiddenY, 0};
             if (child instanceof Reorderable) {
                 MultiTranslateDelegate mtd = ((Reorderable) child).getTranslateDelegate();

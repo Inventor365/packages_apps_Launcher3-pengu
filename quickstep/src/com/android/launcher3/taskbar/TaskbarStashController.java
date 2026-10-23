@@ -17,6 +17,7 @@ package com.android.launcher3.taskbar;
 
 import static android.view.accessibility.AccessibilityManager.FLAG_CONTENT_CONTROLS;
 
+import static com.android.app.animation.Interpolators.ACCELERATE_DECELERATE;
 import static com.android.app.animation.Interpolators.EMPHASIZED;
 import static com.android.app.animation.Interpolators.FINAL_FRAME;
 import static com.android.app.animation.Interpolators.INSTANT;
@@ -160,6 +161,8 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
      */
     @VisibleForTesting
     static final long TRANSIENT_TASKBAR_STASH_DURATION = 250;
+    // The desktop dock glides off the bottom edge, eased in and out, as a Mac's dock does.
+    private static final long DESKTOP_DOCK_HIDE_DURATION = 350;
 
     /**
      * How long to stash/unstash when keyboard is appearing/disappearing.
@@ -1121,6 +1124,12 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
 
     private void createTransientAnimToIsStashed(AnimatorSet as, boolean isStashed, long duration,
             boolean shouldDelayBackground, @StashAnimation int animationType) {
+        final boolean isDockHide = mActivity.isDesktopDock() && isStashed
+                && animationType != TRANSITION_HANDLE_FADE && duration > 0;
+        if (isDockHide) {
+            duration = DESKTOP_DOCK_HIDE_DURATION;
+        }
+        final Interpolator slide = isDockHide ? ACCELERATE_DECELERATE : EMPHASIZED;
         // Target values of the properties this is going to set
         final float backgroundOffsetTarget = isStashed ? 1 : 0;
         final float iconAlphaTarget = isStashed ? 0 : 1;
@@ -1188,7 +1197,7 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
         final boolean animateBg = animationType != TRANSITION_UNSTASH_SUW_MANUAL;
         if (animateBg) {
             play(skippable, mTaskbarBackgroundOffset.animateToValue(backgroundOffsetTarget), 0,
-                    duration, EMPHASIZED);
+                    duration, slide);
         } else {
             skippable.addListener(AnimatorListeners.forEndCallback(
                     () -> mTaskbarBackgroundOffset.updateValue(backgroundOffsetTarget)));
@@ -1199,18 +1208,23 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
                 LINEAR);
 
         if (isStashed) {
-            play(skippable, mControllers.taskbarSpringOnStashController.createSpringToStash(),
-                    0, duration, LINEAR);
+            if (!isDockHide) {
+                // The dock glides out whole; a spring would shift its icons inside it.
+                play(skippable, mControllers.taskbarSpringOnStashController.createSpringToStash(),
+                        0, duration, LINEAR);
+            }
         } else {
             play(skippable, mControllers.taskbarSpringOnStashController.createResetAnimForUnstash(),
                     0, duration, LINEAR);
         }
 
         mControllers.taskbarViewController.addRevealAnimToIsStashed(skippable, isStashed, duration,
-                EMPHASIZED, animationType == TRANSITION_UNSTASH_SUW_MANUAL);
+                slide, animationType == TRANSITION_UNSTASH_SUW_MANUAL);
 
-        play(skippable, mControllers.stashedHandleViewController
-                .createRevealAnimToIsStashed(isStashed), 0, duration, EMPHASIZED);
+        if (!mActivity.isDesktopDock()) {
+            play(skippable, mControllers.stashedHandleViewController
+                    .createRevealAnimToIsStashed(isStashed), 0, duration, EMPHASIZED);
+        }
 
         // Return the stashed handle to its default scale in case it was changed as part of the
         // feedforward hint. Note that the reveal animation above also visually scales it.
@@ -1338,7 +1352,16 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
             mControllers.stashedHandleViewController.onIsStashedChanged(
                     isStashed && supportsVisualStashing());
             mControllers.taskbarInsetsController.onTaskbarOrBubblebarWindowHeightOrInsetsChanged();
-            mControllers.taskbarViewController.setTaskbarViewVisible(!isStashed);
+            if (isStashed && mActivity.isDesktopDock() && mAnimator != null) {
+                // The dock's icons slide out with it, so hide them only once they are off screen.
+                mAnimator.addListener(AnimatorListeners.forEndCallback(() -> {
+                    if (mIsStashed) {
+                        mControllers.taskbarViewController.setTaskbarViewVisible(false);
+                    }
+                }));
+            } else {
+                mControllers.taskbarViewController.setTaskbarViewVisible(!isStashed);
+            }
         });
         updateIsTaskbarStashed(isStashed);
     }
