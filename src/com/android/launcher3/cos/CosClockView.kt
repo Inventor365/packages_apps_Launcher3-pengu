@@ -30,7 +30,11 @@ import kotlin.math.roundToInt
 object CosClock {
     @JvmStatic
     fun isEnabled(context: Context): Boolean =
-        Settings.Secure.getInt(context.contentResolver, "penguin_cos_experience", 0) == 1
+        Settings.Secure.getInt(
+            context.contentResolver,
+            "penguin_cos_clock",
+            Settings.Secure.getInt(context.contentResolver, "penguin_cos_experience", 0),
+        ) == 1
 
     fun heightEm(height: Float): Float = FluidDigits.heightEm(height)
 

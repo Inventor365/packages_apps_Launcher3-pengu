@@ -57,6 +57,7 @@ import android.view.RemoteAnimationTarget;
 import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.View;
+import android.view.animation.Interpolator;
 import android.window.TransitionInfo;
 import android.window.WindowAnimationState;
 
@@ -68,6 +69,7 @@ import com.android.internal.jank.Cuj;
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherState;
+import com.android.launcher3.QuickstepTransitionManager;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.anim.AnimatedFloat;
 import com.android.launcher3.anim.AnimationSuccessListener;
@@ -185,6 +187,10 @@ public final class TaskViewUtils {
             @Nullable TransitionInfo transitionInfo,
             int appearedTaskId,
             PendingAnimation out) {
+        Interpolator launchInterpolator =
+                QuickstepTransitionManager.cosRecents(recentsView.getContext())
+                        ? QuickstepTransitionManager.cosRecentsLaunchInterpolator()
+                        : TOUCH_RESPONSE;
         boolean isQuickSwitch = taskView.isEndQuickSwitchCuj();
         taskView.setEndQuickSwitchCuj(false);
 
@@ -276,10 +282,10 @@ public final class TaskViewUtils {
         for (RemoteTargetHandle targetHandle : remoteTargetHandles) {
             TaskViewSimulator tvsLocal = targetHandle.getTaskViewSimulator();
             out.setFloat(tvsLocal.fullScreenProgress,
-                    AnimatedFloat.VALUE, 1, TOUCH_RESPONSE);
+                    AnimatedFloat.VALUE, 1, launchInterpolator);
             out.setFloat(tvsLocal.recentsViewScale,
                     AnimatedFloat.VALUE, tvsLocal.getFullScreenScale(),
-                    TOUCH_RESPONSE);
+                    launchInterpolator);
 
             out.addListener(new AnimatorListenerAdapter() {
                 @Override
@@ -403,9 +409,9 @@ public final class TaskViewUtils {
                 float fullScreenScale =
                         topMostSimulators[i].getTaskViewSimulator().getFullScreenScale();
                 out.addFloat(ttv, VIEW_TRANSLATE_Y, translationY,
-                        translationY / fullScreenScale, TOUCH_RESPONSE);
+                        translationY / fullScreenScale, launchInterpolator);
                 out.addFloat(ttv, VIEW_TRANSLATE_X, translationX,
-                         translationX / fullScreenScale, TOUCH_RESPONSE);
+                         translationX / fullScreenScale, launchInterpolator);
             }
 
             Matrix[] k0i = new Matrix[matrixSize];
@@ -458,7 +464,7 @@ public final class TaskViewUtils {
         if (depthController != null) {
             out.setFloat(depthController.stateDepth, MULTI_PROPERTY_VALUE,
                     container.getBackgroundAppState().getDepth(container),
-                    TOUCH_RESPONSE);
+                    launchInterpolator);
         }
     }
 
@@ -662,7 +668,10 @@ public final class TaskViewUtils {
             Log.w(TAG, "composeRecentsLaunchAnimator - no TaskView to launch");
             return;
         }
-        PendingAnimation pa = new PendingAnimation(RECENTS_LAUNCH_DURATION);
+        boolean cos = QuickstepTransitionManager.cosRecents(recentsView.getContext());
+        int launchDuration = cos
+                ? QuickstepTransitionManager.COS_RECENTS_LAUNCH_DURATION : RECENTS_LAUNCH_DURATION;
+        PendingAnimation pa = new PendingAnimation(launchDuration);
         createRecentsWindowAnimator(recentsView, taskView, skipLauncherChanges, appTargets,
                 wallpaperTargets, nonAppTargets, depthController, transitionInfo,
                 appearedTaskId, pa);
@@ -697,8 +706,10 @@ public final class TaskViewUtils {
                 raController.setWillFinishToHome(false);
             }
             launcherAnim = recentsView.createAdjacentPageAnimForTaskLaunch(taskView);
-            launcherAnim.setInterpolator(Interpolators.TOUCH_RESPONSE);
-            launcherAnim.setDuration(RECENTS_LAUNCH_DURATION);
+            launcherAnim.setInterpolator(cos
+                    ? QuickstepTransitionManager.cosRecentsLaunchInterpolator()
+                    : Interpolators.TOUCH_RESPONSE);
+            launcherAnim.setDuration(launchDuration);
 
             windowAnimEndListener = new AnimationSuccessListener() {
                 @Override
@@ -754,10 +765,10 @@ public final class TaskViewUtils {
             StateManager<LauncherState, Launcher> launcherStateManager = launcher.getStateManager();
             AnimatorPlaybackController controller =
                     launcherStateManager.createAnimationToNewWorkspace(NORMAL,
-                            RECENTS_LAUNCH_DURATION);
+                            launchDuration);
             controller.dispatchOnStart();
             childStateAnimation = controller.getTarget();
-            launcherAnim = controller.getAnimationPlayer().setDuration(RECENTS_LAUNCH_DURATION);
+            launcherAnim = controller.getAnimationPlayer().setDuration(launchDuration);
             windowAnimEndListener = new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {

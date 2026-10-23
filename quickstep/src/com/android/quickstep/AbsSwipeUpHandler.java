@@ -1783,6 +1783,11 @@ public abstract class AbsSwipeUpHandler<
                     duration = Math.max(duration, mRecentsView.getScroller().getDuration());
                 }
             }
+            if (QuickstepTransitionManager.cosRecents(mContext)
+                    && !state.displayOverviewTasksAsGrid(mDp)) {
+                interpolator = QuickstepTransitionManager.cosRecentsInterpolator();
+                duration = Math.max(duration, QuickstepTransitionManager.COS_RECENTS_DURATION);
+            }
             SystemUiProxy.INSTANCE.get(mContext).updateContextualEduStats(
                     mGestureState.isTrackpadGesture(), GestureType.OVERVIEW);
         } else if (endTarget == LAST_TASK && mRecentsView != null

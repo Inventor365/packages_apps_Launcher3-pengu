@@ -256,8 +256,28 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
      * the end rather than asymptotically.
      */
     public static boolean cosExperience(android.content.Context context) {
-        return Settings.Secure.getInt(context.getContentResolver(),
-                "penguin_cos_experience", 0) == 1;
+        return cosFeature(context, "penguin_cos_app_motion");
+    }
+
+    public static boolean cosFeature(android.content.Context context, String key) {
+        android.content.ContentResolver resolver = context.getContentResolver();
+        return Settings.Secure.getInt(resolver, key,
+                Settings.Secure.getInt(resolver, "penguin_cos_experience", 0)) == 1;
+    }
+
+    public static final int COS_RECENTS_DURATION = 500;
+    public static final int COS_RECENTS_LAUNCH_DURATION = 450;
+
+    public static Interpolator cosRecentsInterpolator() {
+        return new SpringInterpolator(120, 0.82, COS_RECENTS_DURATION);
+    }
+
+    public static Interpolator cosRecentsLaunchInterpolator() {
+        return new SpringInterpolator(420, 1.12, COS_RECENTS_LAUNCH_DURATION);
+    }
+
+    public static boolean cosRecents(android.content.Context context) {
+        return cosFeature(context, "penguin_cos_recents");
     }
 
     private static final class SpringInterpolator implements Interpolator {
