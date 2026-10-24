@@ -456,7 +456,6 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         @JvmField val SELECT_TIP_SEEN = backedUpItem("launcher.select_tip_seen", false)
 
         @JvmField val SHOW_HOTSEAT_QSB = backedUpItem("pref_show_hotseat_qsb", true)
-        @JvmField val DOCK_SEARCH_PROVIDER = backedUpItem("pref_dock_search_provider", "launcher")
         @JvmField val UNIVERSAL_SEARCH = backedUpItem("pref_universal_search", true)
         @JvmField val UNIVERSAL_SEARCH_PLACE = backedUpItem("pref_universal_search_place", "home")
 
@@ -480,8 +479,7 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
             }
 
             return try {
-                get(context).get(SHOW_HOTSEAT_QSB) &&
-                    get(context).get(DOCK_SEARCH_PROVIDER) == "google"
+                get(context).get(SHOW_HOTSEAT_QSB)
             } catch (ignored: IllegalStateException) {
                 true
             }
