@@ -1140,7 +1140,19 @@ public class SpotlightView extends AbstractFloatingView
                     parent.getContext(), android.R.style.Theme_DeviceDefault));
             View view = switch (type) {
                 case Row.APPS -> {
-                    LinearLayout row = new LinearLayout(parent.getContext());
+                    int cellWidth = dp(APP_CELL_WIDTH_DP);
+                    LinearLayout row = new LinearLayout(parent.getContext()) {
+                        @Override
+                        protected void onMeasure(int widthSpec, int heightSpec) {
+                            int available = MeasureSpec.getSize(widthSpec) - getPaddingLeft()
+                                    - getPaddingRight();
+                            int width = Math.min(cellWidth, available / APPS_PER_ROW);
+                            for (int i = 0; i < getChildCount(); i++) {
+                                getChildAt(i).getLayoutParams().width = width;
+                            }
+                            super.onMeasure(widthSpec, heightSpec);
+                        }
+                    };
                     row.setLayoutParams(new RecyclerView.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -1148,7 +1160,6 @@ public class SpotlightView extends AbstractFloatingView
                     // section titles, instead of four icons stretched across the whole card.
                     row.setGravity(android.view.Gravity.START);
                     row.setPadding(dp(4), dp(4), dp(4), dp(4));
-                    int cellWidth = dp(APP_CELL_WIDTH_DP);
                     // Icon + label + a little air: the drawer's cell height leaves a big gap
                     // above the icons here, since they centre themselves vertically.
                     var allApps = mHost.getDeviceProfile().getAllAppsProfile();
