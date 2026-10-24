@@ -234,22 +234,31 @@ public class BaseDepthControllerImpl<
             wallpaperZoom = Math.max(wallpaperZoom, mWallpaperZoomOnly.value);
         }
 
-        boolean wallpaperZoomChanged = Math.abs(wallpaperZoom - mLastWallpaperZoom) > 0.01f;
-        if (windowToken != null && wallpaperZoomChanged) {
-                mWallpaperManager.setWallpaperZoomOut(windowToken,
-                        LauncherPrefs.ALLOW_WALLPAPER_ZOOMING.get(mContainer) ? wallpaperZoom : 1);
-            mLastWallpaperZoom = wallpaperZoom;
+        if (windowToken != null) {
+            float targetZoom = LauncherPrefs.ALLOW_WALLPAPER_ZOOMING.get(mContainer)
+                    ? wallpaperZoom : 1f;
+            boolean wallpaperZoomChanged = Math.abs(targetZoom - mLastWallpaperZoom) > 0.02f
+                    || ((targetZoom == 0f || targetZoom == 1f)
+                            && Float.compare(targetZoom, mLastWallpaperZoom) != 0);
+            if (wallpaperZoomChanged) {
+                mWallpaperManager.setWallpaperZoomOut(windowToken, targetZoom);
+                mLastWallpaperZoom = targetZoom;
+            }
         }
 
         if (!BlurUtils.supportsBlursOnWindows()) {
             return;
         }
         if (mBaseSurface == null) {
-            Log.d(TAG, "mSurface is null and mCurrentBlur is: " + mCurrentBlur);
+            if (DEBUG) {
+                Log.d(TAG, "mSurface is null and mCurrentBlur is: " + mCurrentBlur);
+            }
             return;
         }
         if (!mBaseSurface.isValid()) {
-            Log.d(TAG, "mSurface is not valid");
+            if (DEBUG) {
+                Log.d(TAG, "mSurface is not valid");
+            }
             mWaitingOnSurfaceValidity = true;
             onInvalidSurface();
             return;
@@ -264,17 +273,20 @@ public class BaseDepthControllerImpl<
         int previousBlur = mCurrentBlur;
         int newBlur = shouldBlur() ? (int) (blurAmount * mMaxBlurRadius) : 0;
         int delta = Math.abs(newBlur - previousBlur);
-        if (skipSimilarBlur && delta < Utilities.dpToPx(1) && newBlur != 0 && previousBlur != 0
+        if (skipSimilarBlur && delta < Utilities.dpToPx(2) && newBlur != 0 && previousBlur != 0
                 && blurAmount != 1f) {
             if (DEBUG) {
                 Log.v(TAG, "Skipping small blur delta. newBlur: " + newBlur + " previousBlur: "
                         + previousBlur + " delta: " + delta + " surface: " + blurSurface);
             }
+            onDepthAndBlurApplied();
             return;
         }
         mCurrentBlur = newBlur;
-        Log.v(TAG, "Applying blur: " + mCurrentBlur + " to " + blurSurface + " applyImmediately: "
-                + applyImmediately);
+        if (DEBUG) {
+            Log.v(TAG, "Applying blur: " + mCurrentBlur + " to " + blurSurface
+                    + " applyImmediately: " + applyImmediately);
+        }
 
         if (surfaceTransaction == null) {
             surfaceTransaction = new SurfaceTransaction();
@@ -293,8 +305,10 @@ public class BaseDepthControllerImpl<
         }
 
         if (applyImmediately || mSurfaceTransactionApplier == null) {
-            Log.d(TAG, "Applying blur immediately, mSurfaceTransactionApplier is null? "
-                    + (mSurfaceTransactionApplier == null));
+            if (DEBUG) {
+                Log.d(TAG, "Applying blur immediately, mSurfaceTransactionApplier is null? "
+                        + (mSurfaceTransactionApplier == null));
+            }
             surfaceTransaction.getTransaction().apply();
         } else {
             mSurfaceTransactionApplier.scheduleApply(surfaceTransaction);
@@ -330,7 +344,9 @@ public class BaseDepthControllerImpl<
         if (mInEarlyWakeUp == start) {
             return;
         }
-        Log.d(TAG, "setEarlyWakeup: " + start);
+        if (DEBUG) {
+            Log.d(TAG, "setEarlyWakeup: " + start);
+        }
         if (start) {
             Trace.instantForTrack(TRACE_TAG_APP, TAG, "notifyRendererForGpuLoadUp");
             mContainer.getRootView().getViewRootImpl().notifyRendererForGpuLoadUp("applyBlur");
@@ -353,8 +369,8 @@ public class BaseDepthControllerImpl<
             depthF = depth;
         } else {
             // Round out the depth to dedupe frequent, non-perceptable updates
-            int depthI = (int) (depth * 256);
-            depthF = depthI / 256f;
+            int depthI = (int) (depth * 128);
+            depthF = depthI / 128f;
         }
         if (Float.compare(mDepth, depthF) == 0) {
             return;

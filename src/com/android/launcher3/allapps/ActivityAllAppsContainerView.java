@@ -1687,14 +1687,34 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         mHeaderPaint.setColor(backgroundColor);
         mHeaderPaint.setAlpha((int) (backgroundAlpha * 255));
 
-        mTmpRectF.set(
-                leftWithScale,
-                topWithScale,
-                rightWithScale,
-                bottomWithOffset);
-        mTmpPath.reset();
-        mTmpPath.addRoundRect(mTmpRectF, mBottomSheetCornerRadii, Direction.CW);
-        canvas.drawPath(mTmpPath, mHeaderPaint);
+        float cornerRadius = mBottomSheetCornerRadii[0];
+        if (cornerRadius > 0f && bottomWithOffset > topWithScale) {
+            float roundBottom = Math.min(bottomWithOffset, topWithScale + cornerRadius * 2f);
+            canvas.drawRoundRect(
+                    leftWithScale,
+                    topWithScale,
+                    rightWithScale,
+                    roundBottom,
+                    cornerRadius,
+                    cornerRadius,
+                    mHeaderPaint);
+            float rectTop = topWithScale + cornerRadius;
+            if (bottomWithOffset > rectTop) {
+                canvas.drawRect(
+                        leftWithScale,
+                        rectTop,
+                        rightWithScale,
+                        bottomWithOffset,
+                        mHeaderPaint);
+            }
+        } else {
+            canvas.drawRect(
+                    leftWithScale,
+                    topWithScale,
+                    rightWithScale,
+                    bottomWithOffset,
+                    mHeaderPaint);
+        }
 
         // TODO (b/414671116): Apply header protection whenever search bar is focused.
         // applyHeaderProtection(canvas, scale, backgroundAlpha, topNoScale, topWithScale,

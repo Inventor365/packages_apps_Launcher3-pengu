@@ -121,6 +121,7 @@ public class DepthController<
     @Override
     public void setState(STATE toState) {
         stateDepth.setValue(toState.getDepth(mContainer));
+        onDepthAndBlurApplied();
         if (toState == mContainer.getBackgroundAppState()) {
             addOnDrawListener();
         }
@@ -136,6 +137,8 @@ public class DepthController<
         float toDepth = toState.getDepth(mContainer);
         animation.setFloat(stateDepth, MULTI_PROPERTY_VALUE, toDepth,
                 config.getInterpolator(ANIM_DEPTH, LINEAR));
+        onDepthAndBlurApplied();
+        animation.addEndListener(success -> onDepthAndBlurApplied());
     }
 
     @Override

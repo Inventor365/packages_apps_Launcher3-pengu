@@ -64,6 +64,9 @@ constructor(
     private val cornerRadius = Themes.getDialogCornerRadius(context)
     private val workspaceBlurRenderNode = RenderNode("workspaceBlur")
     private val workspaceBlurRenderNodeOutline = Outline()
+    private val baseBlurEffect by lazy {
+        RenderEffect.createBlurEffect(folderBlurRadius, folderBlurRadius, Shader.TileMode.CLAMP)
+    }
     private val bounds = Rect()
     private val glassBounds = android.graphics.RectF()
     private val folderBlurDrawable: BackgroundBlurDrawable? by lazy {
@@ -143,8 +146,7 @@ constructor(
         workspaceBlurRenderNode.setOutline(workspaceBlurRenderNodeOutline)
         workspaceBlurRenderNode.setClipToOutline(true)
 
-        val blur =
-            RenderEffect.createBlurEffect(folderBlurRadius, folderBlurRadius, Shader.TileMode.CLAMP)
+        val blur = baseBlurEffect
         workspaceBlurRenderNode.setRenderEffect(
             if (LiquidGlass.isEnabled(context)) {
                 // The lens sits where the folder is, in the backdrop's own coordinates.
