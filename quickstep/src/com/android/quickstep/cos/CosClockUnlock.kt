@@ -41,7 +41,10 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
 
     override fun prepareForUnlock(animateClock: Boolean, clockBounds: Rect, fontHeight: Int) {
         val bounds = Rect(clockBounds)
-        main.post { prepare(if (animateClock) bounds else null, fontHeight) }
+        main.post {
+            if (!animateClock && playing && flight != null) return@post
+            prepare(if (animateClock) bounds else null, fontHeight)
+        }
     }
 
     override fun setUnlockAmount(amount: Float, forceIfAnimating: Boolean) {
@@ -49,7 +52,9 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
     }
 
     override fun playUnlockAnimation(unlocked: Boolean, duration: Long, startDelay: Long) {
-        main.post { if (unlocked) play() else finish() }
+        main.post {
+            if (!unlocked) finish() else if (!playing) play()
+        }
     }
 
     override fun setSmartspaceSelectedPage(selectedPage: Int) {}
@@ -63,7 +68,7 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
     fun dispatchClockState() {
         val widget = landingClock()
         val state = SmartspaceState()
-        val rect = widget?.clockRectIn(launcher.dragLayer)?.first
+        val rect = widget?.let { settledClock(it, launcher.dragLayer) }?.first
         if (rect != null) {
             val origin = IntArray(2).also { launcher.dragLayer.getLocationOnScreen(it) }
             rect.offset(origin[0].toFloat(), origin[1].toFloat())
@@ -77,6 +82,7 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
 
     private fun prepare(bounds: Rect?, fontHeight: Int) {
         stop()
+        playing = false
         content().forEach {
             it.scaleX = ZOOM
             it.scaleY = ZOOM
@@ -111,6 +117,7 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
         if (flight == null) {
             if (views.isEmpty()) finish()
         } else {
+            flight.flying = true
             val progress = FloatValueHolder(0f)
             springs +=
                 SpringAnimation(progress).apply {
@@ -144,6 +151,22 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
 
     private fun stiffness(response: Float) = (2 * PI / response).pow(2).toFloat()
 
+    private fun settledClock(widget: LockscreenClockWidgetView, layer: ViewGroup): Pair<RectF, Float>? {
+        val (rect, scale) = widget.clockRectIn(layer) ?: return null
+        val page = launcher.workspace ?: return rect to scale
+        val zoom = page.scaleX
+        if (zoom == 1f || zoom == 0f) return rect to scale
+        val pivot = floatArrayOf(page.pivotX, page.pivotY)
+        Utilities.getDescendantCoordRelativeToAncestor(page, layer, pivot, false)
+        fun settle(v: Float, c: Float) = c + (v - c) / zoom
+        return RectF(
+            settle(rect.left, pivot[0]),
+            settle(rect.top, pivot[1]),
+            settle(rect.right, pivot[0]),
+            settle(rect.bottom, pivot[1]),
+        ) to scale / zoom
+    }
+
     private fun landingClock(): LockscreenClockWidgetView? {
         val workspace = launcher.workspace ?: return null
         if (!launcher.isInState(LauncherState.NORMAL)) return null
@@ -166,6 +189,16 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
                 invalidate()
             }
 
+        var flying = false
+            set(value) {
+                field = value
+                invalidate()
+            }
+
+        override fun draw(canvas: Canvas) {
+            if (flying) super.draw(canvas)
+        }
+
         init {
             val origin = IntArray(2).also { layer.getLocationOnScreen(it) }
             start.offset(-origin[0].toFloat(), -origin[1].toFloat())
@@ -175,21 +208,7 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
 
         abstract fun land()
 
-        protected fun settledClock(): Pair<RectF, Float>? {
-            val (rect, scale) = widget.clockRectIn(layer) ?: return null
-            val page = launcher.workspace ?: return rect to scale
-            val zoom = page.scaleX
-            if (zoom == 1f || zoom == 0f) return rect to scale
-            val pivot = floatArrayOf(page.pivotX, page.pivotY)
-            Utilities.getDescendantCoordRelativeToAncestor(page, layer, pivot, false)
-            fun settle(v: Float, c: Float) = c + (v - c) / zoom
-            return RectF(
-                settle(rect.left, pivot[0]),
-                settle(rect.top, pivot[1]),
-                settle(rect.right, pivot[0]),
-                settle(rect.bottom, pivot[1]),
-            ) to scale / zoom
-        }
+        protected fun settledClock(): Pair<RectF, Float>? = settledClock(widget, layer)
 
         fun remove() {
             (parent as? ViewGroup)?.removeView(this)
