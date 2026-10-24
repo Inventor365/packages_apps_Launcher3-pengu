@@ -15,10 +15,10 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
-import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
+import com.android.internal.penguin.luminous.Luminous
 import com.android.launcher3.CellLayout
 import com.android.launcher3.LauncherState
 import com.android.launcher3.Utilities
@@ -29,6 +29,7 @@ import com.android.quickstep.SystemUiProxy
 import com.android.systemui.shared.system.smartspace.ILauncherUnlockAnimationController
 import com.android.systemui.shared.system.smartspace.SmartspaceState
 import kotlin.math.PI
+import kotlin.math.pow
 
 class CosClockUnlock(private val launcher: QuickstepLauncher) :
     ILauncherUnlockAnimationController.Stub() {
@@ -98,14 +99,17 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
     private fun play() {
         stop()
         playing = true
-        content().forEach { view ->
-            springs += spring(view, DynamicAnimation.SCALE_X, 1f, ICON_RESPONSE, ICON_BOUNCE)
-            springs += spring(view, DynamicAnimation.SCALE_Y, 1f, ICON_RESPONSE, ICON_BOUNCE)
-            springs += spring(view, DynamicAnimation.ALPHA, 1f, ALPHA_RESPONSE, 0f)
-        }
         val flight = flight
+        val views = content()
+        views.forEachIndexed { i, view ->
+            val iconStiffness = stiffness(ICON_RESPONSE)
+            Luminous.spring(view, Luminous.SCALE_X, 1f, iconStiffness, 1f - ICON_BOUNCE)
+            Luminous.spring(view, Luminous.SCALE_Y, 1f, iconStiffness, 1f - ICON_BOUNCE)
+            val end = if (flight == null && i == views.lastIndex) Runnable { finish() } else null
+            Luminous.spring(view, Luminous.ALPHA, 1f, stiffness(ALPHA_RESPONSE), 1f, Float.NaN, end)
+        }
         if (flight == null) {
-            springs.lastOrNull()?.addEndListener { _, _, _, _ -> finish() }
+            if (views.isEmpty()) finish()
         } else {
             val progress = FloatValueHolder(0f)
             springs +=
@@ -135,7 +139,10 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
     private fun stop() {
         springs.forEach { it.cancel() }
         springs.clear()
+        content().forEach { Luminous.cancelAll(it) }
     }
+
+    private fun stiffness(response: Float) = (2 * PI / response).pow(2).toFloat()
 
     private fun landingClock(): LockscreenClockWidgetView? {
         val workspace = launcher.workspace ?: return null
@@ -147,15 +154,6 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
         }
         return null
     }
-
-    private fun spring(view: View, property: DynamicAnimation.ViewProperty, to: Float, response: Float, bounce: Float) =
-        SpringAnimation(view, property).apply {
-            spring = force(to, response, bounce)
-            setMinimumVisibleChange(
-                if (property == DynamicAnimation.ALPHA) DynamicAnimation.MIN_VISIBLE_CHANGE_ALPHA
-                else DynamicAnimation.MIN_VISIBLE_CHANGE_SCALE
-            )
-        }
 
     private abstract inner class Flight(protected val widget: LockscreenClockWidgetView, bounds: Rect) :
         View(launcher) {
