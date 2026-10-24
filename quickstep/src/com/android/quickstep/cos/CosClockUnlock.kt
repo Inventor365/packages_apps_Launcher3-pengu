@@ -42,7 +42,7 @@ class CosClockUnlock(private val launcher: QuickstepLauncher) :
     override fun prepareForUnlock(animateClock: Boolean, clockBounds: Rect, fontHeight: Int) {
         val bounds = Rect(clockBounds)
         main.post {
-            if (!animateClock && playing && flight != null) return@post
+            if (playing && flight != null) return@post
             prepare(if (animateClock) bounds else null, fontHeight)
         }
     }
