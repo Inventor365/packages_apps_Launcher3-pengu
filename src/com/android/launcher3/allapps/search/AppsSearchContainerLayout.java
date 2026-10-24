@@ -179,15 +179,19 @@ public class AppsSearchContainerLayout extends ExtendedEditText
             setMinHeight(getResources().getDimensionPixelSize(
                     R.dimen.all_apps_floating_search_height));
         }
-        // Universal search everywhere: apps, shortcuts, settings, QS tiles, contacts,
-        // calendar, files and calculator, gated by the pref_search_* toggles. In App
-        // Library mode the same algorithm lists every app (see UniversalSearchAlgorithm).
-        UniversalSearchAlgorithm algorithm =
-                new UniversalSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
-        algorithm.setQueryHandler(query -> {
-            setText(query);
-            setSelection(query.length());
-        });
+        SearchAlgorithm<AdapterItem> algorithm;
+        if (LauncherPrefs.isUniversalSearchInDrawer(getContext())
+                || LauncherPrefs.isAppLibrary(getContext())) {
+            UniversalSearchAlgorithm universal =
+                    new UniversalSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
+            universal.setQueryHandler(query -> {
+                setText(query);
+                setSelection(query.length());
+            });
+            algorithm = universal;
+        } else {
+            algorithm = new DefaultAppSearchAlgorithm(getContext(), mLauncher.getUiExecutor());
+        }
         mSearchBarController.initialize(algorithm, this, mLauncher, this);
     }
 

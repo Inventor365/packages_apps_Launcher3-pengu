@@ -457,6 +457,17 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
 
         @JvmField val SHOW_HOTSEAT_QSB = backedUpItem("pref_show_hotseat_qsb", true)
         @JvmField val DOCK_SEARCH_PROVIDER = backedUpItem("pref_dock_search_provider", "launcher")
+        @JvmField val UNIVERSAL_SEARCH = backedUpItem("pref_universal_search", true)
+        @JvmField val UNIVERSAL_SEARCH_PLACE = backedUpItem("pref_universal_search_place", "home")
+
+        @JvmStatic
+        fun isUniversalSearchOnHome(context: Context) =
+            get(context).get(UNIVERSAL_SEARCH) && get(context).get(UNIVERSAL_SEARCH_PLACE) == "home"
+
+        @JvmStatic
+        fun isUniversalSearchInDrawer(context: Context) =
+            get(context).get(UNIVERSAL_SEARCH) &&
+                get(context).get(UNIVERSAL_SEARCH_PLACE) == "drawer"
 
         @JvmField val DOCK_AI_MUSIC_SEARCH = backedUpItem("pref_dock_ai_music_search", false)
 

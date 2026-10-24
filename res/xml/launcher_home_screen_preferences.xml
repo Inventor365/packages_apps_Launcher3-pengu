@@ -131,6 +131,25 @@
         launcher:iconSpaceReserved="false" />
 
     <SwitchPreferenceCompat
+        android:key="pref_universal_search"
+        android:title="@string/universal_search_title"
+        android:summary="@string/universal_search_summary"
+        android:defaultValue="true"
+        android:persistent="true"
+        launcher:iconSpaceReserved="false" />
+
+    <ListPreference
+        android:key="pref_universal_search_place"
+        android:title="@string/universal_search_place_title"
+        android:summary="%s"
+        android:entries="@array/universal_search_place_entries"
+        android:entryValues="@array/universal_search_place_values"
+        android:dependency="pref_universal_search"
+        android:defaultValue="home"
+        android:persistent="true"
+        launcher:iconSpaceReserved="false" />
+
+    <SwitchPreferenceCompat
         android:key="pref_dock_ai_music_search"
         android:title="@string/dock_ai_music_search_title"
         android:summary="@string/dock_ai_music_search_summary"
