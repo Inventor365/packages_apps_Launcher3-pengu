@@ -31,8 +31,6 @@ class LauncherDepthController(
     blurState: ListenableRef<Boolean>,
 ) : DepthController<LauncherState, QuickstepLauncher>(launcher, blurState) {
 
-    private var lastAppliedTargetBlur: Int = -1
-
     override fun shouldBlur(): Boolean {
         return super.shouldBlur() && !Flags.allAppsSurface()
     }
@@ -55,32 +53,23 @@ class LauncherDepthController(
         val shouldBlurWorkspace =
             stateManager.currentStableState.shouldBlurWorkspace(launcher, targetState)
 
-        val effectiveBlur = if (shouldBlurWorkspace && mCurrentBlur > 0) mCurrentBlur else 0
-        if (effectiveBlur != lastAppliedTargetBlur) {
-            lastAppliedTargetBlur = effectiveBlur
-            val blurEffect =
-                if (effectiveBlur > 0)
-                    RenderEffect.createBlurEffect(
-                        effectiveBlur.toFloat(),
-                        effectiveBlur.toFloat(),
-                        Shader.TileMode.DECAL,
-                    ) // If blur is not desired, clear the blur effect from the depth targets.
-                else null
-            if (DEBUG) {
-                Log.d(
-                    TAG,
-                    "shouldBlurWorkspace: $shouldBlurWorkspace" +
-                        " targetState: $targetState" +
-                        " currentStableState: ${stateManager.currentStableState}" +
-                        " mCurrentBlur: $mCurrentBlur",
-                )
-            }
-            launcher.depthBlurTargets.forEach { it.setRenderEffect(blurEffect) }
-        }
+        val blurEffect =
+            if (shouldBlurWorkspace && mCurrentBlur > 0)
+                RenderEffect.createBlurEffect(
+                    mCurrentBlur.toFloat(),
+                    mCurrentBlur.toFloat(),
+                    Shader.TileMode.DECAL,
+                ) // If blur is not desired, clear the blur effect from the depth targets.
+            else null
+        Log.d(
+            TAG,
+            "shouldBlurWorkspace: $shouldBlurWorkspace" +
+                " targetState: $targetState" +
+                " currentStableState: ${stateManager.currentStableState}" +
+                " mCurrentBlur: $mCurrentBlur" +
+                " mLauncher.getDepthBlurTargets(): ${launcher.depthBlurTargets}",
+        )
+        launcher.depthBlurTargets.forEach { it.setRenderEffect(blurEffect) }
         return shouldBlurWorkspace
-    }
-
-    companion object {
-        private const val DEBUG = false
     }
 }

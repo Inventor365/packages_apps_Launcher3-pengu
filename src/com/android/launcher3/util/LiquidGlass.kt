@@ -26,7 +26,6 @@ import android.provider.Settings
  */
 object LiquidGlass {
     private const val SETTING = "penguin_liquid_glass"
-    private const val BLUR_STYLE_SETTING = "penguin_blur_style"
 
     @Volatile private var enabled: Boolean? = null
 
@@ -37,26 +36,15 @@ object LiquidGlass {
                 enabled
                     ?: run {
                         val resolver = context.applicationContext.contentResolver
-                        val read = {
-                            val lg = Settings.Secure.getInt(resolver, SETTING, 0) != 0
-                            val style = Settings.Secure.getInt(resolver, BLUR_STYLE_SETTING, if (lg) 2 else 1)
-                            lg || style == 2
-                        }
-                        val observer =
+                        val read = { Settings.Secure.getInt(resolver, SETTING, 0) != 0 }
+                        resolver.registerContentObserver(
+                            Settings.Secure.getUriFor(SETTING),
+                            false,
                             object : ContentObserver(Handler(Looper.getMainLooper())) {
                                 override fun onChange(selfChange: Boolean) {
                                     enabled = read()
                                 }
-                            }
-                        resolver.registerContentObserver(
-                            Settings.Secure.getUriFor(SETTING),
-                            false,
-                            observer,
-                        )
-                        resolver.registerContentObserver(
-                            Settings.Secure.getUriFor(BLUR_STYLE_SETTING),
-                            false,
-                            observer,
+                            },
                         )
                         read().also { enabled = it }
                     }
@@ -77,21 +65,17 @@ object LiquidGlass {
 
         half4 main(float2 xy) {
             float2 c = (bounds.xy + bounds.zw) * 0.5;
-            float2 h = max((bounds.zw - bounds.xy) * 0.5, float2(1.0));
+            float2 h = (bounds.zw - bounds.xy) * 0.5;
             float r = min(radius, min(h.x, h.y));
             float d = roundRect(xy, c, h, r);
             if (d > 0.0) return content.eval(xy);
-            float2 rel = xy - c;
-            float rNorm = min(max(r, band), min(h.x, h.y));
-            float2 qNorm = max(abs(rel) - (h - rNorm), 0.0);
-            float qLen = length(qNorm);
-            float2 n = qLen > 1e-4
-                    ? (qNorm / qLen)
-                    : (abs(rel.x) * h.y > abs(rel.y) * h.x ? float2(1.0, 0.0) : float2(0.0, 1.0));
-            n *= float2(rel.x < 0.0 ? -1.0 : 1.0, rel.y < 0.0 ? -1.0 : 1.0);
-            float t = clamp(1.0 + d / max(band, 1.0), 0.0, 1.0);
-            float dome = 1.0 - sqrt(max(1.0 - t * t, 0.0));
-            return content.eval(xy - n * refraction * dome);
+            float e = 0.75;
+            float2 g = float2(
+                roundRect(xy + float2(e, 0.0), c, h, r) - roundRect(xy - float2(e, 0.0), c, h, r),
+                roundRect(xy + float2(0.0, e), c, h, r) - roundRect(xy - float2(0.0, e), c, h, r));
+            float2 n = g / max(length(g), 0.0001);
+            float t = clamp(1.0 + d / band, 0.0, 1.0);
+            return content.eval(xy - n * refraction * t * t * t);
         }
         """
 
