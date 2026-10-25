@@ -211,7 +211,7 @@ constructor(
             )
         }
 
-        if (cosTablet) launcher.setHomeRevealAnimationRunning(true)
+        if (cos) launcher.setHomeRevealAnimationRunning(true)
 
         val transitionConfig = StateAnimationConfig()
         transitionConfig.duration = duration
@@ -232,7 +232,7 @@ constructor(
                 // rather than holding until the depth is nearly gone.
                 depthController?.blurWorkspaceWithWallpaper = true
                 depthController?.setFullBlurDepth(LauncherState.BACKGROUND_APP.getDepth(launcher))
-                if (cosTablet) {
+                if (cos) {
                     // OP13 Brave swipe-home layer trace: wallpaper takes ~900ms on omega=7,
                     // while the window/content settle on omega=18. Keep their clocks separate.
                     wallpaperZoomAnimation = depthController?.animateWallpaperDepth(
@@ -342,7 +342,7 @@ constructor(
             AnimatorListeners.forEndCallback(
                 Runnable {
                     Log.d(TAG, "onAnimationEnd, workspace and hotseat are visible")
-                    if (cosTablet) launcher.setHomeRevealAnimationRunning(false)
+                    if (cos) launcher.setHomeRevealAnimationRunning(false)
                     // Ensure that the workspace and the hotseat are visible at the end
                     // of the animation regardless of what happens with this animation
                     // itself.
@@ -366,7 +366,7 @@ constructor(
                     }
 
                     // Reset the cached animations.
-                    if (!cosTablet) {
+                    if (!cos) {
                         Animations.setOngoingAnimation(workspace, animation = null)
                         Animations.setOngoingAnimation(hotseat, animation = null)
                     }
@@ -386,7 +386,7 @@ constructor(
         val result = wallpaperZoomAnimation?.let { wallpaper ->
             AnimatorSet().apply { playTogether(content, wallpaper) }
         } ?: content
-        if (cosTablet) {
+        if (cos) {
             result.addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationCancel(animation: Animator) {
                     cancelled = true
@@ -411,7 +411,7 @@ constructor(
         Animations.setOngoingAnimation(launcher.hotseat, animators)
         // Gesture state completion is independent of the visual tail. Registering this as
         // the state animation lets a NORMAL reapply cancel it at the first visible home frame.
-        if (!cosTablet) launcher.stateManager.setCurrentAnimation(animators, LauncherState.NORMAL)
+        if (!cos) launcher.stateManager.setCurrentAnimation(animators, LauncherState.NORMAL)
         animators.start()
     }
 

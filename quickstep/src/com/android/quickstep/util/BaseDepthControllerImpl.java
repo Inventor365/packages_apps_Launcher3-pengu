@@ -304,13 +304,12 @@ public class BaseDepthControllerImpl<
         }
 
         // Android zoomOut=0 is the largest scale; COS instead grows the wallpaper as app
-        // depth grows. Keep the existing phone/other-experience mapping and explicit opt-out.
-        boolean cosTablet = mContainer.getResources().getConfiguration().smallestScreenWidthDp >= 600
-                && QuickstepTransitionManager.cosExperience(mContainer);
+        // depth grows. Use the same motion on phones and tablets, preserving explicit opt-out.
+        boolean cosWallpaperMotion = QuickstepTransitionManager.cosExperience(mContainer);
         LauncherPrefs prefs = LauncherPrefs.get(mContainer);
         boolean allowZoom = prefs.get(LauncherPrefs.ALLOW_WALLPAPER_ZOOMING)
-                || (cosTablet && !prefs.has(LauncherPrefs.ALLOW_WALLPAPER_ZOOMING));
-        if (cosTablet) {
+                || (cosWallpaperMotion && !prefs.has(LauncherPrefs.ALLOW_WALLPAPER_ZOOMING));
+        if (cosWallpaperMotion) {
             float appDepth = mContainer.getBackgroundAppState().getDepth(mContainer);
             wallpaperZoom = 1f - Utilities.boundToRange(
                     wallpaperZoom / Math.max(0.01f, appDepth), 0f, 1f);

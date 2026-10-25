@@ -1510,8 +1510,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
      *                   for the wallpaper and for closing back to home, but its blur waits.
      */
     private Animator getBackgroundAnimator(boolean scrimBlurs) {
-        boolean cosTablet = mCosLaunch && mDeviceProfile.getDeviceProperties().isLargeScreen();
-        if (!Flags.allAppsSurface() && !cosTablet) {
+        boolean cosWallpaperMotion = mCosLaunch;
+        if (!Flags.allAppsSurface() && !cosWallpaperMotion) {
             // Don't animate/blur the background for this launch, regardless of the launcher state.
             // We have too many performance issues with the blur.
             return new AnimatorSet();
@@ -1579,7 +1579,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             }
         });
 
-        if (cosTablet) {
+        if (cosWallpaperMotion) {
             AnimatorSet background = new AnimatorSet();
             background.playTogether(backgroundRadiusAnim,
                     mLauncher.getDepthController().animateWallpaperDepth(
@@ -2281,8 +2281,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                         : Cuj.CUJ_LAUNCHER_APP_CLOSE_TO_HOME);
             }
 
-            // Only register the content animation for cancellation when state changes
-            if (!mCosLaunch || !mDeviceProfile.getDeviceProperties().isLargeScreen()) {
+            // COS wallpaper motion keeps its own clock through state completion.
+            if (!mCosLaunch) {
                 mLauncher.getStateManager().setCurrentAnimation(anim);
             }
 
@@ -2298,7 +2298,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                     }
                 });
             } else if (playWorkspaceReveal) {
-                if (mCosLaunch && mDeviceProfile.getDeviceProperties().isLargeScreen()) {
+                if (mCosLaunch) {
                     anim.play(new ScalingWorkspaceRevealAnim(mLauncher, null, null,
                             false /* playAlphaReveal */,
                             Utilities.blurBackgroundAtAppLaunch(mLauncher), false,
@@ -2309,8 +2309,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             }
         }
 
-        return new AnimatorBackState(rectFSpringAnim, anim,
-                !mCosLaunch || !mDeviceProfile.getDeviceProperties().isLargeScreen());
+        return new AnimatorBackState(rectFSpringAnim, anim, !mCosLaunch);
     }
 
     /** Get animation duration for taskbar for going to home. */
