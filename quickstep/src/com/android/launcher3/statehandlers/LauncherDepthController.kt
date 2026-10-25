@@ -81,8 +81,13 @@ class LauncherDepthController(
             mCurrentBlur * minOf(1f,
                 launcher.resources.getDimension(R.dimen.cos_tablet_content_blur_radius) / mMaxBlurRadius)
         } else mCurrentBlur.toFloat()
+        // Drop the near-invisible tail of the tablet blur instead of allocating ever larger
+        // blur textures in the last frames of a close. The radius curve itself is unchanged.
+        val minRadius = if (cosTablet) {
+            launcher.resources.getDimension(R.dimen.cos_tablet_content_blur_min_radius)
+        } else 0f
         val blurEffect =
-            if (shouldBlurWorkspace && radius > 0f)
+            if (shouldBlurWorkspace && radius > minRadius)
                 RenderEffect.createBlurEffect(
                     radius,
                     radius,
