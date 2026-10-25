@@ -146,7 +146,8 @@ public class ClipIconView extends View implements ClipPathView {
         float minSize = Math.min(lp.width, lp.height);
         float scaleX = rect.width() / minSize;
         float scaleY = rect.height() / minSize;
-        float scale = Math.max(1f, Math.min(scaleX, scaleY));
+        // A closing window may land with a small bounce below the icon size.
+        float scale = Math.max(isOpening ? 1f : 0.9f, Math.min(scaleX, scaleY));
         if (mTaskViewArtist != null) {
             mTaskViewArtist.taskViewDrawWidth = lp.width;
             mTaskViewArtist.taskViewDrawHeight = lp.height;

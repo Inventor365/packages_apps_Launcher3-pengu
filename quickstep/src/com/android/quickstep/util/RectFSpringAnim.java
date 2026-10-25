@@ -360,7 +360,8 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
                                         .setStiffness(mRectStiffness)
                                         .setDampingRatio(dampingZ))
                         .setStartVelocity(scaleVelocity)
-                        .setMaxValue(1f)
+                        // ColorOS lets the size spring pass its target for the landing bounce.
+                        .setMaxValue(mCos ? 1.25f : 1f)
                         .setMinimumVisibleChange(minVisibleChange)
                         .addEndListener((animation, canceled, value, velocity) -> {
                             if (mPaused) return;
@@ -446,7 +447,9 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
                     break;
             }
             for (OnUpdateListener onUpdateListener : mOnUpdateListeners) {
-                onUpdateListener.onUpdate(mCurrentRect, mCurrentScaleProgress);
+                // Only the rect follows the bounce past the target; progress-driven effects
+                // (alpha, corner radius, home play fraction) stay within [0, 1].
+                onUpdateListener.onUpdate(mCurrentRect, Math.min(1f, mCurrentScaleProgress));
             }
         }
     }
@@ -536,6 +539,9 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
      */
     public static class DefaultSpringConfig extends SpringConfig {
 
+        /** ColorOS lets the landing icon dip to about 95% of its size. */
+        private static final float COS_CLOSE_BOUNCE_SIZE_FRACTION = 0.05f;
+
         public DefaultSpringConfig(Context context, DeviceProfile deviceProfile,
                 RectF startRect, RectF targetRect) {
             super(context, startRect, targetRect);
@@ -548,19 +554,38 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
             dampingY = rp.getFloat(R.dimen.swipe_up_rect_y_damping_ratio);
             rectStiffness = rp.getFloat(R.dimen.swipe_up_rect_scale_stiffness_v2);
             if (QuickstepTransitionManager.cosExperience(context)) {
-                // ColorOS 17 flies a closing window home on critically damped springs, measured
-                // from its SurfaceFlinger layers: size and x at about 18 rad/s, y a little softer.
+                // ColorOS 17 flies a closing window home at about 18 rad/s for size and x, y a
+                // little softer, measured from its SurfaceFlinger layers. It lands on the icon
+                // with a bounce of a fixed size: on the OP13 the icon passes about 6dp beyond its
+                // spot and dips to about 95% of its size (damping 0.79 and 0.82 for the travel on
+                // that phone). Derive the damping from the travel so that a longer flight on a
+                // larger screen bounces by the same amount.
                 stiffnessX = 330f;
                 dampingX = 1f;
                 stiffnessY = 250f;
-                dampingY = 1f;
+                dampingY = cosBounceDamping(
+                        rp.getDimension(R.dimen.cos_close_bounce_distance),
+                        Math.abs(targetRect.centerY() - startRect.centerY()));
                 rectStiffness = 330f;
-                rectDamping = 1f;
+                rectDamping = cosBounceDamping(
+                        COS_CLOSE_BOUNCE_SIZE_FRACTION * targetRect.width(),
+                        startRect.width() - targetRect.width());
                 cos = true;
             }
 
             this.startRect = startRect;
             this.targetRect = targetRect;
+        }
+
+        /**
+         * Damping ratio for which a spring released from rest overshoots its target by
+         * {@code overshoot} after travelling {@code distance}.
+         */
+        private static float cosBounceDamping(float overshoot, float distance) {
+            if (overshoot <= 0f || distance <= overshoot) return 1f;
+            double l = Math.log(overshoot / distance);
+            return Utilities.boundToRange(
+                    (float) (-l / Math.sqrt(Math.PI * Math.PI + l * l)), 0.5f, 1f);
         }
 
         private @Tracking int getDefaultTracking(@Nullable DeviceProfile deviceProfile) {
