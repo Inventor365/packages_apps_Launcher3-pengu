@@ -212,6 +212,10 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
 
     private static final long APP_LAUNCH_ALPHA_DURATION = 100;
     private static final long APP_LAUNCH_ALPHA_START_DELAY = 20;
+    // ColorOS 17 has the window fully in place of its icon 43 ms into a launch.
+    private static final long COS_LAUNCH_ALPHA_DURATION = 43;
+    // ColorOS 17 zooms the wallpaper in over half a second, half way at 85 ms.
+    private static final long COS_LAUNCH_DEPTH_DURATION = 500;
 
     public static final int ANIMATION_NAV_FADE_IN_DURATION = 266;
     public static final int ANIMATION_NAV_FADE_OUT_DURATION = 133;
@@ -383,6 +387,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
     private final Interpolator mOpeningRadiusInterpolator;
     private final Interpolator mContentScaleInterpolator;
     private final Interpolator mIconAlphaInterpolator;
+    private final boolean mCosLaunch;
     private final Interpolator mBlurInterpolator;
 
     private final SystemUiProxy mSystemUiProxy;
@@ -449,16 +454,19 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                 launcher, R.interpolator.app_open_x);
         // OxygenOS's app launch: the window, its corners and home behind it all follow one
         // critically damped spring, a touch quicker than its recordings so opening keeps pace with
-        // closing: three quarters of the way at 133 ms and 90% at 200 ms.
+        // ColorOS 17 throws the window out of its icon and lets it ease in over a long tail, an
+        // overdamped spring fitted to its SurfaceFlinger layers: half way at 60 ms, 80% at 125 ms,
+        // 94% at 210 ms, with its corners and the launch blur on the same curve.
         boolean cos = cosExperience(launcher);
-        mOpeningInterpolator = new SpringInterpolator(cos ? 420 : 400, cos ? 1.12 : 1,
+        mCosLaunch = cos;
+        mOpeningInterpolator = new SpringInterpolator(cos ? 1900 : 400, cos ? 1.85 : 1,
                 APP_LAUNCH_DURATION);
-        mOpeningRadiusInterpolator = cos
-                ? new SpringInterpolator(400, 1, APP_LAUNCH_DURATION) : mOpeningInterpolator;
+        mOpeningRadiusInterpolator = mOpeningInterpolator;
         mContentScaleInterpolator = new SpringInterpolator(400, 1, CONTENT_SCALE_DURATION);
-        mIconAlphaInterpolator = new SpringInterpolator(cos ? 2000 : 4000, 1,
+        mIconAlphaInterpolator = cos ? LINEAR : new SpringInterpolator(4000, 1,
                 APP_LAUNCH_ALPHA_DURATION);
-        mBlurInterpolator = new SpringInterpolator(400, 1, (long) (APP_LAUNCH_DURATION * 0.75f));
+        mBlurInterpolator = cos ? mOpeningInterpolator
+                : new SpringInterpolator(400, 1, (long) (APP_LAUNCH_DURATION * 0.75f));
         mLatencyTracker = LatencyTracker.getInstance(launcher);
 
         mMaxBlurRadius = res.getDimensionPixelSize(
@@ -1066,8 +1074,11 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                     prop.finalAppIconScale);
             // The icon hands over to the window quickly, on OxygenOS's stiff alpha spring.
             FloatProp mIconAlpha = new FloatProp(prop.iconAlphaStart, 0f,
-                    clampToDuration(mIconAlphaInterpolator, APP_LAUNCH_ALPHA_START_DELAY,
-                            APP_LAUNCH_ALPHA_DURATION, APP_LAUNCH_DURATION));
+                    mCosLaunch
+                            ? clampToDuration(mIconAlphaInterpolator, 0,
+                                    COS_LAUNCH_ALPHA_DURATION, APP_LAUNCH_DURATION)
+                            : clampToDuration(mIconAlphaInterpolator, APP_LAUNCH_ALPHA_START_DELAY,
+                                    APP_LAUNCH_ALPHA_DURATION, APP_LAUNCH_DURATION));
 
             FloatProp mWindowRadius =
                     new FloatProp(initialWindowRadius, getWindowCornerRadius(mLauncher),
@@ -1090,12 +1101,14 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             // Blur fades in/out over the first 75% of the animation so the GPU is free
             // during the heaviest crop-rect phase at the end. This prevents jank when
             // app-launch blur is enabled in Launcher settings.
-            FloatProp mBlurRadius = new FloatProp(0f, mMaxBlurRadius, clampToDuration(
-                    mBlurInterpolator, 0, (long) (APP_LAUNCH_DURATION * 0.75f),
-                    APP_LAUNCH_DURATION));
-            FloatProp mBlurScrimAlpha = new FloatProp(0f, scrimAlpha, clampToDuration(
-                    mBlurInterpolator, 0, (long) (APP_LAUNCH_DURATION * 0.75f),
-                    APP_LAUNCH_DURATION));
+            FloatProp mBlurRadius = new FloatProp(0f, mMaxBlurRadius, mCosLaunch
+                    ? mBlurInterpolator
+                    : clampToDuration(mBlurInterpolator, 0, (long) (APP_LAUNCH_DURATION * 0.75f),
+                            APP_LAUNCH_DURATION));
+            FloatProp mBlurScrimAlpha = new FloatProp(0f, scrimAlpha, mCosLaunch
+                    ? mBlurInterpolator
+                    : clampToDuration(mBlurInterpolator, 0, (long) (APP_LAUNCH_DURATION * 0.75f),
+                            APP_LAUNCH_DURATION));
 
             @Override
             public void onUpdate(float percent, boolean initOnly) {
@@ -1264,7 +1277,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         if (appTargetsAreTranslucent || !launcherClosing) {
             animatorSet.play(appAnimator);
         } else if (Utilities.blurBackgroundAtAppLaunch(mLauncher.getApplicationContext())) {
-             animatorSet.playTogether(appAnimator, getBackgroundAnimator());
+             animatorSet.playTogether(appAnimator,
+                     getBackgroundAnimator(scrimLayer != null && scrimLayer.isValid()));
         } else {
             animatorSet.play(appAnimator);
         }
@@ -1419,7 +1433,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         if (appTargetsAreTranslucent || !launcherClosing) {
             animatorSet.play(appAnimator);
         } else if (Utilities.blurBackgroundAtAppLaunch(mLauncher.getApplicationContext())) {
-             animatorSet.playTogether(appAnimator, getBackgroundAnimator());
+             animatorSet.playTogether(appAnimator,
+                     getBackgroundAnimator(scrimLayer != null && scrimLayer.isValid()));
         } else {
             animatorSet.play(appAnimator);
         }
@@ -1483,8 +1498,15 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         }
     }
 
-    /** Returns animator that controls depth/blur of the background during app/widget opening. */
-    private Animator getBackgroundAnimator() {
+    /**
+     * Returns animator that controls depth/blur of the background during app/widget opening.
+     *
+     * @param scrimBlurs whether the launch scrim above home already blurs everything behind it, in
+     *                   which case blurring home underneath it as well only doubles the
+     *                   compositor's work on a launch's busiest frames: the depth still animates,
+     *                   for the wallpaper and for closing back to home, but its blur waits.
+     */
+    private Animator getBackgroundAnimator(boolean scrimBlurs) {
         if (!Flags.allAppsSurface()) {
             // Don't animate/blur the background for this launch, regardless of the launcher state.
             // We have too many performance issues with the blur.
@@ -1500,7 +1522,11 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         ObjectAnimator backgroundRadiusAnim = ObjectAnimator.ofFloat(
                         mLauncher.getDepthController().stateDepth, MULTI_PROPERTY_VALUE,
                         BACKGROUND_APP.getDepth(mLauncher))
-                .setDuration(APP_LAUNCH_DURATION);
+                .setDuration(mCosLaunch ? COS_LAUNCH_DEPTH_DURATION : APP_LAUNCH_DURATION);
+        if (mCosLaunch) {
+            backgroundRadiusAnim.setInterpolator(
+                    new SpringInterpolator(196, 1, COS_LAUNCH_DEPTH_DURATION));
+        }
 
         if (allowBlurringLauncher) {
             // Create a temporary effect layer, that lives on top of launcher, so we can apply
@@ -1528,6 +1554,26 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                 }
             }));
         }
+        if (scrimBlurs) {
+            mLauncher.getDepthController().pauseBlursOnWindows(true);
+            backgroundRadiusAnim.addListener(AnimatorListeners.forEndCallback(
+                    () -> mLauncher.getDepthController().pauseBlursOnWindows(false)));
+        }
+        // A launch that is cancelled while home stays in front would leave the wallpaper blurred
+        // at the app's depth with nothing to reset it: return it to the depth of home at rest.
+        backgroundRadiusAnim.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                mLauncher.getDragLayer().post(() -> {
+                    if (mLauncher.hasBeenResumed()
+                            && mLauncher.getStateManager().isInStableState(NORMAL)
+                            && !mLauncher.getStateManager().isInTransition()) {
+                        mLauncher.getDepthController().stateDepth.setValue(
+                                NORMAL.getDepth(mLauncher));
+                    }
+                });
+            }
+        });
 
         return backgroundRadiusAnim;
     }

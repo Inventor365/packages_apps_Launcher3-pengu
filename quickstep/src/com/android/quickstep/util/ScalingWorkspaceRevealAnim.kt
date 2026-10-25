@@ -26,6 +26,7 @@ import android.graphics.RectF
 import android.util.Log
 import android.view.SurfaceControl
 import android.view.View
+import android.view.animation.Interpolator
 import android.view.animation.PathInterpolator
 import androidx.core.graphics.transform
 import androidx.core.view.isVisible
@@ -51,6 +52,7 @@ import com.android.launcher3.states.StateAnimationConfig.SKIP_OVERVIEW
 import com.android.launcher3.states.StateAnimationConfig.SKIP_SCRIM
 import com.android.launcher3.uioverrides.QuickstepLauncher
 import com.android.quickstep.views.RecentsView
+import kotlin.math.exp
 
 const val TAG = "ScalingWorkspaceRevealAnim"
 
@@ -58,17 +60,21 @@ const val TAG = "ScalingWorkspaceRevealAnim"
  * Creates an animation where the workspace and hotseat fade in while revealing from the center of
  * the screen outwards radially. This is used in conjunction with the swipe up to home animation.
  */
-class ScalingWorkspaceRevealAnim(
+class ScalingWorkspaceRevealAnim
+@JvmOverloads
+constructor(
     private val launcher: QuickstepLauncher,
     siblingAnimation: RectFSpringAnim?,
     windowTargetRect: RectF?,
     playAlphaReveal: Boolean = true,
     playBlur: Boolean = true,
+    private val hotseatTarget: Boolean = false,
+    fadeInHome: Boolean = false,
 ) {
     companion object {
         private const val FADE_DURATION_MS = 200L
         private const val SCALE_DURATION_MS = 500L
-        private const val COS_SCALE_DURATION_MS = 300L
+        private const val COS_SCALE_DURATION_MS = 500L
         private const val MAX_ALPHA = 1f
         private const val MIN_ALPHA = 0f
         internal const val MAX_SIZE = 1f
@@ -89,13 +95,26 @@ class ScalingWorkspaceRevealAnim(
             )
 
         val BLUR_INTERPOLATOR = Interpolators.clampToProgress(EMPHASIZED, 0f, 0.4f)
-        val COS_BLUR_INTERPOLATOR = Interpolators.clampToProgress(LINEAR, 0f, 0.8f)
+        // ColorOS 17 brings home back on one critically damped spring of about 18 rad/s from the
+        // moment the finger lifts, measured from its SurfaceFlinger layers: its blur is 93% left
+        // at 25 ms, half at 100 ms and a fifth at 175 ms. Home's zoom and fade follow it.
+        private const val COS_SPRING_RAD_PER_S = 18f
+        @JvmField
+        val COS_BLUR_INTERPOLATOR = Interpolator { progress ->
+            val wt = COS_SPRING_RAD_PER_S * SCALE_DURATION_MS / 1000f
+            val end = 1 - (1 + wt) * exp(-wt)
+            val t = wt * progress
+            (1 - (1 + t) * exp(-t)) / end
+        }
+        // ColorOS fades home in, already blurred, over the first frames after the finger lifts.
+        private const val COS_FADE_PROGRESS = 0.24f
     }
 
     private val cos = QuickstepTransitionManager.cosExperience(launcher)
     private val duration = if (cos) COS_SCALE_DURATION_MS else SCALE_DURATION_MS
     private val animation = PendingAnimation(duration)
     private var blurLayer: SurfaceControl? = null
+    private var cancelled = false
     private var surfaceTransactionApplier: SurfaceTransactionApplier =
         SurfaceTransactionApplier(launcher.dragLayer)
 
@@ -139,15 +158,31 @@ class ScalingWorkspaceRevealAnim(
             WORKSPACE_SCALE_PROPERTY_FACTORY[SCALE_INDEX_WORKSPACE_STATE],
             fromSize,
             MAX_SIZE,
-            SCALE_INTERPOLATOR,
+            if (cos) COS_BLUR_INTERPOLATOR else SCALE_INTERPOLATOR,
         )
-        animation.addFloat(
-            hotseat,
-            HOTSEAT_SCALE_PROPERTY_FACTORY[SCALE_INDEX_WORKSPACE_STATE],
-            fromSize,
-            MAX_SIZE,
-            SCALE_INTERPOLATOR,
-        )
+        // ColorOS leaves the dock at its size; scaling it also makes the taskbar, which stands in
+        // for the dock during the flight on large screens, land on smaller icons that then jump.
+        if (!cos) {
+            animation.addFloat(
+                hotseat,
+                HOTSEAT_SCALE_PROPERTY_FACTORY[SCALE_INDEX_WORKSPACE_STATE],
+                fromSize,
+                MAX_SIZE,
+                SCALE_INTERPOLATOR,
+            )
+        }
+
+        if (cos && fadeInHome && !playAlphaReveal) {
+            // Home was hidden behind the app until now: fade it in rather than have its widgets
+            // appear at once around the window. The dock is the taskbar's until the flight ends.
+            workspace.alpha = MIN_ALPHA
+            animation.setFloat(
+                workspace,
+                VIEW_ALPHA,
+                MAX_ALPHA,
+                Interpolators.clampToProgress(LINEAR, 0f, COS_FADE_PROGRESS),
+            )
+        }
 
         if (playAlphaReveal) {
             // Fade in quickly at the beginning of the animation, so the content doesn't look like
@@ -185,6 +220,12 @@ class ScalingWorkspaceRevealAnim(
             )
             if (!cos) {
                 depthController?.pauseBlursOnWindows(true)
+            } else {
+                // Blur home's own content with the wallpaper as well; a blur layer would also blur
+                // the icon the window turns into. The blur thins out with the whole depth curve
+                // rather than holding until the depth is nearly gone.
+                depthController?.blurWorkspaceWithWallpaper = true
+                depthController?.setFullBlurDepth(LauncherState.BACKGROUND_APP.getDepth(launcher))
             }
             depthController?.stateDepth?.value = LauncherState.BACKGROUND_APP.getDepth(launcher)
             depthController?.setStateWithAnimation(
@@ -222,6 +263,8 @@ class ScalingWorkspaceRevealAnim(
         // We start by caching the final target position, as this is the base for the transforms.
         val originalTarget = RectF(windowTargetRect)
         animation.addOnFrameListener {
+            // An icon in the unscaled dock stays where it is.
+            if (cos && hotseatTarget) return@addOnFrameListener
             val transformed = RectF(originalTarget)
 
             // First we scale down using the same pivot as the workspace scale, so we find the
@@ -258,6 +301,7 @@ class ScalingWorkspaceRevealAnim(
             object : AnimatorListenerAdapter() {
                 override fun onAnimationCancel(animation: Animator) {
                     super.onAnimationCancel(animation)
+                    cancelled = true
                     Log.d(TAG, "onAnimationCancel")
                 }
 
@@ -297,6 +341,9 @@ class ScalingWorkspaceRevealAnim(
                     Animations.setOngoingAnimation(hotseat, animation = null)
                     removeBlurLayer()
                     depthController?.pauseBlursOnWindows(false)
+                    depthController?.blurWorkspaceWithWallpaper = false
+                    depthController?.setFullBlurDepth(Float.NaN)
+                    if (cancelled) depthController?.let { settleDepthIfIdle(it) }
                 }
             )
         )
@@ -321,6 +368,20 @@ class ScalingWorkspaceRevealAnim(
     fun cancelAnimations() {
         Animations.cancelOngoingAnimation(launcher.workspace)
         Animations.cancelOngoingAnimation(launcher.hotseat)
+    }
+
+    /**
+     * A cancelled reveal leaves the wallpaper at whatever depth it had reached, and nothing resets
+     * it while home stays at rest, so the wallpaper would stay blurred behind sharp icons. Drop it
+     * to the rest depth unless another transition is driving it by now.
+     */
+    private fun settleDepthIfIdle(depthController: LauncherDepthController) {
+        launcher.dragLayer.post {
+            val stateManager = launcher.stateManager
+            if (stateManager.isInStableState(LauncherState.NORMAL) && !stateManager.isInTransition) {
+                depthController.stateDepth.value = LauncherState.NORMAL.getDepth(launcher)
+            }
+        }
     }
 
     private fun addBlurLayer() {

@@ -31,6 +31,18 @@ class LauncherDepthController(
     blurState: ListenableRef<Boolean>,
 ) : DepthController<LauncherState, QuickstepLauncher>(launcher, blurState) {
 
+    /**
+     * Blurs the workspace and hotseat along with the wallpaper whatever the state, as the COS
+     * experience does for home while a closing app flies into it.
+     */
+    var blurWorkspaceWithWallpaper = false
+        set(value) {
+            if (field != value) {
+                field = value
+                blurWorkspaceDepthTargets()
+            }
+        }
+
     override fun shouldBlur(): Boolean {
         return super.shouldBlur() && !Flags.allAppsSurface()
     }
@@ -51,7 +63,8 @@ class LauncherDepthController(
         val targetState = stateManager.targetState ?: stateManager.state
         // Only blur workspace if the current state wants to blur based on the target state.
         val shouldBlurWorkspace =
-            stateManager.currentStableState.shouldBlurWorkspace(launcher, targetState)
+            blurWorkspaceWithWallpaper ||
+                stateManager.currentStableState.shouldBlurWorkspace(launcher, targetState)
 
         val blurEffect =
             if (shouldBlurWorkspace && mCurrentBlur > 0)

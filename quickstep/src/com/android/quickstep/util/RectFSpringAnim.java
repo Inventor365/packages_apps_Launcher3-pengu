@@ -262,12 +262,16 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
         return mAnimsStarted && !isEnded();
     }
 
+    /**
+     * How far the window has given way to its icon. ColorOS 17 starts the swap a couple of frames
+     * after the finger lifts and has it half done at 75 ms and all but done by 175 ms.
+     */
     public float getCosFadeProgress() {
         if (mCosStartTime == 0) {
             return 0f;
         }
-        float t = Math.max(0, SystemClock.uptimeMillis() - mCosStartTime - 60) / 1000f;
-        float wt = (float) Math.sqrt(3000) * t;
+        float t = Math.max(0, SystemClock.uptimeMillis() - mCosStartTime - 17) / 1000f;
+        float wt = 30f * t;
         return 1 - (1 + wt) * (float) Math.exp(-wt);
     }
 
@@ -544,12 +548,14 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
             dampingY = rp.getFloat(R.dimen.swipe_up_rect_y_damping_ratio);
             rectStiffness = rp.getFloat(R.dimen.swipe_up_rect_scale_stiffness_v2);
             if (QuickstepTransitionManager.cosExperience(context)) {
-                stiffnessX = 380f;
-                dampingX = 0.9f;
-                stiffnessY = 340f;
-                dampingY = 0.9f;
-                rectStiffness = 380f;
-                rectDamping = 0.95f;
+                // ColorOS 17 flies a closing window home on critically damped springs, measured
+                // from its SurfaceFlinger layers: size and x at about 18 rad/s, y a little softer.
+                stiffnessX = 330f;
+                dampingX = 1f;
+                stiffnessY = 250f;
+                dampingY = 1f;
+                rectStiffness = 330f;
+                rectDamping = 1f;
                 cos = true;
             }
 

@@ -117,6 +117,10 @@ public class BaseDepthControllerImpl<
     /** Pause blur but allow transparent, can be used when launch something behind the container. */
     protected boolean mPauseBlurs;
 
+    /** The depth at and above which the blur is at its full radius. */
+    private float mFullBlurDepth = DEFAULT_FULL_BLUR_DEPTH;
+    private static final float DEFAULT_FULL_BLUR_DEPTH = 0.3f;
+
     /**
      * Last blur value, in pixels, that was applied.
      */
@@ -197,6 +201,21 @@ public class BaseDepthControllerImpl<
 
     public void setHasContentBehindContainer(boolean hasContentBehindContainer) {
         mHasContentBehindContainer = hasContentBehindContainer;
+    }
+
+    /**
+     * Sets the depth at which the blur reaches its full radius, below which it thins out in step
+     * with the depth; {@code Float.NaN} restores the default. A transition that wants the blur to
+     * follow its whole depth curve, rather than hold until the depth is nearly gone, raises it to
+     * its starting depth.
+     */
+    public void setFullBlurDepth(float depth) {
+        float fullBlurDepth = Float.isNaN(depth) || depth <= 0 ? DEFAULT_FULL_BLUR_DEPTH : depth;
+        if (mFullBlurDepth == fullBlurDepth) {
+            return;
+        }
+        mFullBlurDepth = fullBlurDepth;
+        applyDepthAndBlur();
     }
 
     public void pauseBlursOnWindows(boolean pause) {
@@ -425,9 +444,10 @@ public class BaseDepthControllerImpl<
 
     /**
      * Maps depth values to blur amounts as a percentage of the max blur.
-     * The blur percentage grows linearly with depth, and maxes out at 30% depth.
+     * The blur percentage grows linearly with depth, and maxes out at {@link #mFullBlurDepth}, 30%
+     * depth unless a transition asks for another.
      */
-    private static float mapDepthToBlur(float depth) {
-        return Interpolators.clampToProgress(depth, 0, 0.3f);
+    private float mapDepthToBlur(float depth) {
+        return Interpolators.clampToProgress(depth, 0, mFullBlurDepth);
     }
 }
