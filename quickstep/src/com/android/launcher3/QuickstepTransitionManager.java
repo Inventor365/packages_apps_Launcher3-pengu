@@ -428,7 +428,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                 public void onHomeVisibilityChanged(boolean isVisible,
                         boolean keyguardGoingAwayOrWaking, boolean behindDesktop) {
                     if (isVisible && mLauncher.isInState(NORMAL) && !mIsLauncherAnimating
-                            && !keyguardGoingAwayOrWaking) {
+                            && !keyguardGoingAwayOrWaking
+                            && !mLauncher.isHomeRevealAnimationRunning()) {
                         mIsLauncherAnimating = true;
                         mFallbackRevealAnimation =
                                 new ScalingWorkspaceRevealAnim(
@@ -884,7 +885,9 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             }
 
             viewsToAnimate.forEach(view -> {
-                view.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                if (!mCosLaunch || !mDeviceProfile.getDeviceProperties().isLargeScreen()) {
+                    view.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                }
 
                 // Start the animation from the current value, instead of assuming the views are
                 // in their resting state, so interrupted animations merge seamlessly.
@@ -1576,6 +1579,15 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             }
         });
 
+        if (cosTablet) {
+            AnimatorSet background = new AnimatorSet();
+            background.playTogether(backgroundRadiusAnim,
+                    mLauncher.getDepthController().animateWallpaperDepth(
+                            NORMAL.getDepth(mLauncher), BACKGROUND_APP.getDepth(mLauncher),
+                            COS_LAUNCH_DEPTH_DURATION,
+                            new SpringInterpolator(196, 1, COS_LAUNCH_DEPTH_DURATION)));
+            return background;
+        }
         return backgroundRadiusAnim;
     }
 
@@ -2213,8 +2225,13 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                                 rectFSpringAnim.getTargetRect(),
                                 false /* playAlphaReveal */,
                                 Utilities.blurBackgroundAtAppLaunch(
-                                        mLauncher.getApplicationContext())
-                                        /* playBlur */).getAnimators());
+                                        mLauncher.getApplicationContext()) /* playBlur */,
+                                mCosLaunch && mDeviceProfile.getDeviceProperties().isLargeScreen()
+                                        && launcherView != null
+                                        && launcherView.getTag() instanceof ItemInfo item
+                                        && item.container == LauncherSettings.Favorites.CONTAINER_HOTSEAT,
+                                mCosLaunch && mDeviceProfile.getDeviceProperties().isLargeScreen(),
+                                fromPredictiveBack).getAnimators());
 
                 // We play StaggeredWorkspaceAnim as a part of the closing window animation.
                 playWorkspaceReveal = false;
@@ -2265,7 +2282,9 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             }
 
             // Only register the content animation for cancellation when state changes
-            mLauncher.getStateManager().setCurrentAnimation(anim);
+            if (!mCosLaunch || !mDeviceProfile.getDeviceProperties().isLargeScreen()) {
+                mLauncher.getStateManager().setCurrentAnimation(anim);
+            }
 
             if (mLauncher.isInState(LauncherState.ALL_APPS)) {
                 Pair<AnimatorSet, Runnable> contentAnimator =
@@ -2279,11 +2298,19 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                     }
                 });
             } else if (playWorkspaceReveal) {
-                anim.play(new WorkspaceRevealAnim(mLauncher, false).getAnimators());
+                if (mCosLaunch && mDeviceProfile.getDeviceProperties().isLargeScreen()) {
+                    anim.play(new ScalingWorkspaceRevealAnim(mLauncher, null, null,
+                            false /* playAlphaReveal */,
+                            Utilities.blurBackgroundAtAppLaunch(mLauncher), false,
+                            true /* fadeInHome */, fromPredictiveBack).getAnimators());
+                } else {
+                    anim.play(new WorkspaceRevealAnim(mLauncher, false).getAnimators());
+                }
             }
         }
 
-        return new AnimatorBackState(rectFSpringAnim, anim);
+        return new AnimatorBackState(rectFSpringAnim, anim,
+                !mCosLaunch || !mDeviceProfile.getDeviceProperties().isLargeScreen());
     }
 
     /** Get animation duration for taskbar for going to home. */

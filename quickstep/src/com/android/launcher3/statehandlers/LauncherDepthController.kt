@@ -22,6 +22,8 @@ import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.android.launcher3.Flags
 import com.android.launcher3.LauncherState
+import com.android.launcher3.QuickstepTransitionManager
+import com.android.launcher3.R
 import com.android.launcher3.uioverrides.QuickstepLauncher
 import com.android.launcher3.util.ListenableRef
 
@@ -42,6 +44,11 @@ class LauncherDepthController(
                 blurWorkspaceDepthTargets()
             }
         }
+
+    override fun setState(toState: LauncherState) {
+        if (toState == LauncherState.NORMAL && launcher.isHomeRevealAnimationRunning) return
+        super.setState(toState)
+    }
 
     override fun shouldBlur(): Boolean {
         return super.shouldBlur() && !Flags.allAppsSurface()
@@ -66,12 +73,20 @@ class LauncherDepthController(
             blurWorkspaceWithWallpaper ||
                 stateManager.currentStableState.shouldBlurWorkspace(launcher, targetState)
 
+        val cosTablet = QuickstepTransitionManager.cosExperience(launcher) &&
+            launcher.deviceProfile.deviceProperties.isLargeScreen
+        // Match COS's content blur in dp. Blurring a 150dp offscreen workspace layer extends
+        // far beyond its edges; the 51dp reference radius preserves text/widget silhouettes.
+        val radius = if (cosTablet) {
+            mCurrentBlur * minOf(1f,
+                launcher.resources.getDimension(R.dimen.cos_tablet_content_blur_radius) / mMaxBlurRadius)
+        } else mCurrentBlur.toFloat()
         val blurEffect =
-            if (shouldBlurWorkspace && mCurrentBlur > 0)
+            if (shouldBlurWorkspace && radius > 0f)
                 RenderEffect.createBlurEffect(
-                    mCurrentBlur.toFloat(),
-                    mCurrentBlur.toFloat(),
-                    Shader.TileMode.DECAL,
+                    radius,
+                    radius,
+                    if (cosTablet) Shader.TileMode.CLAMP else Shader.TileMode.DECAL,
                 ) // If blur is not desired, clear the blur effect from the depth targets.
             else null
         Log.d(

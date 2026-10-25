@@ -653,4 +653,6 @@
     -->
     <dimen name="desktop_windowing_freeform_task_rounded_corner_radius">16dp</dimen>
 
+    <!-- COS reference: 179px at 3.5 density. -->
+    <dimen name="cos_tablet_content_blur_radius">51dp</dimen>
 </resources>

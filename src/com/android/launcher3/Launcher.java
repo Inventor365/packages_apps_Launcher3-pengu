@@ -1540,7 +1540,8 @@ public class Launcher extends StatefulActivity<LauncherState>
      * the pill in place, above the dock.
      */
     public void openSearchFromPill(View pill) {
-        if (!LauncherPrefs.isUniversalSearchOnHome(this)) {
+        if (!getDeviceProfile().getDeviceProperties().isLargeScreen()
+                && !LauncherPrefs.isUniversalSearchOnHome(this)) {
             toggleAllApps(/* focusSearch= */ true);
             return;
         }
@@ -2684,6 +2685,16 @@ public class Launcher extends StatefulActivity<LauncherState>
         if (progress == 0 && mAppsView != null) {
             hideKeyboard();
         }
+    }
+
+    private boolean mHomeRevealAnimationRunning;
+
+    public boolean isHomeRevealAnimationRunning() {
+        return mHomeRevealAnimationRunning;
+    }
+
+    public void setHomeRevealAnimationRunning(boolean running) {
+        mHomeRevealAnimationRunning = running;
     }
 
     /** @return list of View targets to be blurred based on changes to depth. */

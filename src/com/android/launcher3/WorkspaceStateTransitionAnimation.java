@@ -96,6 +96,9 @@ public class WorkspaceStateTransitionAnimation {
     }
 
     public void setState(LauncherState toState) {
+        // A completed home gesture may reapply NORMAL before its visual reveal has settled.
+        // The reveal owns these properties until its content animation finishes.
+        if (toState == NORMAL && mLauncher.isHomeRevealAnimationRunning()) return;
         setWorkspaceProperty(toState, NO_ANIM_PROPERTY_SETTER, new StateAnimationConfig());
     }
 

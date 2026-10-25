@@ -35,8 +35,11 @@ interface BackAnimState {
     fun start(stateManager: StateManager<LauncherState, Launcher>)
 }
 
-class AnimatorBackState(private val springAnim: RectFSpringAnim?, private val anim: AnimatorSet?) :
-    BackAnimState {
+class AnimatorBackState @JvmOverloads constructor(
+    private val springAnim: RectFSpringAnim?,
+    private val anim: AnimatorSet?,
+    private val registerWithStateManager: Boolean = true,
+) : BackAnimState {
 
     override fun addOnAnimCompleteCallback(r: Runnable) {
         val animWait = RunnableList()
@@ -51,7 +54,7 @@ class AnimatorBackState(private val springAnim: RectFSpringAnim?, private val an
     }
 
     override fun start(stateManager: StateManager<LauncherState, Launcher>) {
-        if (anim != null) {
+        if (anim != null && registerWithStateManager) {
             stateManager.setCurrentAnimation(anim)
         }
         anim?.start()

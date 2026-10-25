@@ -17,6 +17,9 @@ package com.android.quickstep.util;
 
 import static android.os.Trace.TRACE_TAG_APP;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
 import android.app.WallpaperManager;
 import android.content.Context;
 import android.gui.EarlyWakeupInfo;
@@ -26,6 +29,7 @@ import android.os.Trace;
 import android.util.FloatProperty;
 import android.util.Log;
 import android.view.SurfaceControl;
+import android.view.animation.Interpolator;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -103,6 +107,9 @@ public class BaseDepthControllerImpl<
     private float mLastWallpaperZoom = -1f;
     // Used just for animating wallpaper zoom without affecting blur.
     private final AnimatedFloat mWallpaperZoomOnly = new AnimatedFloat(this::applyDepthAndBlur);
+    private final AnimatedFloat mAnimatedWallpaperDepth =
+            new AnimatedFloat(this::applyDepthAndBlur, Float.NaN);
+    private ObjectAnimator mWallpaperDepthAnimator;
 
     protected SurfaceControl mBaseSurface;
     protected SurfaceControl mBaseSurfaceOverride;
@@ -219,6 +226,47 @@ public class BaseDepthControllerImpl<
         applyDepthAndBlur();
     }
 
+    /** Wallpaper can settle after the window/content, as on COS, without keeping their blur. */
+    public Animator animateWallpaperDepth(float fromDepth, float toDepth, long duration,
+            Interpolator interpolator) {
+        if (mWallpaperDepthAnimator != null) {
+            mWallpaperDepthAnimator.cancel();
+        }
+        float start = Float.isNaN(mAnimatedWallpaperDepth.value)
+                ? fromDepth : mAnimatedWallpaperDepth.value;
+        mAnimatedWallpaperDepth.updateValue(start);
+        ObjectAnimator animator = ObjectAnimator.ofFloat(
+                mAnimatedWallpaperDepth, AnimatedFloat.VALUE, start, toDepth);
+        animator.setDuration(duration);
+        animator.setInterpolator(interpolator);
+        mWallpaperDepthAnimator = animator;
+        animator.addListener(new AnimatorListenerAdapter() {
+            private boolean mCancelled;
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                mCancelled = true;
+            }
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (mWallpaperDepthAnimator == animation) {
+                    mWallpaperDepthAnimator = null;
+                    if (!mCancelled) {
+                        mAnimatedWallpaperDepth.updateValue(Float.NaN);
+                    }
+                }
+            }
+        });
+        return animator;
+    }
+
+    /** Restore state-driven zoom only when home has no transition left to own it. */
+    public void resetWallpaperDepth() {
+        if (mWallpaperDepthAnimator != null) {
+            mWallpaperDepthAnimator.cancel();
+        }
+        mAnimatedWallpaperDepth.updateValue(Float.NaN);
+    }
+
     public void pauseBlursOnWindows(boolean pause) {
         if (mPauseBlurs == pause) {
             return;
@@ -249,7 +297,8 @@ public class BaseDepthControllerImpl<
             boolean applyImmediately, boolean skipSimilarBlur) {
 
         IBinder windowToken = mContainer.getRootView().getWindowToken();
-        float wallpaperZoom = mDepth;
+        float wallpaperZoom = Float.isNaN(mAnimatedWallpaperDepth.value)
+                ? mDepth : mAnimatedWallpaperDepth.value;
         if (Flags.enableExpressiveFolderExpansion()) {
             wallpaperZoom = Math.max(wallpaperZoom, mWallpaperZoomOnly.value);
         }

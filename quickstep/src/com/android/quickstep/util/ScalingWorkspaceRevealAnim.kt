@@ -70,6 +70,7 @@ constructor(
     playBlur: Boolean = true,
     private val hotseatTarget: Boolean = false,
     fadeInHome: Boolean = false,
+    homeAlreadyVisible: Boolean = false,
 ) {
     companion object {
         private const val FADE_DURATION_MS = 200L
@@ -111,9 +112,12 @@ constructor(
     }
 
     private val cos = QuickstepTransitionManager.cosExperience(launcher)
+    private val cosTablet = cos && launcher.deviceProfile.deviceProperties.isLargeScreen
     private val duration = if (cos) COS_SCALE_DURATION_MS else SCALE_DURATION_MS
     private val animation = PendingAnimation(duration)
     private var blurLayer: SurfaceControl? = null
+    private var wallpaperZoomAnimation: Animator? = null
+    private var builtAnimators: AnimatorSet? = null
     private var cancelled = false
     private var surfaceTransactionApplier: SurfaceTransactionApplier =
         SurfaceTransactionApplier(launcher.dragLayer)
@@ -172,7 +176,7 @@ constructor(
             )
         }
 
-        if (cos && fadeInHome && !playAlphaReveal) {
+        if (cos && fadeInHome && !playAlphaReveal && !homeAlreadyVisible) {
             // Home was hidden behind the app until now: fade it in rather than have its widgets
             // appear at once around the window. The dock is the taskbar's until the flight ends.
             workspace.alpha = MIN_ALPHA
@@ -207,6 +211,8 @@ constructor(
             )
         }
 
+        if (cosTablet) launcher.setHomeRevealAnimationRunning(true)
+
         val transitionConfig = StateAnimationConfig()
         transitionConfig.duration = duration
 
@@ -226,6 +232,21 @@ constructor(
                 // rather than holding until the depth is nearly gone.
                 depthController?.blurWorkspaceWithWallpaper = true
                 depthController?.setFullBlurDepth(LauncherState.BACKGROUND_APP.getDepth(launcher))
+                if (cosTablet) {
+                    // OP13 Brave swipe-home layer trace: wallpaper takes ~900ms on omega=7,
+                    // while the window/content settle on omega=18. Keep their clocks separate.
+                    wallpaperZoomAnimation = depthController?.animateWallpaperDepth(
+                        LauncherState.BACKGROUND_APP.getDepth(launcher),
+                        LauncherState.NORMAL.getDepth(launcher),
+                        900L,
+                        Interpolator { progress ->
+                            val wt = 7f * 0.9f
+                            val end = 1 - (1 + wt) * exp(-wt)
+                            val t = wt * progress
+                            (1 - (1 + t) * exp(-t)) / end
+                        },
+                    )
+                }
             }
             depthController?.stateDepth?.value = LauncherState.BACKGROUND_APP.getDepth(launcher)
             depthController?.setStateWithAnimation(
@@ -295,14 +316,19 @@ constructor(
         }
 
         // Needed to avoid text artefacts during the scale animation.
-        workspace.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        hotseat.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        // RenderEffect already creates an offscreen layer. A second forced hardware layer
+        // bounds its output and can cut off widgets/icons at the workspace edge during scale.
+        if (!cosTablet) {
+            workspace.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            hotseat.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        }
         animation.addListener(
             object : AnimatorListenerAdapter() {
                 override fun onAnimationCancel(animation: Animator) {
                     super.onAnimationCancel(animation)
                     cancelled = true
-                    Log.d(TAG, "onAnimationCancel")
+                    if (cosTablet) Log.d(TAG, "onAnimationCancel", Throwable("reveal cancelled"))
+                    else Log.d(TAG, "onAnimationCancel")
                 }
 
                 override fun onAnimationPause(animation: Animator) {
@@ -316,6 +342,7 @@ constructor(
             AnimatorListeners.forEndCallback(
                 Runnable {
                     Log.d(TAG, "onAnimationEnd, workspace and hotseat are visible")
+                    if (cosTablet) launcher.setHomeRevealAnimationRunning(false)
                     // Ensure that the workspace and the hotseat are visible at the end
                     // of the animation regardless of what happens with this animation
                     // itself.
@@ -333,12 +360,16 @@ constructor(
                         )
                     }
 
-                    workspace.setLayerType(View.LAYER_TYPE_NONE, null)
-                    hotseat.setLayerType(View.LAYER_TYPE_NONE, null)
+                    if (!cosTablet) {
+                        workspace.setLayerType(View.LAYER_TYPE_NONE, null)
+                        hotseat.setLayerType(View.LAYER_TYPE_NONE, null)
+                    }
 
                     // Reset the cached animations.
-                    Animations.setOngoingAnimation(workspace, animation = null)
-                    Animations.setOngoingAnimation(hotseat, animation = null)
+                    if (!cosTablet) {
+                        Animations.setOngoingAnimation(workspace, animation = null)
+                        Animations.setOngoingAnimation(hotseat, animation = null)
+                    }
                     removeBlurLayer()
                     depthController?.pauseBlursOnWindows(false)
                     depthController?.blurWorkspaceWithWallpaper = false
@@ -350,7 +381,25 @@ constructor(
     }
 
     fun getAnimators(): AnimatorSet {
-        return animation.buildAnim()
+        builtAnimators?.let { return it }
+        val content = animation.buildAnim()
+        val result = wallpaperZoomAnimation?.let { wallpaper ->
+            AnimatorSet().apply { playTogether(content, wallpaper) }
+        } ?: content
+        if (cosTablet) {
+            result.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationCancel(animation: Animator) {
+                    cancelled = true
+                }
+                override fun onAnimationEnd(animation: Animator) {
+                    Animations.setOngoingAnimation(launcher.workspace, animation = null)
+                    Animations.setOngoingAnimation(launcher.hotseat, animation = null)
+                    if (cancelled) settleDepthIfIdle(launcher.depthController)
+                }
+            })
+        }
+        builtAnimators = result
+        return result
     }
 
     fun start() {
@@ -360,7 +409,9 @@ constructor(
         //  centrally so each instances doesn't need to care about this coordination.
         Animations.setOngoingAnimation(launcher.workspace, animators)
         Animations.setOngoingAnimation(launcher.hotseat, animators)
-        launcher.stateManager.setCurrentAnimation(animators, LauncherState.NORMAL)
+        // Gesture state completion is independent of the visual tail. Registering this as
+        // the state animation lets a NORMAL reapply cancel it at the first visible home frame.
+        if (!cosTablet) launcher.stateManager.setCurrentAnimation(animators, LauncherState.NORMAL)
         animators.start()
     }
 
@@ -378,8 +429,10 @@ constructor(
     private fun settleDepthIfIdle(depthController: LauncherDepthController) {
         launcher.dragLayer.post {
             val stateManager = launcher.stateManager
-            if (stateManager.isInStableState(LauncherState.NORMAL) && !stateManager.isInTransition) {
+            if (launcher.hasBeenResumed() &&
+                stateManager.isInStableState(LauncherState.NORMAL) && !stateManager.isInTransition) {
                 depthController.stateDepth.value = LauncherState.NORMAL.getDepth(launcher)
+                depthController.resetWallpaperDepth()
             }
         }
     }

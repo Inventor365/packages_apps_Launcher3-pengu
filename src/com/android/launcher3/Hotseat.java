@@ -114,7 +114,14 @@ public class Hotseat extends CellLayout implements Insettable {
         super(context, attrs, defStyle);
 
         if (Flags.enableQsbOnHotseat()) {
-            mQsb = LauncherComponentProvider.get(context).getQsbWidgetFactory().createView(this);
+            if (mActivity.getDeviceProfile().getDeviceProperties().isLargeScreen()) {
+                mQsb = LayoutInflater.from(context).inflate(R.layout.home_search_pill, this, false);
+                mQsb.setOnClickListener(v -> {
+                    if (mActivity instanceof Launcher launcher) launcher.openSearchFromPill(v);
+                });
+            } else {
+                mQsb = LauncherComponentProvider.get(context).getQsbWidgetFactory().createView(this);
+            }
             addView(mQsb);
             if (mQsb instanceof Reorderable qsbReorderable) {
                 mQsbTranslationX = qsbReorderable.getTranslateDelegate()
@@ -363,10 +370,16 @@ public class Hotseat extends CellLayout implements Insettable {
 
         if (mQsb != null && mQsb.getVisibility() != View.GONE) {
             DeviceProfile dp = mActivity.getDeviceProfile();
-            mQsb.measure(
-                    makeMeasureSpec(dp.getHotseatQsbWidth(), MeasureSpec.EXACTLY),
-                    makeMeasureSpec(dp.getHotseatProfile().getQsbHeight(), MeasureSpec.EXACTLY)
-            );
+            if (dp.getDeviceProperties().isLargeScreen()) {
+                mQsb.measure(makeMeasureSpec(dp.getDeviceProperties().getAvailableWidthPx(),
+                                MeasureSpec.AT_MOST),
+                        makeMeasureSpec(getResources().getDimensionPixelSize(
+                                R.dimen.home_search_pill_height), MeasureSpec.EXACTLY));
+            } else {
+                mQsb.measure(
+                        makeMeasureSpec(dp.getHotseatQsbWidth(), MeasureSpec.EXACTLY),
+                        makeMeasureSpec(dp.getHotseatProfile().getQsbHeight(), MeasureSpec.EXACTLY));
+            }
         }
     }
 
@@ -398,7 +411,8 @@ public class Hotseat extends CellLayout implements Insettable {
         int right = left + qsbMeasuredWidth;
 
         int height = b - t;
-        int qsbHeight = dp.getHotseatProfile().getQsbHeight();
+        int qsbHeight = dp.getDeviceProperties().isLargeScreen()
+                ? mQsb.getMeasuredHeight() : dp.getHotseatProfile().getQsbHeight();
         int bottomOffset;
         int subtraction;
         if (dp.getHotseatProfile().isQsbInline()) {
