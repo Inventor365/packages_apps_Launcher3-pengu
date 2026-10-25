@@ -89,6 +89,9 @@ class LauncherDepthController(
                     if (cosTablet) Shader.TileMode.CLAMP else Shader.TileMode.DECAL,
                 ) // If blur is not desired, clear the blur effect from the depth targets.
             else null
+        // The dock search pill sits on the hotseat top edge, so any blur of the hotseat is
+        // clipped there. COS keeps its dock sharp and unscaled while home blurs behind it.
+        val hotseatBlurEffect = if (cosTablet) null else blurEffect
         Log.d(
             TAG,
             "shouldBlurWorkspace: $shouldBlurWorkspace" +
@@ -97,7 +100,9 @@ class LauncherDepthController(
                 " mCurrentBlur: $mCurrentBlur" +
                 " mLauncher.getDepthBlurTargets(): ${launcher.depthBlurTargets}",
         )
-        launcher.depthBlurTargets.forEach { it.setRenderEffect(blurEffect) }
+        launcher.depthBlurTargets.forEach {
+            it.setRenderEffect(if (it === launcher.hotseat) hotseatBlurEffect else blurEffect)
+        }
         return shouldBlurWorkspace
     }
 }
