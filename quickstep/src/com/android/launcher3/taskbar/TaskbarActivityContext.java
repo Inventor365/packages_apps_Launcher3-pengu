@@ -1815,6 +1815,59 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
     }
 
     protected void onTaskbarIconClicked(View view) {
+        Object tag = view.getTag();
+        RecentsViewInteractor recents = mControllers.uiController.getRecentsViewInteractor();
+        if (isPrimaryDisplay()
+                && com.android.launcher3.QuickstepTransitionManager.cosExperience(this)
+                && !isInDesktopMode() && !isTaskbarShowingDesktopTasks()
+                && (recents == null || !recents.isSplitSelectionActive())
+                && tag instanceof ItemInfo item
+                && item.itemType == Favorites.ITEM_TYPE_APPLICATION
+                && (!(item instanceof WorkspaceItemInfo workspaceItem)
+                        || (!workspaceItem.isDisabled() && !workspaceItem.isPromise()))) {
+            // Taskbar can run on a separate UI thread. The recents controller and the matching
+            // home icon belong to Launcher, so finish and launch on its main thread.
+            Runnable fallback = () -> getTaskbarUiThread().execute(
+                    () -> onTaskbarIconClickedAfterHomeFlight(view));
+            MAIN_EXECUTOR.execute(() -> {
+                if (!com.android.quickstep.AbsSwipeUpHandler.finishHomeFlightForLaunch(
+                        () -> launchHomeIconAfterFlight(item, fallback))) {
+                    fallback.run();
+                }
+            });
+            return;
+        }
+        onTaskbarIconClickedAfterHomeFlight(view);
+    }
+
+    @MainThread
+    private void launchHomeIconAfterFlight(ItemInfo item, Runnable fallback) {
+        var launcher = com.android.launcher3.uioverrides.QuickstepLauncher.ACTIVITY_TRACKER
+                .getCreatedContext();
+        if (launcher == null || launcher.isDestroyed() || item.getIntent() == null) {
+            fallback.run();
+            return;
+        }
+        View homeIcon = launcher.getFirstHomeElementForAppClose(
+                null, item.getTargetPackage(), item.user);
+        if (homeIcon == null) {
+            fallback.run();
+            return;
+        }
+        // The ordinary taskbar launch explicitly disables animations. Use the matching home
+        // icon to create the same icon-to-window animation as a direct Launcher tap.
+        launcher.startActivitySafely(homeIcon, new Intent(item.getIntent()), item);
+        getTaskbarUiThread().execute(() -> {
+            mControllers.uiController.onTaskbarIconLaunched(item);
+            mControllers.taskbarStashController.updateAndAnimateTransientTaskbar(true);
+            mControllers.keyboardQuickSwitchController.closeQuickSwitchView(false);
+            mControllers.taskbarPopupController.maybeCloseMultiInstanceMenu();
+            AbstractFloatingView.closeAllOpenViews(this);
+            mControllers.uiController.closeOpenLauncherViews();
+        });
+    }
+
+    private void onTaskbarIconClickedAfterHomeFlight(View view) {
         TaskbarUIController taskbarUIController = mControllers.uiController;
         RecentsViewInteractor recents = taskbarUIController.getRecentsViewInteractor();
         boolean shouldCloseAllOpenViews = true;
