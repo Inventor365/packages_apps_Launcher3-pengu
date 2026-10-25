@@ -192,6 +192,7 @@ import kotlin.Unit;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -343,9 +344,18 @@ public abstract class AbsSwipeUpHandler<
     // The window springing home, while a touch can still catch it
     private RectFSpringAnim mCatchableWindowAnim;
     private Runnable mOnTouchDownCallback = () -> {
-        endRunningWindowAnim(mGestureState.getEndTarget() == HOME /* cancel */);
+        // A window springing home keeps flying into its icon while the touch goes to the launcher,
+        // so an app can be launched before the close finishes without cutting it short.
+        if (!isParallelHomeFlightEnabled() || mGestureState.getEndTarget() != HOME) {
+            endRunningWindowAnim(mGestureState.getEndTarget() == HOME /* cancel */);
+        }
         endLauncherTransitionController();
     };
+    // Set when WM finished the recents transition early (an app was launched from home while the
+    // window was still flying home); the flight then finishes without the window.
+    private boolean mHomeAnimDetachedFromWindow;
+    // The handler whose window is currently flying home, if any.
+    private static WeakReference<AbsSwipeUpHandler> sHomeFlight = new WeakReference<>(null);
     // Possible second animation running at the same time as mRunningWindowAnim
     private ThreadedAnimator mParallelRunningAnim;
     private boolean mIsMotionPaused;
@@ -1144,7 +1154,60 @@ public abstract class AbsSwipeUpHandler<
     @Override
     public void onRecentsAnimationCanceled(HashMap<Integer, ThumbnailData> thumbnailDatas) {
         ActiveGestureProtoLogProxy.logAbsSwipeUpHandlerOnRecentsAnimationCanceled();
+        if (thumbnailDatas == null || thumbnailDatas.isEmpty()) {
+            detachHomeAnimationFromWindow();
+        }
         cleanUpOnFailedRecentsAnimation("AbsSwipeUpHandler.onRecentsAnimationCanceled");
+    }
+
+    /**
+     * Finishes a recents transition that is settling on home so that an app launched from home
+     * now plays its own launch animation while the closing window keeps flying into its icon, as
+     * ColorOS does. Finishing first keeps home and the wallpaper visible behind the launch.
+     *
+     * @return false if no window is flying home and the launch can go ahead directly.
+     */
+    @UiThread
+    public static boolean finishHomeFlightForLaunch(@NonNull Runnable launch) {
+        AbsSwipeUpHandler handler = sHomeFlight.get();
+        return handler != null && handler.finishHomeFlightEarly(launch);
+    }
+
+    private boolean isParallelHomeFlightEnabled() {
+        return QuickstepTransitionManager.cosExperience(mContext);
+    }
+
+    private boolean finishHomeFlightEarly(@NonNull Runnable launch) {
+        if (!isParallelHomeFlightEnabled() || mRecentsAnimationController == null || mGestureState.getEndTarget() != HOME
+                || mStateCallback.hasStates(STATE_CURRENT_TASK_FINISHED)
+                || mStateCallback.hasStates(STATE_HANDLER_INVALIDATED)) {
+            return false;
+        }
+        detachHomeAnimationFromWindow();
+        if (!mHomeAnimDetachedFromWindow) {
+            return false;
+        }
+        mStateCallback.runOnceAtState(STATE_CURRENT_TASK_FINISHED, launch);
+        // Settle on home now; the detached flight carries on to the icon on its own.
+        mGestureState.setState(STATE_RECENTS_SCROLLING_FINISHED);
+        mGestureState.setState(STATE_END_TARGET_ANIMATION_FINISHED);
+        return true;
+    }
+
+    private void detachHomeAnimationFromWindow() {
+        if (!isParallelHomeFlightEnabled()
+                || mGestureState.getEndTarget() != HOME || mIsSwipingPipToHome
+                || !mStateCallback.hasStates(STATE_GESTURE_COMPLETED)
+                || mRunningWindowAnim == null || mRemoteTargetHandles == null) {
+            return;
+        }
+        mHomeAnimDetachedFromWindow = true;
+        mCatchableWindowAnim = null;
+        for (RemoteTargetHandle handle : mRemoteTargetHandles) {
+            if (handle != null) {
+                handle.getTransformParams().setTargetSet(null);
+            }
+        }
     }
 
     @Override
@@ -1295,7 +1358,7 @@ public abstract class AbsSwipeUpHandler<
 
     /**
      * Lets a touch on the window catch it while it springs home and throw it on with the finger's
-     * velocity. Any other touch ends the animation and goes to the launcher as before.
+     * velocity. In COS mode, a tap goes to Launcher and only a drag catches the window.
      */
     private class WindowCatchInputConsumer implements InputConsumer {
 
@@ -1304,6 +1367,8 @@ public abstract class AbsSwipeUpHandler<
         private boolean mCatching;
         private float mLastX;
         private float mLastY;
+        private MotionEvent mPendingDown;
+        private RectFSpringAnim mPendingWindowAnim;
 
         WindowCatchInputConsumer(InputConsumer launcherConsumer) {
             mLauncherConsumer = launcherConsumer;
@@ -1331,6 +1396,10 @@ public abstract class AbsSwipeUpHandler<
 
         @Override
         public void onMotionEvent(MotionEvent ev) {
+            if (isParallelHomeFlightEnabled()) {
+                onParallelHomeMotionEvent(ev);
+                return;
+            }
             if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 mCatching = canCatchWindow(ev);
                 if (mCatching) {
@@ -1366,6 +1435,85 @@ public abstract class AbsSwipeUpHandler<
             }
             mLastX = ev.getX();
             mLastY = ev.getY();
+        }
+
+        private void onParallelHomeMotionEvent(MotionEvent ev) {
+            final int action = ev.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN && canCatchWindow(ev)) {
+                // Keep flying until this becomes a drag. A tap must be able to relaunch the
+                // landing app, or another icon underneath the closing window.
+                mPendingDown = MotionEvent.obtain(ev);
+                mPendingWindowAnim = mCatchableWindowAnim;
+                mVelocityTracker = VelocityTracker.obtain();
+                mVelocityTracker.addMovement(ev);
+                mLastX = ev.getX();
+                mLastY = ev.getY();
+                return;
+            }
+            if (mPendingDown == null) {
+                if (action == MotionEvent.ACTION_DOWN) {
+                    dispatchLauncherTouchDown();
+                }
+                mLauncherConsumer.onMotionEvent(ev);
+                return;
+            }
+
+            mVelocityTracker.addMovement(ev);
+            if (!mCatching && action == MotionEvent.ACTION_MOVE) {
+                float dx = ev.getX() - mPendingDown.getX();
+                float dy = ev.getY() - mPendingDown.getY();
+                int slop = android.view.ViewConfiguration.get(mContext).getScaledTouchSlop();
+                if (dx * dx + dy * dy > slop * slop) {
+                    if (mPendingWindowAnim.isRunning()) {
+                        mCatching = true;
+                        mPendingWindowAnim.pause();
+                    } else {
+                        // The flight settled before this became a drag. Give Launcher the
+                        // original down and the remaining gesture rather than turning it into
+                        // an icon tap when the finger eventually lifts.
+                        dispatchLauncherTouchDown();
+                        mLauncherConsumer.onMotionEvent(mPendingDown);
+                        mPendingDown.recycle();
+                        mPendingDown = null;
+                        mPendingWindowAnim = null;
+                        mVelocityTracker.recycle();
+                        mVelocityTracker = null;
+                        mLauncherConsumer.onMotionEvent(ev);
+                        return;
+                    }
+                }
+            }
+            if (mCatching && action == MotionEvent.ACTION_MOVE) {
+                mPendingWindowAnim.dragBy(ev.getX() - mLastX, ev.getY() - mLastY);
+            }
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                if (mCatching) {
+                    mVelocityTracker.computeCurrentVelocity(1);
+                    PointF velocity = action == MotionEvent.ACTION_UP
+                            ? new PointF(mVelocityTracker.getXVelocity(),
+                                    mVelocityTracker.getYVelocity()) : new PointF();
+                    mPendingWindowAnim.resume(mContext, velocity);
+                } else if (action == MotionEvent.ACTION_UP) {
+                    dispatchLauncherTouchDown();
+                    mLauncherConsumer.onMotionEvent(mPendingDown);
+                    mLauncherConsumer.onMotionEvent(ev);
+                }
+                mPendingDown.recycle();
+                mPendingDown = null;
+                mPendingWindowAnim = null;
+                mVelocityTracker.recycle();
+                mVelocityTracker = null;
+                mCatching = false;
+            }
+            mLastX = ev.getX();
+            mLastY = ev.getY();
+        }
+
+        private void dispatchLauncherTouchDown() {
+            if (mOnTouchDownCallback != null) {
+                mOnTouchDownCallback.run();
+                mOnTouchDownCallback = null;
+            }
         }
     }
 
@@ -1972,6 +2120,11 @@ public abstract class AbsSwipeUpHandler<
 
 
         if (mGestureState.getEndTarget() == HOME) {
+            if (isParallelHomeFlightEnabled() && mRecentsAnimationController != null) {
+                // Settled on home: an app launched before the flight ends must not be merged
+                // into this transition as a task switch.
+                mRecentsAnimationController.setWillFinishToHome(true);
+            }
             getOrientationHandler().adjustFloatingIconStartVelocity(velocityPxPerMs);
             // Take first task ID, if there are multiple we don't have any special home
             // animation so doesn't matter for splitscreen.. though the "allowEnterPip" might change
@@ -2091,6 +2244,9 @@ public abstract class AbsSwipeUpHandler<
             }
             mCatchableWindowAnim = !mIsSwipingPipToHome && windowAnim.length == 1
                     ? windowAnim[0] : null;
+            if (isParallelHomeFlightEnabled() && !mIsSwipingPipToHome) {
+                sHomeFlight = new WeakReference<>(this);
+            }
             homeAnimFactory.setSwipeVelocity(velocityPxPerMs.y);
             homeAnimFactory.playAtomicAnimation(velocityPxPerMs.y);
             mLauncherTransitionController = null;
@@ -2553,12 +2709,17 @@ public abstract class AbsSwipeUpHandler<
     }
 
     private void invalidateHandler() {
+        if (sHomeFlight.get() == this) {
+            sHomeFlight.clear();
+        }
         if (!mContainerInterface.isInLiveTileMode() || mGestureState.getEndTarget() != RECENTS) {
             mInputConsumerProxy.destroy();
             mTaskAnimationManager.setLiveTileCleanUpHandler(null);
         }
         mOnTouchDownCallback = null;
-        endRunningWindowAnim(false /* cancel */);
+        if (!mHomeAnimDetachedFromWindow) {
+            endRunningWindowAnim(false /* cancel */);
+        }
 
         if (mGestureEndCallback != null) {
             mGestureEndCallback.run();
