@@ -207,6 +207,7 @@ import com.android.launcher3.util.StartActivityParams;
 import com.android.launcher3.util.TouchController;
 import com.android.launcher3.util.WindowBlurState;
 import com.android.launcher3.views.FloatingIconView;
+import com.android.quickstep.AbsSwipeUpHandler;
 import com.android.quickstep.BaseContainerInterface;
 import com.android.quickstep.LaunchInDesktopShortcut;
 import com.android.quickstep.LauncherActivityInterface;
@@ -520,6 +521,19 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
 
     @Override
     public RunnableList startActivitySafely(View v, Intent intent, ItemInfo item) {
+        // An app tapped while the last one still flies home launches right away: finish that
+        // transition to home first, then launch, while the flight carries on (ColorOS behaviour).
+        RunnableList deferred = new RunnableList();
+        if (AbsSwipeUpHandler.finishHomeFlightForLaunch(() -> {
+            RunnableList actual = startActivitySafely(v, intent, item);
+            if (actual != null) {
+                actual.add(deferred::executeAllAndDestroy);
+            } else {
+                deferred.executeAllAndDestroy();
+            }
+        })) {
+            return deferred;
+        }
         PredictionRowView<?> predictionRowView =
                 getAppsView().getFloatingHeaderView().findFixedRowByType(PredictionRowView.class);
         // Pause the prediction row updates until the transition (if it exists) ends.
