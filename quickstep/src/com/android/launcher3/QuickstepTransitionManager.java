@@ -1507,7 +1507,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
      *                   for the wallpaper and for closing back to home, but its blur waits.
      */
     private Animator getBackgroundAnimator(boolean scrimBlurs) {
-        if (!Flags.allAppsSurface()) {
+        boolean cosTablet = mCosLaunch && mDeviceProfile.getDeviceProperties().isLargeScreen();
+        if (!Flags.allAppsSurface() && !cosTablet) {
             // Don't animate/blur the background for this launch, regardless of the launcher state.
             // We have too many performance issues with the blur.
             return new AnimatorSet();
@@ -1516,8 +1517,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         // When launching an app from overview that doesn't map to a task, we still want to just
         // blur the wallpaper instead of the launcher surface as well
         LauncherState launcherState = mLauncher.getStateManager().getState();
-        boolean allowBlurringLauncher =
-                launcherState != OVERVIEW && BlurUtils.supportsBlursOnWindows();
+        boolean allowBlurringLauncher = Flags.allAppsSurface()
+                && launcherState != OVERVIEW && BlurUtils.supportsBlursOnWindows();
 
         ObjectAnimator backgroundRadiusAnim = ObjectAnimator.ofFloat(
                         mLauncher.getDepthController().stateDepth, MULTI_PROPERTY_VALUE,

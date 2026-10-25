@@ -33,6 +33,7 @@ import androidx.annotation.Nullable;
 import com.android.app.animation.Interpolators;
 import com.android.launcher3.Flags;
 import com.android.launcher3.LauncherPrefs;
+import com.android.launcher3.QuickstepTransitionManager;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.anim.AnimatedFloat;
@@ -253,10 +254,23 @@ public class BaseDepthControllerImpl<
             wallpaperZoom = Math.max(wallpaperZoom, mWallpaperZoomOnly.value);
         }
 
-        boolean wallpaperZoomChanged = Math.abs(wallpaperZoom - mLastWallpaperZoom) > 0.01f;
+        // Android zoomOut=0 is the largest scale; COS instead grows the wallpaper as app
+        // depth grows. Keep the existing phone/other-experience mapping and explicit opt-out.
+        boolean cosTablet = mContainer.getResources().getConfiguration().smallestScreenWidthDp >= 600
+                && QuickstepTransitionManager.cosExperience(mContainer);
+        LauncherPrefs prefs = LauncherPrefs.get(mContainer);
+        boolean allowZoom = prefs.get(LauncherPrefs.ALLOW_WALLPAPER_ZOOMING)
+                || (cosTablet && !prefs.has(LauncherPrefs.ALLOW_WALLPAPER_ZOOMING));
+        if (cosTablet) {
+            float appDepth = mContainer.getBackgroundAppState().getDepth(mContainer);
+            wallpaperZoom = 1f - Utilities.boundToRange(
+                    wallpaperZoom / Math.max(0.01f, appDepth), 0f, 1f);
+        }
+        wallpaperZoom = allowZoom ? wallpaperZoom : 1f;
+        boolean wallpaperZoomChanged = Math.abs(wallpaperZoom - mLastWallpaperZoom) > 0.01f
+                || (wallpaperZoom != mLastWallpaperZoom && (wallpaperZoom == 0f || wallpaperZoom == 1f));
         if (windowToken != null && wallpaperZoomChanged) {
-                mWallpaperManager.setWallpaperZoomOut(windowToken,
-                        LauncherPrefs.ALLOW_WALLPAPER_ZOOMING.get(mContainer) ? wallpaperZoom : 1);
+            mWallpaperManager.setWallpaperZoomOut(windowToken, wallpaperZoom);
             mLastWallpaperZoom = wallpaperZoom;
         }
 
