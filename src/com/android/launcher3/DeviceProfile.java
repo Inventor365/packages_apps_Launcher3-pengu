@@ -1219,8 +1219,8 @@ public class DeviceProfile {
      * the hotseat is on the bottom row.
      */
     public boolean isVerticalBarLayout() {
-        return mDeviceProperties.isLandscape()
-                && mDeviceProperties.getDeviceConfiguration().getTransposeLayoutWithOrientation();
+        // The experimental dock stays on the bottom in every rotation.
+        return false;
     }
 
     public boolean isSeascape() {

@@ -230,6 +230,17 @@ class TaskbarPinnedAppIconContainer(context: Context) :
         }
     }
 
+    fun setIconSpacing(spacing: Int) {
+        if (itemMarginLeftRight == spacing) return
+        itemMarginLeftRight = spacing
+        children.forEachIndexed { index, child ->
+            val lp = child.layoutParams as MarginLayoutParams
+            lp.marginStart = if (index == 0) 0 else spacing
+            lp.marginEnd = if (index == childCount - 1) 0 else spacing
+            child.layoutParams = lp
+        }
+    }
+
     private fun getLayoutParams(index: Int, itemsCount: Int): TaskbarIconContainerLayoutParams {
         val lp = TaskbarIconContainerLayoutParams(taskbarIconViewSize, taskbarIconViewSize)
         if (index != 0) {

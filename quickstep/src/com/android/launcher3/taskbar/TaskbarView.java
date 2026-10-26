@@ -126,7 +126,9 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
     private final int mPinnedHitRectBuffer;
     private final Rect mIconLayoutBounds;
     private final int mIconTouchSize;
-    private final int mItemMarginLeftRight;
+    private int mItemMarginLeftRight;
+    private final int mDefaultItemMarginLeftRight;
+    private final int mCompactItemMarginLeftRight;
     private final int mItemPadding;
     private final int mFolderLeaveBehindColor;
     private final int[] mFirstIconViewLocation = new int[2];
@@ -259,6 +261,9 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
 
         // We layout the icons to be of mIconTouchSize in width and height
         mItemMarginLeftRight = actualMargin - (mIconTouchSize - visualIconSize) / 2;
+        mDefaultItemMarginLeftRight = mItemMarginLeftRight;
+        mCompactItemMarginLeftRight = Math.min(mDefaultItemMarginLeftRight,
+                (actualIconSize + dpToPx(2, mActivityContext) - mIconTouchSize) / 2);
 
         if (Flags.enableTaskbarIconContainer()) {
             mHotseatIconsContainer =
@@ -317,8 +322,9 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
     private int calculateMaxNumIcons() {
         DeviceProfile deviceProfile = mActivityContext.getDeviceProfile();
         int availableWidth = deviceProfile.getDeviceProperties().getWidthPx();
-        int defaultEdgeMargin = getResources().getDimensionPixelSize(
-                deviceProfile.inv.inlineNavButtonsEndSpacing);
+        int defaultEdgeMargin = mActivityContext.isGestureNav()
+                ? dpToPx(16, mActivityContext) : getResources().getDimensionPixelSize(
+                        deviceProfile.inv.inlineNavButtonsEndSpacing);
         int spaceForBubbleBar =
                 Math.round(mControllerCallbacks.getBubbleBarMaxCollapsedWidthIfVisible());
 
@@ -326,20 +332,23 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
         // center aligned with nav bar shown, reserve space on both sides.
         availableWidth -= Math.max(
                 defaultEdgeMargin + spaceForBubbleBar,
-                deviceProfile.getHotseatProfile().getBarEndOffset());
+                (mActivityContext.isGestureNav() ? 0
+                        : deviceProfile.getHotseatProfile().getBarEndOffset()));
         availableWidth -= Math.max(
                 defaultEdgeMargin + (mShouldTryStartAlign ? 0 : spaceForBubbleBar),
-                mShouldTryStartAlign ? 0 : deviceProfile.getHotseatProfile().getBarEndOffset());
+                mShouldTryStartAlign ? 0 : (mActivityContext.isGestureNav() ? 0
+                        : deviceProfile.getHotseatProfile().getBarEndOffset()));
 
         // The space taken by an item icon used during layout.
-        int iconSize = 2 * mItemMarginLeftRight + mIconTouchSize;
+        int compactMargin = mCompactItemMarginLeftRight;
+        int iconSize = 2 * compactMargin + mIconTouchSize;
 
         int additionalIcons = 0;
 
         if (mTaskbarDividerContainer != null) {
             // Space for divider icon is reduced during layout compared to normal icon size, reserve
             // space for the divider separately.
-            availableWidth -= iconSize - 4 * mItemMarginLeftRight;
+            availableWidth -= mTaskbarDividerContainer.getSpaceNeeded();
             ++additionalIcons;
         }
 
@@ -703,6 +712,7 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
                 .toArray(ItemInfo[]::new);
         recentTasks = recentTasks.stream()
                 .filter(it -> it instanceof SingleTask || it instanceof SplitTask)
+                .limit(3)
                 .toList();
 
         mNumbersOfTaskbarIconsOverflowing = Math.min(
@@ -855,8 +865,7 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
         // Add icon for all apps and divider line.
         int icons = 2;
 
-        int effectiveRecentIconsCount = ENABLE_TASKBAR_OVERFLOW.isTrue() ? Math.min(recentsIcons, 1)
-                : recentsIcons;
+        int effectiveRecentIconsCount = Math.min(recentsIcons, 3);
         return Math.min(
                 // Ensure at least one hotseat icon is left.
                 Math.max(hotseatIcons, 1) - 1,
@@ -1482,6 +1491,32 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        // Spread the regular floating dock over the same safe width as home. The native
+        // drawer stays on the leading edge; drag slots use these same live margins.
+        int visibleSlotCount = getNumberOfVisibleIcons();
+        mItemMarginLeftRight = mDefaultItemMarginLeftRight;
+        if (visibleSlotCount > 2 && !mShouldTryStartAlign) {
+            android.view.WindowInsets insets = getRootWindowInsets();
+            android.graphics.Insets safe = insets == null ? android.graphics.Insets.NONE
+                    : insets.getInsets(android.view.WindowInsets.Type.systemBars()
+                            | android.view.WindowInsets.Type.displayCutout());
+            int edge = dpToPx(16, mActivityContext);
+            int nav = mActivityContext.isGestureNav() ? 0
+                    : mActivityContext.getDeviceProfile().getHotseatProfile().getBarEndOffset();
+            int width = right - left - safe.left - safe.right - 2 * edge - 2 * nav;
+            int dividerWidth = indexOfChild(mTaskbarDividerContainer) >= 0
+                    ? mTaskbarDividerContainer.getSpaceNeeded() : 0;
+            int icons = visibleSlotCount - (dividerWidth > 0 ? 1 : 0);
+            int free = width - icons * mIconTouchSize - dividerWidth
+                    + mAllAppsButtonTranslationOffset;
+            // Overlapping empty touch padding must not eat the divider's visual gap.
+            int gaps = free < 0 && dividerWidth > 0 ? icons - 1 : icons;
+            mItemMarginLeftRight = Math.max(mCompactItemMarginLeftRight,
+                    free / (2 * Math.max(1, gaps)));
+        }
+        if (mHotseatIconsContainer != null) {
+            mHotseatIconsContainer.setIconSpacing(mItemMarginLeftRight);
+        }
         int spaceNeeded = getIconLayoutWidth();
         boolean layoutRtl = isLayoutRtl();
         DeviceProfile deviceProfile = mActivityContext.getDeviceProfile();
@@ -1579,10 +1614,9 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
                 child.layout(iconStart, mIconLayoutBounds.top, iconEnd, mIconLayoutBounds.bottom);
                 iconEnd = iconStart - mItemMarginLeftRight;
             } else if (child == mTaskbarDividerContainer) {
-                iconEnd += mItemMarginLeftRight;
-                int iconStart = iconEnd - mTaskbarDividerContainer.getSpaceNeeded();
+                int iconStart = iconEnd - getDividerLayoutWidth();
                 child.layout(iconStart, mIconLayoutBounds.top, iconEnd, mIconLayoutBounds.bottom);
-                iconEnd = iconStart + mItemMarginLeftRight;
+                iconEnd = iconStart;
             } else if (child instanceof TaskbarPinnedAppIconContainer tic) {
                 iconEnd -= mItemMarginLeftRight;
                 int iconStart = iconEnd - tic.getSpaceNeeded();
@@ -1710,15 +1744,17 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
     /**
      * Return the space needed based on the number of taskbar icons supplied vs existing children.
      */
-    private int getIconLayoutWidth(int expectedNumberOfTaskbarIcons) {
-        int iconLayoutBoundsWidth =
-                expectedNumberOfTaskbarIcons * (mItemMarginLeftRight * 2 + mIconTouchSize);
+    private int getDividerLayoutWidth() {
+        return mTaskbarDividerContainer.getSpaceNeeded()
+                + 2 * Math.max(0, -mItemMarginLeftRight);
+    }
 
-        if (expectedNumberOfTaskbarIcons > 1) {
-            // We are removing 4 * mItemMarginLeftRight as there should be no space between
-            // All Apps icon, divider icon, and first app icon in taskbar
-            iconLayoutBoundsWidth -= mItemMarginLeftRight * 4;
-        }
+    private int getIconLayoutWidth(int expectedNumberOfTaskbarIcons) {
+        boolean divider = mTaskbarDividerContainer != null
+                && indexOfChild(mTaskbarDividerContainer) >= 0;
+        int icons = expectedNumberOfTaskbarIcons - (divider ? 1 : 0);
+        int iconLayoutBoundsWidth = icons * (mItemMarginLeftRight * 2 + mIconTouchSize)
+                + (divider ? getDividerLayoutWidth() : 0);
 
         // The all apps button container gets offset horizontally, reducing the overall taskbar
         // view size.
@@ -1981,10 +2017,54 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
         }
     }
 
+    private final android.graphics.Paint mRecentDividerPaint =
+            new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+    private final Rect mDividerIconRect = new Rect();
+
+    private float dividerIconCenter(View icon) {
+        mDividerIconRect.set(0, 0, icon.getWidth(), icon.getHeight());
+        offsetDescendantRectToMyCoords(icon, mDividerIconRect);
+        return mDividerIconRect.exactCenterX();
+    }
+
     @Override
     protected void dispatchDraw(Canvas canvas) {
         if (mActivityContext.isDestroyed()) return;
         super.dispatchDraw(canvas);
+        int divider = indexOfChild(mTaskbarDividerContainer);
+        if (mAddedDividerForRecents && divider > 0 && divider + 1 < getChildCount()
+                && mTaskbarDividerContainer.getVisibility() == VISIBLE
+                && mTaskbarDividerContainer.getAlpha() > 0) {
+            float pinnedEdge = mIsRtl ? Float.MAX_VALUE : -Float.MAX_VALUE;
+            float recentEdge = mIsRtl ? -Float.MAX_VALUE : Float.MAX_VALUE;
+            boolean hasPinned = false;
+            boolean hasRecent = false;
+            for (View icon : getIconViews()) {
+                if (icon.getVisibility() != VISIBLE) continue;
+                if (icon.getTag() instanceof GroupTask) {
+                    float centre = dividerIconCenter(icon);
+                    recentEdge = mIsRtl ? Math.max(recentEdge, centre)
+                            : Math.min(recentEdge, centre);
+                    hasRecent = true;
+                } else if (icon.getTag() instanceof ItemInfo) {
+                    float centre = dividerIconCenter(icon);
+                    pinnedEdge = mIsRtl ? Math.min(pinnedEdge, centre)
+                            : Math.max(pinnedEdge, centre);
+                    hasPinned = true;
+                }
+            }
+            if (!hasPinned || !hasRecent) return;
+            float x = (pinnedEdge + recentEdge) / 2f;
+            boolean night = (getResources().getConfiguration().uiMode
+                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                    == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+            mRecentDividerPaint.setColor(night ? 0x66FFFFFF : 0x66000000);
+            mRecentDividerPaint.setAlpha(Math.round(102 * mTaskbarDividerContainer.getAlpha()));
+            mRecentDividerPaint.setStrokeWidth(getResources().getDisplayMetrics().density);
+            float height = mIconLayoutBounds.height();
+            canvas.drawLine(x, mIconLayoutBounds.top + height * .2f,
+                    x, mIconLayoutBounds.bottom - height * .2f, mRecentDividerPaint);
+        }
     }
 
     private View inflate(@LayoutRes int layoutResId) {

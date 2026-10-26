@@ -53,6 +53,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -105,6 +106,7 @@ public class SpotlightView extends AbstractFloatingView
     private View mScrim;
     private RecyclerView mResults;
     private View mCard;
+    private View mPanel;
     private ImageView mBackdrop;
     // In the island's place, all of home blurs behind Spotlight as on iOS, not just the card.
     @Nullable
@@ -143,7 +145,8 @@ public class SpotlightView extends AbstractFloatingView
                 old.removeFromHost();
             }
         }
-        if (atTop) setTakingIslandsPlace(host, true);
+        // The experimental panel keeps the status bar and home icons visible.
+        atTop = false;
         SpotlightView view = (SpotlightView) LayoutInflater.from(host)
                 .inflate(R.layout.spotlight_view, layer, false);
         view.setup(host, atTop, from);
@@ -247,37 +250,8 @@ public class SpotlightView extends AbstractFloatingView
     }
 
     private void setBackdrop(Bitmap backdrop) {
-        if (backdrop == null) {
-            return;
-        }
-        mBackdrop.setImageBitmap(backdrop);
-        if (LiquidGlass.isEnabled(getContext()) && mBackdrop.getWidth() > 0) {
-            float cardRadius = getResources().getDimension(R.dimen.spotlight_card_radius);
-            mBackdrop.setRenderEffect(LiquidGlass.lensEffect(
-                    RenderEffect.createBlurEffect(BACKDROP_BLUR_RADIUS, BACKDROP_BLUR_RADIUS,
-                            Shader.TileMode.CLAMP),
-                    new RectF(0, 0, mBackdrop.getWidth(), mBackdrop.getHeight()), cardRadius,
-                    getResources().getDisplayMetrics().density));
-        } else {
-            mBackdrop.setRenderEffect(RenderEffect.createBlurEffect(
-                    BACKDROP_BLUR_RADIUS, BACKDROP_BLUR_RADIUS, Shader.TileMode.CLAMP));
-        }
-        // Keep the snapshot lined up with the screen under the card as the card moves and grows.
-        mCard.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> alignBackdrop());
-        if (mAtTop) {
-            mHomeBlur = new ImageView(getContext());
-            mHomeBlur.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-            mHomeBlur.setScaleType(ImageView.ScaleType.MATRIX);
-            Matrix matrix = new Matrix();
-            matrix.setScale(BACKDROP_SCALE, BACKDROP_SCALE);
-            mHomeBlur.setImageMatrix(matrix);
-            mHomeBlur.setImageBitmap(backdrop);
-            mHomeBlur.setRenderEffect(RenderEffect.createBlurEffect(
-                    HOME_BLUR_RADIUS, HOME_BLUR_RADIUS, Shader.TileMode.CLAMP));
-            ((ViewGroup) findViewById(R.id.spotlight_frame)).addView(mHomeBlur, 0,
-                    new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT));
-        }
+        mBackdrop.setVisibility(GONE);
+        mPanel.setBackground(new com.android.launcher3.util.PenguinDockGlass(mPanel));
     }
 
     /**
@@ -315,7 +289,7 @@ public class SpotlightView extends AbstractFloatingView
                 return android.graphics.PixelFormat.TRANSLUCENT;
             }
         });
-        float cardRadius = getResources().getDimension(R.dimen.spotlight_card_radius);
+        float cardRadius = getResources().getDimension(R.dimen.ipad_spotlight_radius);
         // The rim is the card's edge now, in place of the drawable's own stroke.
         android.graphics.drawable.GradientDrawable card =
                 new android.graphics.drawable.GradientDrawable();
@@ -347,7 +321,7 @@ public class SpotlightView extends AbstractFloatingView
                 return;
             }
             mBackdrop.setRenderEffect(LiquidGlass.lensEffect(
-                    RenderEffect.createBlurEffect(BACKDROP_BLUR_RADIUS, BACKDROP_BLUR_RADIUS,
+                    RenderEffect.createBlurEffect(dp(24), dp(24),
                             Shader.TileMode.CLAMP),
                     new RectF(0, 0, r - l, b - t), cardRadius, density));
         });
@@ -358,7 +332,7 @@ public class SpotlightView extends AbstractFloatingView
         // transformed location shifted the snapshot and left an empty dark strip at one edge.
         int x = 0;
         int y = 0;
-        for (View v = mCard; v != null; v = v.getParent() instanceof View p ? p : null) {
+        for (View v = mPanel; v != null; v = v.getParent() instanceof View p ? p : null) {
             x += v.getLeft() - v.getScrollX();
             y += v.getTop() - v.getScrollY();
         }
@@ -372,7 +346,7 @@ public class SpotlightView extends AbstractFloatingView
         mHost = launcher;
         mAtTop = atTop;
         // Tablet search has the same placement on home, over apps and on a desktop.
-        mTopAligned = atTop || launcher.getDeviceProfile().getDeviceProperties().isLargeScreen();
+        mTopAligned = true;
         mIsland.set(from);
         if (atTop) {
             ((Launcher) launcher).islandBounds(mIslandAtRest);
@@ -383,23 +357,16 @@ public class SpotlightView extends AbstractFloatingView
         mResults = findViewById(R.id.spotlight_results);
         mCard = findViewById(R.id.spotlight_card);
         mBackdrop = findViewById(R.id.spotlight_backdrop);
-        mCard.setClipToOutline(true);
-        if (LiquidGlass.isEnabled(launcher)) {
-            applyLiquidGlass();
-        }
+        mPanel = findViewById(R.id.spotlight_panel);
+        mPanel.setClipToOutline(true);
+        mPanel.setBackgroundResource(R.drawable.bg_spotlight_card);
+        findViewById(R.id.spotlight_clear).setOnClickListener(v -> mInput.setText(""));
         findViewById(R.id.spotlight_mic).setOnClickListener(v -> {
             try {
                 mHost.startActivity(new Intent(RecognizerIntent.ACTION_WEB_SEARCH)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             } catch (ActivityNotFoundException e) {
                 // No voice search installed.
-            }
-        });
-        mResults.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            ViewGroup.LayoutParams lp = mBackdrop.getLayoutParams();
-            if (lp.height != b - t) {
-                lp.height = b - t;
-                mBackdrop.post(() -> mBackdrop.setLayoutParams(lp));
             }
         });
         mResults.setLayoutManager(new LinearLayoutManager(launcher));
@@ -425,7 +392,7 @@ public class SpotlightView extends AbstractFloatingView
         } else {
             // Over a desktop window there is no home snapshot to blur, so darken the scrim.
             // SearchActivity also blurs the windows behind this one.
-            mScrim.setBackgroundColor(0xB3000000);
+            mScrim.setBackgroundColor(0x08000000);
             // Phones keep search by the thumb; tablets keep the field above the results.
             if (!mTopAligned) {
                 content.removeView(mField);
@@ -438,6 +405,7 @@ public class SpotlightView extends AbstractFloatingView
         }
 
         mScrim.setOnClickListener(v -> close(true));
+        mPanel.setOnClickListener(v -> { });
         mInput.addTextChangedListener(this);
         mInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
@@ -457,34 +425,36 @@ public class SpotlightView extends AbstractFloatingView
 
     @Override
     public WindowInsets onApplyWindowInsets(WindowInsets insets) {
-        View content = findViewById(R.id.spotlight_content);
-        int top = insets.getInsets(WindowInsets.Type.systemBars()).top;
-        int bottom = Math.max(insets.getInsets(WindowInsets.Type.ime()).bottom,
-                insets.getInsets(WindowInsets.Type.systemBars()).bottom);
-        int gap = getResources().getDimensionPixelSize(R.dimen.spotlight_margin);
-        content.setPadding(content.getPaddingLeft(), mAtTop ? Math.round(mIslandAtRest.top) : top + gap,
-                content.getPaddingRight(), bottom + gap);
+        android.graphics.Insets bars = insets.getInsets(
+                WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+        int keyboard = insets.getInsets(WindowInsets.Type.ime()).bottom;
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) mPanel.getLayoutParams();
+        lp.topMargin = bars.top + dp(40);
+        lp.bottomMargin = Math.max(keyboard, bars.bottom + dp(80)) + dp(12);
+        lp.leftMargin = bars.left + dp(12);
+        lp.rightMargin = bars.right + dp(12);
+        mPanel.setLayoutParams(lp);
         return super.onApplyWindowInsets(insets);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        if (mCard == null) {
+        if (mPanel == null) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
             return;
         }
-        View content = findViewById(R.id.spotlight_content);
-        ViewGroup.MarginLayoutParams cardParams =
-                (ViewGroup.MarginLayoutParams) mCard.getLayoutParams();
-        cardParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        FrameLayout.LayoutParams panel = (FrameLayout.LayoutParams) mPanel.getLayoutParams();
+        int width = MeasureSpec.getSize(widthMeasureSpec);
+        int availableWidth = Math.max(1, width - panel.leftMargin - panel.rightMargin);
+        panel.width = Math.min(availableWidth, Math.min(dp(650),
+                Math.max(dp(340), Math.round(width * 0.51f))));
+        ViewGroup.LayoutParams card = mCard.getLayoutParams();
+        card.height = ViewGroup.LayoutParams.WRAP_CONTENT;
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        // The bottom field must fit alongside a scrollable card, even with a landscape IME.
-        // LinearLayout otherwise measures the card before the field and can push it off screen.
-        int available = Math.max(0, getMeasuredHeight() - content.getPaddingTop()
-                - content.getPaddingBottom() - mField.getMeasuredHeight()
-                - cardParams.topMargin - cardParams.bottomMargin);
+        int available = Math.max(0, getMeasuredHeight() - panel.topMargin
+                - panel.bottomMargin - mField.getMeasuredHeight() - dp(1));
         if (mCard.getMeasuredHeight() > available) {
-            cardParams.height = available;
+            card.height = available;
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         }
     }
@@ -684,6 +654,8 @@ public class SpotlightView extends AbstractFloatingView
 
     @Override
     public void afterTextChanged(Editable s) {
+        findViewById(R.id.spotlight_clear).setVisibility(mInput.length() == 0 ? GONE : VISIBLE);
+        findViewById(R.id.spotlight_mic).setVisibility(mInput.length() == 0 ? VISIBLE : GONE);
         mSearch.cancel(false);
         mSearch.doSearch(s.toString(), this);
     }
@@ -746,6 +718,8 @@ public class SpotlightView extends AbstractFloatingView
             if (item.itemInfo != null && BaseAllAppsAdapter.isIconViewType(item.viewType)) {
                 if (apps == null || apps.size() == APPS_PER_ROW) {
                     apps = new ArrayList<>();
+                    if (rows.isEmpty()) rows.add(Row.header(
+                            getContext().getString(R.string.spotlight_top_hit)));
                     rows.add(Row.apps(apps));
                 }
                 apps.add(item.itemInfo);
@@ -897,7 +871,7 @@ public class SpotlightView extends AbstractFloatingView
         title.setTag("title");
         title.setTextColor(0xE6FFFFFF);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         header.addView(title);
         View divider = new View(parent.getContext());
         divider.setBackgroundColor(0x33FFFFFF);
@@ -906,6 +880,62 @@ public class SpotlightView extends AbstractFloatingView
         lp.topMargin = dp(10);
         header.addView(divider, lp);
         return header;
+    }
+
+    private void applySpotlightTextColors(View view) {
+        if (view instanceof TextView text) {
+            text.setTextColor(view.getId() == R.id.search_result_subtitle
+                    ? 0xD9FFFFFF : android.graphics.Color.WHITE);
+            text.setHintTextColor(0xBBFFFFFF);
+        }
+        if (view instanceof ViewGroup group) {
+            for (int i = 0; i < group.getChildCount(); i++) {
+                applySpotlightTextColors(group.getChildAt(i));
+            }
+        }
+    }
+
+    private Drawable selectionOutline(View target) {
+        return new Drawable() {
+            private final android.graphics.Paint paint =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            private final android.graphics.Path shapePath = new android.graphics.Path();
+            @Override public void draw(@NonNull Canvas canvas) {
+                float density = getResources().getDisplayMetrics().density;
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                paint.setStrokeWidth(1.5f * density);
+                paint.setColor(0x99FFFFFF);
+                if (target instanceof BubbleTextView icon && icon.getIcon() != null) {
+                    android.graphics.Rect drawable = icon.getIcon().getBounds();
+                    float size = drawable.width();
+                    // The same shape mask as the icon renderer, with a one-dp breathing space.
+                    com.android.launcher3.icons.IconShape shape =
+                            com.android.launcher3.graphics.ThemeManager.INSTANCE.get(getContext())
+                                    .getIconShapeData().getValue();
+                    shapePath.set(shape.path);
+                    android.graphics.Matrix matrix = new android.graphics.Matrix();
+                    float edge = size + 2 * density;
+                    matrix.setScale(edge / shape.pathSize, edge / shape.pathSize);
+                    matrix.postTranslate((target.getWidth() - size) / 2f - density,
+                            target.getPaddingTop() - density);
+                    shapePath.transform(matrix);
+                    canvas.drawPath(shapePath, paint);
+                } else {
+                    RectF bounds = new RectF(getBounds());
+                    bounds.inset(density, density);
+                    float radius = Math.min(16 * density, bounds.height() / 2f);
+                    paint.setStyle(android.graphics.Paint.Style.FILL);
+                    paint.setColor(0x24FFFFFF);
+                    canvas.drawRoundRect(bounds, radius, radius, paint);
+                    paint.setStyle(android.graphics.Paint.Style.STROKE);
+                    paint.setColor(0x66FFFFFF);
+                    canvas.drawRoundRect(bounds, radius, radius, paint);
+                }
+            }
+            @Override public void setAlpha(int alpha) { }
+            @Override public void setColorFilter(@Nullable android.graphics.ColorFilter filter) { }
+            @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        };
     }
 
     private final class Adapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -1177,7 +1207,16 @@ public class SpotlightView extends AbstractFloatingView
                 case Row.HEADER -> headerView(parent);
                 case Row.FILTERS -> inflater.inflate(R.layout.search_filters, parent, false);
                 case Row.THUMBNAILS -> inflater.inflate(R.layout.search_thumbnails, parent, false);
-                default -> inflater.inflate(R.layout.search_result_row, parent, false);
+                default -> {
+                    View result = inflater.inflate(R.layout.search_result_row, parent, false);
+                    android.graphics.drawable.GradientDrawable mask =
+                            new android.graphics.drawable.GradientDrawable();
+                    mask.setColor(android.graphics.Color.WHITE);
+                    mask.setCornerRadius(dp(16));
+                    result.setBackground(new android.graphics.drawable.RippleDrawable(
+                            android.content.res.ColorStateList.valueOf(0x26FFFFFF), null, mask));
+                    yield result;
+                }
             };
             return new RecyclerView.ViewHolder(view) { };
         }
@@ -1203,7 +1242,7 @@ public class SpotlightView extends AbstractFloatingView
                         icon.applyFromApplicationInfo(app);
                         icon.setTextColor(0xFFFFFFFF);
                         icon.setForeground(rowHighlighted && i == mSelectedApp
-                                ? new android.graphics.drawable.ColorDrawable(HIGHLIGHT) : null);
+                                ? selectionOutline(icon) : null);
                         icon.setOnClickListener(v -> {
                             SearchHistory.recordLaunch(v.getContext(), SearchHistory.appKey(
                                     app.getTargetComponent(), app.user));
@@ -1217,7 +1256,7 @@ public class SpotlightView extends AbstractFloatingView
                     UniversalSearchResults.bind(mHost, holder.itemView, row.result);
                     holder.itemView.setFocusable(false);
                     holder.itemView.setForeground(isHighlighted(position)
-                            ? new android.graphics.drawable.ColorDrawable(HIGHLIGHT) : null);
+                            ? selectionOutline(holder.itemView) : null);
                     // A touch larger than the drawer's rows, at the system's body size.
                     TextView title = holder.itemView.findViewById(R.id.search_result_title);
                     title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
@@ -1231,6 +1270,7 @@ public class SpotlightView extends AbstractFloatingView
                 case Row.THUMBNAILS -> UniversalSearchResults.bindThumbnails(
                         mHost, holder.itemView, row.item.searchThumbnails);
             }
+            applySpotlightTextColors(holder.itemView);
         }
     }
     /** Spotlight over the current app; finishing restores that app's task. */
@@ -1247,8 +1287,9 @@ public class SpotlightView extends AbstractFloatingView
             // Blur the desktop windows behind this translucent activity so result text stays
             // readable. The scrim still covers the case where window blurs are disabled.
             WindowManager.LayoutParams attrs = getWindow().getAttributes();
-            attrs.flags |= WindowManager.LayoutParams.FLAG_BLUR_BEHIND;
-            attrs.setBlurBehindRadius(80);
+            // Frost only the search panel; the rest of the app remains sharp.
+            attrs.flags &= ~WindowManager.LayoutParams.FLAG_BLUR_BEHIND;
+            attrs.setBlurBehindRadius(0);
             getWindow().setAttributes(attrs);
             mLayer = new SearchDragLayer(this);
             setContentView(mLayer);

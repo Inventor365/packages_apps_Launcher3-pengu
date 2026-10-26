@@ -98,17 +98,16 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
 
     // Read on first draw, once the taskbar knows it is on a desktop. It is recreated on changes.
     private val isDockGlass by lazy {
-        context.isDesktopDock && PenguinTaskbarSettings.isDockGlassEnabled(context)
+        true
     }
     private val dockBlurRadius by lazy {
         Math.round(
-            context.resources.getDimension(R.dimen.taskbar_dock_glass_blur_radius) *
+            context.resources.displayMetrics.density * 10f *
                 PenguinTaskbarSettings.dockBlurFraction(context)
         )
     }
-    private val isCrossWindowBlurEnabled by lazy {
-        context.getSystemService(WindowManager::class.java)?.isCrossWindowBlurEnabled == true
-    }
+    private val isCrossWindowBlurEnabled: Boolean
+        get() = context.getSystemService(WindowManager::class.java)?.isCrossWindowBlurEnabled == true
     private var dockBlur: BackgroundBlurDrawable? = null
     private val dockBlurBounds = Rect()
     private val dockGlassPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -201,6 +200,16 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
             )
             return
         }
+        if (!transientBackgroundBounds.isEmpty && !isAnimatingPinning && !isAnimatingPersistentTaskbar) {
+            val height = min(maxPersistentTaskbarHeight, backgroundHeight)
+            val bottom = canvas.height - context.resources.displayMetrics.density * 8f
+            lastDrawnTransientRect.set(
+                transientBackgroundBounds.left.toFloat(), bottom - height,
+                transientBackgroundBounds.right.toFloat(), bottom,
+            )
+            drawDockGlass(canvas, min(context.resources.getDimension(R.dimen.ipad_dock_radius), height * 0.4f))
+            return
+        }
         if (isAnimatingPinning || isAnimatingPersistentTaskbar) {
             val persistentTaskbarHeight = maxPersistentTaskbarHeight * backgroundProgress
             canvas.translate(0f, canvas.height - persistentTaskbarHeight)
@@ -270,11 +279,7 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
         val newWidth = mapRange(progress, backgroundWidthWhileAnimating, fullWidth.toFloat())
         val halfWidthDelta = (fullWidth - newWidth) / 2f
         val radius =
-            if (Flags.enableLauncherIconShapes()) {
-                getShapedTaskbarRadius(context)
-            } else {
-                newBackgroundHeight / 2f
-            }
+            min(context.resources.getDimension(R.dimen.ipad_dock_radius), newBackgroundHeight * 0.4f)
         val bottomMarginProgress = bottomMargin * ((1f - progress) / 2f)
 
         // Aligns the bottom with the bottom of the stashed handle.
@@ -341,7 +346,7 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
         )
         lastDrawnTransientRect.inset(fullWidth * widthInsetPercentage, 0f)
         val radius =
-            if (Flags.enableLauncherIconShapes()) getShapedTaskbarRadius(context) else height / 2f
+            min(context.resources.getDimension(R.dimen.ipad_dock_radius), height * 0.4f)
         strokePaint.alpha = (paint.alpha * STROKE_ALPHA) / 255
         if (isDockGlass) {
             drawDockGlass(canvas, radius)
@@ -365,30 +370,15 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
      * blur at all, so the dock still reads as glass. Without cross-window blur, the tint thickens
      * so the icons stay readable.
      */
+    private val sharedDockGlass by lazy {
+        com.android.launcher3.util.PenguinDockGlass(context.dragLayer)
+    }
+
     private fun drawDockGlass(canvas: Canvas, radius: Float) {
-        val blur = if (dockBlurRadius > 0) dockBlur ?: createDockBlur() else null
-        if (blur != null) {
-            lastDrawnTransientRect.roundOut(dockBlurBounds)
-            blur.setCornerRadius(radius)
-            blur.bounds = dockBlurBounds
-            blur.alpha = paint.alpha
-            blur.draw(canvas)
-        }
-        dockGlassPaint.color = paint.color
-        dockGlassPaint.alpha =
-            paint.alpha *
-                (if (isCrossWindowBlurEnabled) DOCK_GLASS_TINT_ALPHA else DOCK_GLASS_FALLBACK_ALPHA) /
-                255
-        canvas.drawRoundRect(lastDrawnTransientRect, radius, radius, dockGlassPaint)
-        canvas.drawRoundRect(lastDrawnTransientRect, radius, radius, strokePaint)
-        LiquidGlass.drawRim(
-            canvas,
-            lastDrawnTransientRect,
-            radius,
-            null,
-            context.resources.displayMetrics.density,
-            paint.alpha / 255f,
-        )
+        lastDrawnTransientRect.roundOut(dockBlurBounds)
+        sharedDockGlass.bounds = dockBlurBounds
+        sharedDockGlass.alpha = paint.alpha
+        sharedDockGlass.draw(canvas)
     }
 
     private fun createDockBlur(): BackgroundBlurDrawable? {
@@ -396,6 +386,7 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
         val viewRoot = context.dragLayer.viewRootImpl ?: return null
         return viewRoot.createBackgroundBlurDrawable().apply {
             setBlurRadius(dockBlurRadius)
+            setMaterial(com.android.launcher3.util.PenguinDockGlass.MATERIAL)
             setColor(Color.TRANSPARENT)
             dockBlur = this
         }
@@ -414,7 +405,7 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
         private const val STROKE_ALPHA = 51
         private const val DARK_THEME_SHADOW_ALPHA = 51f
         private const val LIGHT_THEME_SHADOW_ALPHA = 25f
-        private const val DOCK_GLASS_TINT_ALPHA = 90
+        private const val DOCK_GLASS_TINT_ALPHA = 80
         private const val DOCK_GLASS_FALLBACK_ALPHA = 200
     }
 }

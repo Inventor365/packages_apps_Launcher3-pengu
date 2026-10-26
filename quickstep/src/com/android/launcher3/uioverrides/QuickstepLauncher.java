@@ -379,6 +379,7 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
         getAppWidgetHolder().setOnViewCreationCallback(new QuickstepInteractionHandler(this));
         setupBlurState();
         super.setupViews();
+        getHotseat().setDockCompanion(new PenguinDockRecents(this));
         SurfaceTransactionApplier surfaceTransactionApplier = new SurfaceTransactionApplier(
                 getRootView());
         mDepthController.setSurfaceTransactionApplier(surfaceTransactionApplier);
@@ -976,6 +977,7 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
     @Override
     protected void onResume() {
         super.onResume();
+        getHotseat().refreshDockCompanion();
 
         if (mLauncherUnfoldAnimationController != null) {
             mLauncherUnfoldAnimationController.onResume();

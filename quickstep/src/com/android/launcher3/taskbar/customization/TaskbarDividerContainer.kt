@@ -40,7 +40,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 
     override val spaceNeeded: Int
         get() {
-            return taskbarIconViewSize
+            return dpToPx(16f, activityContext)
         }
     override val taskbarIconViewSize =
         dpToPx(activityContext.taskbarSpecsEvaluator.taskbarIconTouchSize, activityContext)
@@ -59,7 +59,11 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         setPadding(taskbarIconViewPadding)
         setIconDrawable(drawable)
         width = spaceNeeded
-        height = spaceNeeded
+        height = taskbarIconViewSize
+    }
+
+    override fun onDraw(canvas: android.graphics.Canvas) {
+        // TaskbarView draws the line between the actual adjacent icon centres.
     }
 
     @SuppressLint("UseCompatLoadingForDrawables")

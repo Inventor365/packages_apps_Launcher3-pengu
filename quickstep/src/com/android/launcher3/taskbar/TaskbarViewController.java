@@ -1257,6 +1257,11 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
                                     : Interpolators.clampToProgress(LINEAR, 0.93f, 1f));
                 }
             }
+            if (isTaskbarDividerView) {
+                // The divider follows its own reserved gap, never a hotseat icon centre.
+                child.setTranslationX(0f);
+                continue;
+            }
             if (child == mTaskbarView.getQsb()) {
                 boolean isRtl = Utilities.isRtl(child.getResources());
                 float hotseatIconCenter = isRtl

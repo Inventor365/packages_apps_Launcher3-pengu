@@ -148,7 +148,9 @@ data class HotseatProfile(
             if (!isScalableGrid)
                 return HotseatWithBorderAndSpace(
                     widthPx = 0,
-                    numShownIcons = numShownHotseatIconsParam,
+                    numShownIcons = minOf(numShownHotseatIconsParam, maxOf(1,
+                        deviceProperties.availableWidthPx /
+                            maxOf(1, (workspaceProfile.iconSizePx * 1.25f).toInt()) - 2)),
                     columnSpan = inv.numColumns,
                     qsbWidth = 0,
                     borderSpace = 0,

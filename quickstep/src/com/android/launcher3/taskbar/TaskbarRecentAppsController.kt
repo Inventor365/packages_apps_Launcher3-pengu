@@ -75,7 +75,7 @@ class TaskbarRecentAppsController(
         }
 
     // TODO(b/343532825): Add a setting to disable Recents even when the flag is on.
-    var canShowRecentApps = enableRecentsInTaskbar()
+    var canShowRecentApps = true
         @VisibleForTesting
         set(isEnabledFromTest) {
             field = isEnabledFromTest
@@ -94,8 +94,8 @@ class TaskbarRecentAppsController(
         get() {
             val showDesktopTasks =
                 controllers.taskbarDesktopModeController.shouldShowDesktopTasksInTaskbar()
-            return (showDesktopTasks && canShowRunningApps) ||
-                (!showDesktopTasks && canShowRecentApps)
+            // Regular recents are a separate dock section, alongside all nine hotseat slots.
+            return showDesktopTasks && canShowRunningApps
         }
 
     // Initialized in init.
@@ -593,8 +593,7 @@ class TaskbarRecentAppsController(
         if (!canShowRecentApps || allRecentTasks.isEmpty()) {
             return emptyList()
         }
-        // Remove the current task.
-        val allRecentTasks = allRecentTasks.subList(0, allRecentTasks.size - 1)
+        // Keep the current app in the recent section, as on the home dock.
         var nextShownTasks = dedupeHotseatTasks(allRecentTasks, shownHotseatItems)
         if (nextShownTasks.size > MAX_RECENT_TASKS) {
             // Remove any tasks older than MAX_RECENT_TASKS.
@@ -604,7 +603,7 @@ class TaskbarRecentAppsController(
 
         // Reuse matching previous GroupTasks, which may already tag a View and/or have BitmapInfo.
         val prevTasksSet = shownTasks.toSet()
-        return nextShownTasks.map { n -> prevTasksSet.find { p -> p == n } ?: n }
+        return nextShownTasks.asReversed().map { n -> prevTasksSet.find { p -> p == n } ?: n }
     }
 
     private fun dedupeHotseatTasks(
@@ -686,6 +685,6 @@ class TaskbarRecentAppsController(
     private companion object {
         private val TAG = "TaskbarRecentAppsController"
 
-        const val MAX_RECENT_TASKS = 2
+        const val MAX_RECENT_TASKS = 3
     }
 }

@@ -101,6 +101,50 @@ public class Hotseat extends CellLayout implements Insettable {
 
     private final @Nullable View mQsb;
     private final View mSearchPill;
+    private View mDockCompanion;
+    private int mDockCompanionSlots;
+    private int mDockPreferredSlots;
+    private int mDockSlot;
+    private final com.android.launcher3.util.PenguinDockGlass mDockGlass =
+            new com.android.launcher3.util.PenguinDockGlass(this);
+
+    public void setDockCompanionSlotCount(int count) {
+        int slots = Math.max(0, Math.min(3, count));
+        if (mDockPreferredSlots != slots) {
+            mDockPreferredSlots = slots;
+            requestLayout();
+        }
+    }
+
+    public void refreshDockCompanion() {
+        if (mDockCompanion != null) mDockCompanion.callOnClick();
+    }
+
+    public void setDockCompanion(View companion) {
+        if (mDockCompanion != null) removeView(mDockCompanion);
+        mDockCompanion = companion;
+        addView(companion);
+        requestLayout();
+    }
+
+    @Override
+    protected void dispatchDraw(android.graphics.Canvas canvas) {
+        if (mDockCompanion != null) {
+            View icons = getShortcutsAndWidgets();
+            int gap = Math.round(10 * getResources().getDisplayMetrics().density);
+            int iconHeight = mActivity.getDeviceProfile().getWorkspaceProfile().getIconSizePx();
+            int centre = (icons.getTop() + icons.getBottom()) / 2;
+            int verticalPad = Math.round(12 * getResources().getDisplayMetrics().density);
+            mDockGlass.setBounds(Math.min(icons.getLeft(), mDockCompanion.getLeft()) - gap,
+                    centre - iconHeight / 2 - verticalPad,
+                    Math.max(icons.getRight(), mDockCompanion.getRight()) + gap,
+                    centre + iconHeight / 2 + verticalPad);
+            mDockGlass.setAlpha(Math.round(255 * icons.getAlpha()));
+            mDockGlass.draw(canvas);
+            mDockCompanion.setAlpha(icons.getAlpha());
+        }
+        super.dispatchDraw(canvas);
+    }
 
     public Hotseat(Context context) {
         this(context, null);
@@ -135,6 +179,7 @@ public class Hotseat extends CellLayout implements Insettable {
         }
 
         mSearchPill = LayoutInflater.from(context).inflate(R.layout.home_search_pill, this, false);
+        mSearchPill.setBackground(new com.android.launcher3.util.PenguinDockGlass(mSearchPill));
         mSearchPill.setOnClickListener(v -> {
             if (mActivity instanceof Launcher launcher) launcher.openSearchFromPill(v);
         });
@@ -314,8 +359,18 @@ public class Hotseat extends CellLayout implements Insettable {
             lp.height = grid.getHotseatProfile().getBarSizePx();
         }
 
+        if (mDockCompanion != null && mQsb != null && mSearchPill.getVisibility() == View.VISIBLE) {
+            mQsb.setVisibility(View.GONE);
+        }
         Rect padding = grid.getHotseatLayoutPadding(getContext());
-        int pillSpace = mSearchPill.getVisibility() == View.GONE ? 0
+        if (mDockCompanion != null) {
+            int bottom = insets.bottom + Math.round(20 * getResources().getDisplayMetrics().density);
+            if (lp.height > 0) lp.height += bottom - padding.bottom;
+            padding.bottom = bottom;
+        }
+        boolean hasSearchPill = mSearchPill.getVisibility() == View.VISIBLE
+                || (mDockCompanion != null && mQsb != null && mQsb.getVisibility() == View.VISIBLE);
+        int pillSpace = !hasSearchPill ? 0
                 : getResources().getDimensionPixelSize(R.dimen.home_search_pill_height)
                         + 2 * getResources().getDimensionPixelSize(R.dimen.home_search_pill_gap);
         if (lp.height > 0) lp.height += pillSpace;
@@ -360,7 +415,39 @@ public class Hotseat extends CellLayout implements Insettable {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (mDockCompanion != null) {
+            float density = getResources().getDisplayMetrics().density;
+            int icon = mActivity.getDeviceProfile().getWorkspaceProfile().getIconSizePx();
+            int edge = Math.round(16 * density);
+            int total = MeasureSpec.getSize(widthMeasureSpec);
+            int pins = Math.max(1, getCountX());
+            mDockSlot = Math.max(Math.round(48 * density), icon + Math.round(2 * density));
+            if (!mHasVerticalHotseat) {
+                android.view.WindowInsets insets = getRootWindowInsets();
+                android.graphics.Insets safe = insets == null ? android.graphics.Insets.NONE
+                        : insets.getInsets(android.view.WindowInsets.Type.systemBars()
+                                | android.view.WindowInsets.Type.displayCutout());
+                int leftInset = edge + safe.left;
+                int rightInset = edge + safe.right;
+                int dockWidth = Math.max(1, total - leftInset - rightInset);
+                mDockCompanionSlots = Math.min(mDockPreferredSlots,
+                        Math.max(0, dockWidth / mDockSlot - pins));
+                mDockSlot = Math.max(1, dockWidth / (pins + mDockCompanionSlots));
+                int companionWidth = mDockCompanionSlots * mDockSlot;
+                // The old profile border spacing belongs to a full-width pins-only row.
+                // Here every pin owns its entire dock slot, including its touch target.
+                mBorderSpace.set(0, 0);
+                boolean rtl = Utilities.isRtl(getResources());
+                setPadding(leftInset + (rtl ? companionWidth : 0), getPaddingTop(),
+                        rightInset + (rtl ? 0 : companionWidth), getPaddingBottom());
+            }
+        }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        if (mDockCompanion != null) {
+            int height = getShortcutsAndWidgets().getMeasuredHeight();
+            mDockCompanion.measure(makeMeasureSpec(mDockCompanionSlots * mDockSlot,
+                    MeasureSpec.EXACTLY), makeMeasureSpec(height, MeasureSpec.EXACTLY));
+        }
 
         if (mSearchPill.getVisibility() != View.GONE) {
             mSearchPill.measure(makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
@@ -386,6 +473,13 @@ public class Hotseat extends CellLayout implements Insettable {
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
+        if (mDockCompanion != null) {
+            View icons = getShortcutsAndWidgets();
+            boolean rtl = Utilities.isRtl(getResources());
+            int start = rtl ? icons.getLeft() - mDockCompanion.getMeasuredWidth() : icons.getRight();
+            mDockCompanion.layout(start, icons.getTop(), start + mDockCompanion.getMeasuredWidth(),
+                    icons.getBottom());
+        }
 
         if (mSearchPill.getVisibility() != View.GONE) {
             int pillWidth = mSearchPill.getMeasuredWidth();
@@ -397,6 +491,14 @@ public class Hotseat extends CellLayout implements Insettable {
         }
 
         if (mQsb == null || mQsb.getVisibility() == View.GONE) return;
+        if (mDockCompanion != null) {
+            int width = mQsb.getMeasuredWidth();
+            int left = (r - l - width) / 2;
+            int bottom = getShortcutsAndWidgets().getTop()
+                    - getResources().getDimensionPixelSize(R.dimen.home_search_pill_gap);
+            mQsb.layout(left, bottom - mQsb.getMeasuredHeight(), left + width, bottom);
+            return;
+        }
 
         int qsbMeasuredWidth = mQsb.getMeasuredWidth();
         int left;
