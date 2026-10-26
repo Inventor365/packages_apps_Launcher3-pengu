@@ -343,13 +343,11 @@ public class TaskbarManagerImpl {
             if (TASKBAR_PINNING_KEY.equals(key)) {
                 getTaskbarUiThread().execute(this::recreateTaskbars);
             }
-            // Keep Settings > Taskbar > Auto-hide in step with the taskbar menu's switch.
+            // Keep Settings > Taskbar > Auto-hide in step with tablet mode's menu switch. The
+            // desktop mode switch is separate and never changes the setting.
             if (TASKBAR_PINNING_KEY.equals(key)) {
                 PenguinTaskbarSettings.syncPinningToAutoHide(mBaseContext,
                         launcherPrefs.get(TASKBAR_PINNING));
-            } else if (LauncherPrefs.TASKBAR_PINNING_DESKTOP_MODE_KEY.equals(key)) {
-                PenguinTaskbarSettings.syncPinningToAutoHide(mBaseContext,
-                        launcherPrefs.get(TASKBAR_PINNING_IN_DESKTOP_MODE));
             }
         };
         launcherPrefs.addListener(
@@ -409,8 +407,8 @@ public class TaskbarManagerImpl {
         cleanupTasks.addTask(getTaskbarUiThread(), () -> mBaseContext.getContentResolver()
                 .unregisterContentObserver(gestureNavbarSettingsObserver));
 
-        // Settings > Taskbar > Auto-hide drives the launcher's "Always show" switches; their
-        // change listener above recreates the taskbars.
+        // Settings > Taskbar > Auto-hide drives tablet mode's "Always show" switch; its change
+        // listener above recreates the taskbars.
         ContentObserver autoHideObserver = new ContentObserver(
                 new Handler(getTaskbarUiThread().getLooper())) {
             @Override

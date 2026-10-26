@@ -11,15 +11,12 @@ import android.net.Uri
 import android.provider.Settings
 import com.android.launcher3.LauncherPrefs
 import com.android.launcher3.LauncherPrefs.Companion.TASKBAR_PINNING
-import com.android.launcher3.LauncherPrefs.Companion.TASKBAR_PINNING_IN_DESKTOP_MODE
 
 /** The taskbar's settings under Settings > System > Taskbar, shown on tablets. */
 object PenguinTaskbarSettings {
     private const val HOVER_DELAY = "penguin_taskbar_hover_delay"
     private const val AUTOHIDE_TIMEOUT = "penguin_taskbar_autohide_timeout"
     private const val AUTOHIDE = "penguin_taskbar_autohide"
-    /** The value Auto-hide was seeded with on first run, until someone changes it. */
-    private const val AUTOHIDE_SEED = "penguin_taskbar_autohide_seed"
     private const val DOCK = "penguin_taskbar_dock"
     private const val DOCK_BOUNCE = "penguin_taskbar_dock_bounce"
     private const val DOCK_GLASS = "penguin_taskbar_dock_glass"
@@ -67,42 +64,28 @@ object PenguinTaskbarSettings {
     fun showsDesktopDock(context: Context, launcherPrefs: LauncherPrefs): Boolean =
         get(context, DOCK, 0) != 0
 
-    /** Settings > Taskbar > Auto-hide, the launcher's "Always show" switch inverted. */
+    /** Settings > Taskbar > Auto-hide: tablet mode's "Always show" switch, inverted. */
     @JvmField val AUTOHIDE_URI: Uri = Settings.Secure.getUriFor(AUTOHIDE)
 
     /**
-     * Applies Settings > Taskbar > Auto-hide to the launcher's own "Always show" switches, in
-     * tablet and desktop mode alike. The first time, the setting starts from the launcher's
-     * current choice instead, so nobody's taskbar changes on update.
+     * Applies Settings > Taskbar > Auto-hide to tablet mode's "Always show" switch. Desktop mode
+     * keeps its own choice from the taskbar menu, so changing one mode never changes the other.
+     * The first time, the setting starts from the launcher's current tablet choice.
      */
     @JvmStatic
     fun syncAutoHideToPrefs(context: Context, launcherPrefs: LauncherPrefs) {
         val resolver = context.contentResolver
         if (Settings.Secure.getString(resolver, AUTOHIDE) == null) {
-            // First run: show the tablet choice in Settings, and remember that it is only a
-            // seed, so the separate tablet and desktop choices stay until someone changes it.
-            val seeded = if (launcherPrefs.get(TASKBAR_PINNING)) 0 else 1
-            Settings.Secure.putInt(resolver, AUTOHIDE_SEED, seeded)
-            Settings.Secure.putInt(resolver, AUTOHIDE, seeded)
+            Settings.Secure.putInt(resolver, AUTOHIDE, if (launcherPrefs.get(TASKBAR_PINNING)) 0 else 1)
             return
         }
-        val value = get(context, AUTOHIDE, 1)
-        val seed = get(context, AUTOHIDE_SEED, -1)
-        if (seed != -1) {
-            if (value == seed) return
-            // Changed since the seed: from now on it is a real choice for both modes.
-            Settings.Secure.putString(resolver, AUTOHIDE_SEED, null)
-        }
-        val pinned = value == 0
+        val pinned = get(context, AUTOHIDE, 1) == 0
         if (launcherPrefs.get(TASKBAR_PINNING) != pinned) {
             launcherPrefs.put(TASKBAR_PINNING, pinned)
         }
-        if (launcherPrefs.get(TASKBAR_PINNING_IN_DESKTOP_MODE) != pinned) {
-            launcherPrefs.put(TASKBAR_PINNING_IN_DESKTOP_MODE, pinned)
-        }
     }
 
-    /** Reflects an "Always show" change from the taskbar menu in Settings > Taskbar. */
+    /** Reflects a tablet mode "Always show" change from the taskbar menu in Settings. */
     @JvmStatic
     fun syncPinningToAutoHide(context: Context, pinned: Boolean) {
         if ((get(context, AUTOHIDE, 1) == 0) != pinned) {
