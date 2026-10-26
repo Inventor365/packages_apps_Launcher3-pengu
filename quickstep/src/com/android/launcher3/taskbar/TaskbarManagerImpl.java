@@ -343,6 +343,14 @@ public class TaskbarManagerImpl {
             if (TASKBAR_PINNING_KEY.equals(key)) {
                 getTaskbarUiThread().execute(this::recreateTaskbars);
             }
+            // Keep Settings > Taskbar > Auto-hide in step with the taskbar menu's switch.
+            if (TASKBAR_PINNING_KEY.equals(key)) {
+                PenguinTaskbarSettings.syncPinningToAutoHide(mBaseContext,
+                        launcherPrefs.get(TASKBAR_PINNING));
+            } else if (LauncherPrefs.TASKBAR_PINNING_DESKTOP_MODE_KEY.equals(key)) {
+                PenguinTaskbarSettings.syncPinningToAutoHide(mBaseContext,
+                        launcherPrefs.get(TASKBAR_PINNING_IN_DESKTOP_MODE));
+            }
         };
         launcherPrefs.addListener(
                 prefChangeListener,
@@ -400,6 +408,21 @@ public class TaskbarManagerImpl {
         }
         cleanupTasks.addTask(getTaskbarUiThread(), () -> mBaseContext.getContentResolver()
                 .unregisterContentObserver(gestureNavbarSettingsObserver));
+
+        // Settings > Taskbar > Auto-hide drives the launcher's "Always show" switches; their
+        // change listener above recreates the taskbars.
+        ContentObserver autoHideObserver = new ContentObserver(
+                new Handler(getTaskbarUiThread().getLooper())) {
+            @Override
+            public void onChange(boolean selfChange) {
+                PenguinTaskbarSettings.syncAutoHideToPrefs(mBaseContext, launcherPrefs);
+            }
+        };
+        mBaseContext.getContentResolver().registerContentObserver(
+                PenguinTaskbarSettings.AUTOHIDE_URI, false, autoHideObserver);
+        cleanupTasks.addTask(getTaskbarUiThread(), () -> mBaseContext.getContentResolver()
+                .unregisterContentObserver(autoHideObserver));
+        PenguinTaskbarSettings.syncAutoHideToPrefs(mBaseContext, launcherPrefs);
 
         SimpleBroadcastReceiver shutdownReceiver = new SimpleBroadcastReceiver(
                 mBaseContext,

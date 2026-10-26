@@ -128,6 +128,10 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                 )
         }
 
+        // The macOS-style desktop dock always auto-hides, so it has no "Always show" option.
+        if (taskbarActivityContext.isDesktopDock) {
+            taskbarSwitchOption.visibility = View.GONE
+        }
         alwaysShowTaskbarSwitch.isChecked = alwaysShowTaskbarOn
         alwaysShowTaskbarSwitch.setOnTouchListener { view, event ->
             (view.parent as View).onTouchEvent(event)

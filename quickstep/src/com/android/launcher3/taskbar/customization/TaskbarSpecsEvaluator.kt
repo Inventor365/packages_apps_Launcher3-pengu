@@ -28,7 +28,11 @@ class TaskbarSpecsEvaluator(
 ) {
     val taskbarIconSize: TaskbarIconSize
         get() =
-            if (taskbarFeatureEvaluator.supportsTransitionToTransientTaskbar)
+            // A desktop dock is the transient taskbar too, so its icons match the tablet dock.
+            if (
+                taskbarFeatureEvaluator.supportsTransitionToTransientTaskbar ||
+                    taskbarFeatureEvaluator.isTransient
+            )
                 TaskbarIconSpecs.defaultTransientIconSize
             else TaskbarIconSpecs.defaultPersistentIconSize
 

@@ -83,6 +83,9 @@ class LauncherInteractor(private val launcher: QuickstepLauncher) : ActivityInte
 
     @AnyThread fun isPostbootDialogVisible() = launcher.isShowingPostBootLoaderDialog
 
+    /** Recent apps the home dock shows beside its pinned apps, as laid out. */
+    fun homeDockRecentSlots(): Int = launcher.hotseat.dockCompanionSlots
+
     /** Used to translate hotseat and QSB to make room for bubbles. */
     @MainThread
     private fun updateHotseatAndQsbTranslationXInternal(

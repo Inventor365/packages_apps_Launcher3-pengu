@@ -200,7 +200,9 @@ class TaskbarBackgroundRenderer(private val context: TaskbarActivityContext) {
             )
             return
         }
-        if (!transientBackgroundBounds.isEmpty && !isAnimatingPinning && !isAnimatingPersistentTaskbar) {
+        // The stock desktop taskbar (macOS-style dock off) keeps its full-width AOSP bar.
+        if (!transientBackgroundBounds.isEmpty && !isAnimatingPinning &&
+            !isAnimatingPersistentTaskbar && !context.isInDesktopMode) {
             val height = min(maxPersistentTaskbarHeight, backgroundHeight)
             val bottom = canvas.height - context.resources.displayMetrics.density * 8f
             lastDrawnTransientRect.set(

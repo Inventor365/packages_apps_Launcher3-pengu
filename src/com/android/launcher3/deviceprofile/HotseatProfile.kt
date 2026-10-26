@@ -21,6 +21,7 @@ import com.android.launcher3.InvariantDeviceProfile
 import com.android.launcher3.Utilities.getIconVisibleSizePx
 import com.android.launcher3.deviceprofile.HotseatProfileInitialValues.Factory.calculateHotseatBarSizePx
 import com.android.launcher3.folder.ClippedFolderIconLayoutRule.ICON_OVERLAP_FACTOR
+import com.android.launcher3.util.PenguinDockMetrics
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -145,12 +146,54 @@ data class HotseatProfile(
             isVerticalBarLayout: Boolean,
             numShownHotseatIconsParam: Int,
         ): HotseatWithBorderAndSpace {
+            if (isVerticalBarLayout || deviceProperties.isTwoPanels) {
+                return recalculateGridHotseat(
+                    inv, hotseatProfileInitialValues, workspaceProfile, deviceProperties,
+                    panelCount, isScalableGrid, isVerticalBarLayout, numShownHotseatIconsParam,
+                )
+            }
+            // Inline navigation buttons or an inline search bar share the row with the icons;
+            // the stock calculation fits around them, so keep it there.
+            if (
+                hotseatProfileInitialValues.areNavButtonsInline ||
+                    hotseatProfileInitialValues.isQsbInline
+            ) {
+                return recalculateGridHotseat(
+                    inv, hotseatProfileInitialValues, workspaceProfile, deviceProperties,
+                    panelCount, isScalableGrid, isVerticalBarLayout = false,
+                    numShownHotseatIconsParam,
+                )
+            }
+            // The bottom dock has no fixed icon count: it shows as many pinned apps as the
+            // screen width fits at the current icon size, leaving room for recent apps, up to
+            // what the database holds.
+            val dockPinned =
+                PenguinDockMetrics.pinnedCapacity(
+                    deviceProperties.availableWidthPx,
+                    workspaceProfile.iconSizePx,
+                    inv.numDatabaseHotseatIcons,
+                )
+            return recalculateGridHotseat(
+                    inv, hotseatProfileInitialValues, workspaceProfile, deviceProperties,
+                    panelCount, isScalableGrid, isVerticalBarLayout = false, dockPinned,
+                )
+                .apply { numShownIcons = dockPinned }
+        }
+
+        private fun recalculateGridHotseat(
+            inv: InvariantDeviceProfile,
+            hotseatProfileInitialValues: HotseatProfileInitialValues,
+            workspaceProfile: WorkspaceProfile,
+            deviceProperties: DeviceProperties,
+            panelCount: Int,
+            isScalableGrid: Boolean,
+            isVerticalBarLayout: Boolean,
+            numShownHotseatIconsParam: Int,
+        ): HotseatWithBorderAndSpace {
             if (!isScalableGrid)
                 return HotseatWithBorderAndSpace(
                     widthPx = 0,
-                    numShownIcons = minOf(numShownHotseatIconsParam, maxOf(1,
-                        deviceProperties.availableWidthPx /
-                            maxOf(1, (workspaceProfile.iconSizePx * 1.25f).toInt()) - 2)),
+                    numShownIcons = numShownHotseatIconsParam,
                     columnSpan = inv.numColumns,
                     qsbWidth = 0,
                     borderSpace = 0,
@@ -168,7 +211,7 @@ data class HotseatProfile(
             if (deviceProperties.isTwoPanels) {
                 borderAndSpace =
                     updateHotseatWidthAndBorderSpace(
-                        inv.numDatabaseHotseatIcons,
+                        inv.numTwoPanelHotseatIcons,
                         workspaceProfile = workspaceProfile,
                         numShownHotseatIcons = numShownHotseatIcons,
                         maxIconSpacePx = hotseatProfileInitialValues.maxIconSpacePx,

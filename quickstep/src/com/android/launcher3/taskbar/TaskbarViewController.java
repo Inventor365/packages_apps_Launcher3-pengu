@@ -93,6 +93,7 @@ import com.android.launcher3.util.LauncherBindableItemsContainer;
 import com.android.launcher3.util.MultiPropertyFactory;
 import com.android.launcher3.util.MultiTranslateDelegate;
 import com.android.launcher3.util.MultiValueAlpha;
+import com.android.launcher3.util.PenguinDockMetrics;
 import com.android.launcher3.util.SandboxContext;
 import com.android.quickstep.util.GroupTask;
 import com.android.quickstep.util.SingleTask;
@@ -223,6 +224,8 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
     // Animation to align icons with Launcher, created lazily. This allows the controller to be
     // active only during the animation and does not need to worry about layout changes.
     private AnimatorPlaybackController mIconAlignControllerLazy = null;
+    /** Last alignment with the Launcher hotseat: 0 in an app, 1 aligned with home. */
+    private float mLastIconAlignment = 0f;
     private Runnable mOnControllerPreCreateCallback = NO_OP;
 
     // Stored here as signals to determine if the mIconAlignController needs to be recreated.
@@ -1077,6 +1080,11 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
     }
 
     void notifyIconLayoutBoundsChanged() {
+        if (mLastIconAlignment <= 0) {
+            // Icons laid out in an app must sit in their own slots, whatever an interrupted
+            // alignment left behind; a stale offset puts one icon over its neighbour.
+            clearIconAlignmentOffsets(mTaskbarView);
+        }
         if (isAnyTaskbarAppTransitionRunning()) {
             // Defers notify until after transitions finish.
             mTransitionEndBoundsChangedNotifier.mIsCanceled = false;
@@ -1120,9 +1128,45 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
             mIconAlignControllerLazy = createIconAlignmentController(launcherDp);
         }
         mIconAlignControllerLazy.setPlayFraction(alignmentRatio);
+        mLastIconAlignment = alignmentRatio;
+        if (alignmentRatio <= 0) {
+            // Icons added after this controller was made were never part of it, so clear every
+            // icon's alignment offset, not only the controller's.
+            clearIconAlignmentOffsets(mTaskbarView);
+        }
         if (alignmentRatio <= 0 || alignmentRatio >= 1) {
             // Cleanup lazy controller so that it is created again in next animation
             mIconAlignControllerLazy = null;
+        }
+    }
+
+    /**
+     * Centre of a taskbar item's home dock slot, from the dock's start. LTR: pinned ranks, then
+     * recents. RTL keeps pinned ranks left to right but puts them after the recents, which run
+     * right to left; All Apps sits just past the pinned apps (see getPositionInHotseat).
+     */
+    private float dockSlotCenter(float position, int dockWidth, int iconSize, int pinned,
+            int cells) {
+        float slot = PenguinDockMetrics.fittedSlotPx(dockWidth, iconSize, cells);
+        float start = (dockWidth - cells * slot) / 2f;
+        int recents = cells - pinned;
+        if (!mIsRtl) return start + slot * (position + 0.5f);
+        if (position < pinned) return start + slot * (recents + position + 0.5f);
+        if (position <= pinned) return start + slot * (recents + pinned + 0.5f);
+        return start + slot * (recents - (position - pinned - 1) - 0.5f);
+    }
+
+    /** Clears the hotseat alignment offset of every taskbar icon, as when fully in an app. */
+    private static void clearIconAlignmentOffsets(ViewGroup parent) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View child = parent.getChildAt(i);
+            if (child instanceof TaskbarPinnedAppIconContainer container) {
+                clearIconAlignmentOffsets(container);
+            } else if (child instanceof Reorderable reorderable) {
+                MultiTranslateDelegate mtd = reorderable.getTranslateDelegate();
+                mtd.getTranslationX(INDEX_TASKBAR_ALIGNMENT_ANIM).setValue(0f);
+                mtd.getTranslationY(INDEX_TASKBAR_ALIGNMENT_ANIM).setValue(0f);
+            }
         }
     }
 
@@ -1217,7 +1261,25 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
                         - hotseatPadding.right,
                 borderSpacing,
                 launcherDp.getHotseatProfile().getNumShownIcons());
+        // The home dock centres slots of its natural width (Hotseat#onMeasure), so icons fly
+        // to those slots rather than to an evenly spread profile row.
+        Rect dockInsets = launcherDp.getDeviceProperties().getInsets();
+        int dockWidth = launcherDp.getDeviceProperties().getWidthPx() - dockInsets.left
+                - dockInsets.right;
+        int dockIconSize = launcherDp.getWorkspaceProfile().getIconSizePx();
+        int dockPinned = launcherDp.getHotseatProfile().getNumShownIcons();
+        int dockFit = PenguinDockMetrics.slotCapacity(dockWidth, dockIconSize);
+        int dockRecents = 0;
+        for (View icon : mTaskbarView.getIconViews()) {
+            if (icon.getTag() instanceof GroupTask) dockRecents++;
+        }
+        // Prefer the recents the home dock actually laid out; it loads them on its own.
+        int homeRecents = mControllers.uiController.getHomeDockRecentSlots();
+        int dockCells = dockPinned + (homeRecents >= 0 ? homeRecents
+                : Math.min(Math.min(dockRecents, PenguinDockMetrics.recentSlots(dockFit)),
+                        Math.max(0, dockFit - dockPinned)));
 
+        int firstRecentTaskIndex = -1;
         for (int i = 0; i < parent.getChildCount(); i++) {
             View child = parent.getChildAt(i);
             // The desktop-mode Spotlight / exit buttons travel and fade with All Apps.
@@ -1312,7 +1374,6 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
                 continue;
             }
 
-            int firstRecentTaskIndex = -1;
             int recentTaskIndex = -1;
             if (isRecentTask) {
                 if (firstRecentTaskIndex < 0) {
@@ -1335,6 +1396,10 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
                 hotseatIconCenter = hotseatPadding.left + hotseatCellSize
                         + (hotseatCellSize + hotseatAdjustedBorderSpace) * positionInHotseat
                         + hotseatCellSize / 2f;
+            } else if (PenguinDockMetrics.usesNaturalDock(launcherDp)) {
+                hotseatIconCenter = dockInsets.left
+                        + dockSlotCenter(positionInHotseat, dockWidth, dockIconSize, dockPinned,
+                                dockCells);
             } else {
                 hotseatIconCenter = hotseatPadding.left
                         + (hotseatCellSize + borderSpacing) * positionInHotseat

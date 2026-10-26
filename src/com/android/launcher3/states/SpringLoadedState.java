@@ -107,7 +107,8 @@ public class SpringLoadedState extends LauncherState {
 
         // Calculate the available vertical space for these elements.
         float hotseatTop = grid.isVerticalBarLayout()
-                ? 0 : (hotseat.getSpringLoadedBarTopMarginPx() + launcher.getHotseat().getHeight());
+                ? 0 : (hotseat.getSpringLoadedBarTopMarginPx() + launcher.getHotseat().getHeight()
+                        - launcher.getHotseat().getDockBlurMarginPx());
         float availableHeight = launcher.getDeviceProfile().getDeviceProperties().getHeightPx()
                 - hotseatTop;
 

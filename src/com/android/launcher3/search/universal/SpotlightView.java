@@ -251,7 +251,7 @@ public class SpotlightView extends AbstractFloatingView
 
     private void setBackdrop(Bitmap backdrop) {
         mBackdrop.setVisibility(GONE);
-        mPanel.setBackground(new com.android.launcher3.util.PenguinDockGlass(mPanel));
+        mPanel.setBackground(new com.android.launcher3.util.PenguinDockGlass(mPanel, true));
     }
 
     /**

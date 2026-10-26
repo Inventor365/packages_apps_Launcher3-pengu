@@ -50,6 +50,7 @@ import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -150,6 +151,11 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
     public static final int DISPLAY_SEARCH_RESULT_APP_ROW = 9;
     private static final int DISPLAY_DRAWER_FOLDER = 10;
 
+    /** Running app dot under a taskbar icon, as on a Mac's dock. */
+    private static final float RUNNING_DOT_RADIUS_DP = 2f;
+    private static final int RUNNING_DOT_COLOR_LIGHT_THEME = 0xE6000000;
+    private static final int RUNNING_DOT_COLOR_DARK_THEME = 0xE6FFFFFF;
+
     private static final float MIN_LETTER_SPACING = -0.05f;
     private static final int MAX_SEARCH_LOOP_COUNT = 20;
     private static final Character NEW_LINE = '\n';
@@ -222,6 +228,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
     private final Paint mRunningAppIndicatorPaint;
     private final Rect mRunningAppIconBounds = new Rect();
     private RunningAppState mRunningAppState;
+    private boolean mRunningAppIndicatorDot;
 
     @ViewDebug.ExportedProperty(category = "launcher")
     private int mLineIndicatorColor;
@@ -1034,7 +1041,20 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
                 PillColorProvider.getInstance(getContext()).getAppTitlePillPaint());
     }
 
-    /** Draws a line under the app icon if this is representing a running app in Desktop Mode. */
+    /**
+     * Shows running apps with a small dot, as a Mac's dock does, instead of the stock line. Set
+     * for the macOS-style desktop dock.
+     */
+    public void setRunningAppIndicatorDot(boolean dot) {
+        if (mRunningAppIndicatorDot == dot) return;
+        mRunningAppIndicatorDot = dot;
+        invalidate();
+    }
+
+    /**
+     * Draws a line under the app icon if this is representing a running app in Desktop Mode, or
+     * a small dot in the macOS-style dock: dark on a light theme, light on a dark one.
+     */
     protected void drawRunningAppIndicatorIfNecessary(Canvas canvas) {
         if (mDisplay != DISPLAY_TASKBAR
                 || Float.compare(mLineIndicatorWidth, 0) == 0
@@ -1049,16 +1069,30 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
         final float indicatorTop = mRunningAppIconBounds.bottom
                 + mRunningAppIndicatorTopMargin
                 - taskbarAppRunningStateAnimOffset;
-        final float cornerRadius = mRunningAppIndicatorHeight / 2f;
-        mRunningAppIndicatorPaint.setColor(mLineIndicatorColor);
-
-        canvas.drawRoundRect(
-                mRunningAppIconBounds.centerX() - mLineIndicatorWidth / 2f,
-                indicatorTop,
-                mRunningAppIconBounds.centerX() + mLineIndicatorWidth / 2f,
-                indicatorTop + mRunningAppIndicatorHeight,
-                cornerRadius,
-                cornerRadius,
+        if (!mRunningAppIndicatorDot) {
+            final float cornerRadius = mRunningAppIndicatorHeight / 2f;
+            mRunningAppIndicatorPaint.setColor(mLineIndicatorColor);
+            canvas.drawRoundRect(
+                    mRunningAppIconBounds.centerX() - mLineIndicatorWidth / 2f,
+                    indicatorTop,
+                    mRunningAppIconBounds.centerX() + mLineIndicatorWidth / 2f,
+                    indicatorTop + mRunningAppIndicatorHeight,
+                    cornerRadius,
+                    cornerRadius,
+                    mRunningAppIndicatorPaint);
+            return;
+        }
+        // The line width still animates the state change; the dot grows with it.
+        final float dotRadius = Math.min(RUNNING_DOT_RADIUS_DP
+                * getResources().getDisplayMetrics().density, mLineIndicatorWidth / 2f);
+        boolean night = (getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        mRunningAppIndicatorPaint.setAntiAlias(true);
+        mRunningAppIndicatorPaint.setColor(night ? RUNNING_DOT_COLOR_DARK_THEME
+                : RUNNING_DOT_COLOR_LIGHT_THEME);
+        mRunningAppIndicatorPaint.setAlpha(Math.round(
+                mRunningAppIndicatorPaint.getAlpha() * Color.alpha(mLineIndicatorColor) / 255f));
+        canvas.drawCircle(mRunningAppIconBounds.centerX(), indicatorTop + dotRadius, dotRadius,
                 mRunningAppIndicatorPaint);
     }
 

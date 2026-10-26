@@ -62,11 +62,22 @@ public final class PenguinDockRecents extends LinearLayout {
             }
             MODEL_EXECUTOR.execute(() -> {
                 List<AppInfo> apps = new ArrayList<>();
+                android.content.pm.LauncherApps launcherApps =
+                        launcher.getSystemService(android.content.pm.LauncherApps.class);
                 for (Task task : tasks) {
                     AppInfo info = new AppInfo();
                     info.componentName = task.key.baseIntent.getComponent();
                     info.user = UserHandle.of(task.key.userId);
                     info.intent = new Intent(task.key.baseIntent);
+                    // A task can rest on an inner screen (Settings > About), which has no
+                    // launcher icon of its own; show its app's icon and name instead.
+                    var activities = launcherApps == null ? null : launcherApps.getActivityList(
+                            info.componentName.getPackageName(), info.user);
+                    if (activities != null && !activities.isEmpty() && activities.stream()
+                            .noneMatch(a -> a.getComponentName().equals(info.componentName))) {
+                        info.componentName = activities.get(0).getComponentName();
+                        info.intent = AppInfo.makeLaunchIntent(info.componentName);
+                    }
                     LauncherAppState.getInstance(launcher).getIconCache()
                             .getTitleAndIcon(info, DEFAULT_LOOKUP_FLAG);
                     apps.add(info);

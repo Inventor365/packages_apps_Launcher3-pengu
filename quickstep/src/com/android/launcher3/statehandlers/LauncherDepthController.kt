@@ -69,9 +69,9 @@ class LauncherDepthController(
         val stateManager = launcher.stateManager
         val targetState = stateManager.targetState ?: stateManager.state
         // Only blur workspace if the current state wants to blur based on the target state.
-        val shouldBlurWorkspace =
-            blurWorkspaceWithWallpaper ||
-                stateManager.currentStableState.shouldBlurWorkspace(launcher, targetState)
+        val stateBlursWorkspace =
+            stateManager.currentStableState.shouldBlurWorkspace(launcher, targetState)
+        val shouldBlurWorkspace = blurWorkspaceWithWallpaper || stateBlursWorkspace
 
         val cosTablet = QuickstepTransitionManager.cosExperience(launcher) &&
             launcher.deviceProfile.deviceProperties.isLargeScreen
@@ -94,9 +94,23 @@ class LauncherDepthController(
                     if (cosTablet) Shader.TileMode.CLAMP else Shader.TileMode.DECAL,
                 ) // If blur is not desired, clear the blur effect from the depth targets.
             else null
-        // The dock search pill sits on the hotseat top edge, so any blur of the hotseat is
-        // clipped there. COS keeps its dock sharp and unscaled while home blurs behind it.
-        val hotseatBlurEffect = if (cosTablet) null else blurEffect
+        // COS keeps its dock sharp while a closing app lands on home, but the dock blurs with
+        // the rest of home behind the app drawer. The hotseat keeps a clear margin above its
+        // search pill, so that blur fades out inside it instead of being cut off.
+        val hotseatBlurEffect = if (cosTablet && !stateBlursWorkspace) null else blurEffect
+        val fullRadius =
+            if (cosTablet) {
+                minOf(
+                    mMaxBlurRadius.toFloat(),
+                    launcher.resources.getDimension(R.dimen.cos_tablet_content_blur_radius),
+                )
+            } else mMaxBlurRadius.toFloat()
+        // The dock glass is a compositor blur that stays sharp-edged under a view blur, so it
+        // turns into a plain fill early in the blur.
+        launcher.hotseat.setDockContentBlur(
+            if (hotseatBlurEffect == null || fullRadius <= 0f) 0f
+            else minOf(1f, radius / (fullRadius * DOCK_GLASS_FLAT_FRACTION))
+        )
         Log.d(
             TAG,
             "shouldBlurWorkspace: $shouldBlurWorkspace" +
@@ -109,5 +123,10 @@ class LauncherDepthController(
             it.setRenderEffect(if (it === launcher.hotseat) hotseatBlurEffect else blurEffect)
         }
         return shouldBlurWorkspace
+    }
+
+    private companion object {
+        /** Fraction of the full blur by which the dock glass is a plain fill. */
+        const val DOCK_GLASS_FLAT_FRACTION = 0.35f
     }
 }

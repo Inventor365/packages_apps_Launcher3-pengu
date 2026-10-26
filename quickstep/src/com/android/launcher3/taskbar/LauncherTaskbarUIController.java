@@ -598,6 +598,11 @@ public class LauncherTaskbarUIController extends TaskbarUIController {
     }
 
     @Override
+    public int getHomeDockRecentSlots() {
+        return mLauncher.homeDockRecentSlots();
+    }
+
+    @Override
     public boolean isHotseatIconOnTopWhenAligned() {
         return mTaskbarLauncherStateController.isInHotseatOnTopStates()
                 && mTaskbarInAppDisplayProgressMultiProp.get(MINUS_ONE_PAGE_PROGRESS_INDEX)

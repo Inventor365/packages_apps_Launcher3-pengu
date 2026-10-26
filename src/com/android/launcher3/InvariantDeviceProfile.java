@@ -193,6 +193,9 @@ public class InvariantDeviceProfile {
      */
     public int numDatabaseHotseatIcons;
 
+    /** The grid's own hotseat count for two-panel layouts; the database may hold more. */
+    public int numTwoPanelHotseatIcons;
+
     public float[] hotseatBarBottomSpace;
     public float[] hotseatQsbSpace;
 
@@ -469,9 +472,14 @@ public class InvariantDeviceProfile {
 
         horizontalMargin = displayOption.horizontalMargin;
 
-        numShownHotseatIcons = 9;
-        numDatabaseHotseatIcons = deviceType == TYPE_MULTI_DISPLAY || deviceType == TYPE_DESKTOP
-                ? Math.max(9, closestProfile.numDatabaseHotseatIcons) : 9;
+        // Vertical and two-panel hotseats keep the grid's own count. The bottom dock shows as
+        // many pinned apps as its width fits (HotseatProfile), so the database keeps room for
+        // the widest screen. Growing it never moves or drops a pinned app.
+        numShownHotseatIcons = closestProfile.numHotseatIcons;
+        numTwoPanelHotseatIcons = deviceType == TYPE_MULTI_DISPLAY || deviceType == TYPE_DESKTOP
+                ? closestProfile.numDatabaseHotseatIcons : closestProfile.numHotseatIcons;
+        numDatabaseHotseatIcons = Math.max(com.android.launcher3.util.PenguinDockMetrics.MAX_PINNED,
+                numTwoPanelHotseatIcons);
 
         hotseatBarBottomSpace = displayOption.hotseatBarBottomSpace;
         hotseatQsbSpace = displayOption.hotseatQsbSpace;
@@ -906,7 +914,7 @@ public class InvariantDeviceProfile {
                 }
             }
             numShownHotseatIcons =
-                    isTwoPanels ? inv.numDatabaseHotseatIcons : inv.numShownHotseatIcons;
+                    isTwoPanels ? inv.numTwoPanelHotseatIcons : inv.numShownHotseatIcons;
             numAllAppsColumns = isTwoPanels ? inv.numDatabaseAllAppsColumns : inv.numAllAppsColumns;
             hotseatSpecsId = isTwoPanels ? inv.hotseatSpecsTwoPanelId : inv.hotseatSpecsId;
             workspaceCellSpecsId = isTwoPanels ? inv.workspaceCellSpecsTwoPanelId

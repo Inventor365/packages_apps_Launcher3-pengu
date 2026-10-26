@@ -18,5 +18,7 @@ package com.android.quickstep.util
 
 import com.android.quickstep.RemoteTargetGluer.RemoteTargetHandle
 
+// A handle made for a gesture has no targets until the recents animation starts, while the
+// views may already lay out (e.g. desktop task windows on a rotation); it matches no task then.
 fun Array<RemoteTargetHandle>.getRemoteTargetHandle(taskId: Int): RemoteTargetHandle? =
-    firstOrNull() { it.transformParams.targetSet.firstAppTargetTaskId == taskId }
+    firstOrNull() { it.transformParams.targetSet?.firstAppTargetTaskId == taskId }

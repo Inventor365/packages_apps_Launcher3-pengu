@@ -92,6 +92,7 @@ import com.android.launcher3.taskbar.customization.viewfactory.TaskbarPinnedApps
 import com.android.launcher3.taskbar.handoff.HandoffSuggestion;
 import com.android.launcher3.touch.CustomTouchDelegate;
 import com.android.launcher3.util.LauncherBindableItemsContainer.ItemOperator;
+import com.android.launcher3.util.PenguinDockMetrics;
 import com.android.launcher3.util.Themes;
 import com.android.launcher3.views.ActivityContext;
 import com.android.launcher3.views.IconButtonView;
@@ -129,6 +130,9 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
     private int mItemMarginLeftRight;
     private final int mDefaultItemMarginLeftRight;
     private final int mCompactItemMarginLeftRight;
+    private final int mActualIconSize;
+    /** Stock AOSP icon margin, for the full-width desktop taskbar. */
+    private final int mStockItemMarginLeftRight;
     private final int mItemPadding;
     private final int mFolderLeaveBehindColor;
     private final int[] mFirstIconViewLocation = new int[2];
@@ -259,9 +263,13 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
 
         mIconTouchSize = dpToPx(specsEvaluator.getTaskbarIconTouchSize(), mActivityContext);
 
-        // We layout the icons to be of mIconTouchSize in width and height
-        mItemMarginLeftRight = actualMargin - (mIconTouchSize - visualIconSize) / 2;
+        // We layout the icons to be of mIconTouchSize in width and height, a dock gap apart as
+        // on the home dock: the gap follows the icon size, never the screen width.
+        mItemMarginLeftRight = (actualIconSize + PenguinDockMetrics.gapPx(actualIconSize)
+                - mIconTouchSize) / 2;
         mDefaultItemMarginLeftRight = mItemMarginLeftRight;
+        mActualIconSize = actualIconSize;
+        mStockItemMarginLeftRight = actualMargin - (mIconTouchSize - visualIconSize) / 2;
         mCompactItemMarginLeftRight = Math.min(mDefaultItemMarginLeftRight,
                 (actualIconSize + dpToPx(2, mActivityContext) - mIconTouchSize) / 2);
 
@@ -339,9 +347,8 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
                 mShouldTryStartAlign ? 0 : (mActivityContext.isGestureNav() ? 0
                         : deviceProfile.getHotseatProfile().getBarEndOffset()));
 
-        // The space taken by an item icon used during layout.
-        int compactMargin = mCompactItemMarginLeftRight;
-        int iconSize = 2 * compactMargin + mIconTouchSize;
+        // The space taken by an item icon used during layout, at the natural dock gap.
+        int iconSize = 2 * getNaturalItemMargin() + mIconTouchSize;
 
         int additionalIcons = 0;
 
@@ -375,6 +382,19 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
     boolean canTransitionToTransientTaskbar() {
         return mActivityContext.getTaskbarFeatureEvaluator()
                 .getSupportsTransitionToTransientTaskbar();
+    }
+
+    /**
+     * Margin on each side of an icon that leaves one dock gap between drawn icons. A desktop
+     * lays icons out at the smaller persistent size but still draws them at the profile's
+     * taskbar icon size, so the gap follows whichever is larger.
+     */
+    private int getNaturalItemMargin() {
+        if (isStockDesktopTaskbar()) return mStockItemMarginLeftRight;
+        int drawnIconSize = Math.max(mActualIconSize,
+                mActivityContext.getDeviceProfile().getTaskbarProfile().getIconSize());
+        return Math.max(mCompactItemMarginLeftRight,
+                (drawnIconSize + PenguinDockMetrics.gapPx(drawnIconSize) - mIconTouchSize) / 2);
     }
 
     /**
@@ -710,9 +730,12 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
         hotseatItemInfos = Arrays.stream(hotseatItemInfos)
                 .filter(Objects::nonNull)
                 .toArray(ItemInfo[]::new);
+        // Tablet mode shows up to three recent apps. A desktop shows every running app and
+        // groups the ones that do not fit into the recents overflow button.
         recentTasks = recentTasks.stream()
                 .filter(it -> it instanceof SingleTask || it instanceof SplitTask)
-                .limit(3)
+                .limit(mActivityContext.isInDesktopMode() ? Long.MAX_VALUE
+                        : PenguinDockMetrics.MAX_RECENTS)
                 .toList();
 
         mNumbersOfTaskbarIconsOverflowing = Math.min(
@@ -725,6 +748,12 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
         int desktopButtonVisibility = mActivityContext.isInDesktopMode() ? VISIBLE : GONE;
         mSpotlightButton.setVisibility(desktopButtonVisibility);
         mExitDesktopButton.setVisibility(desktopButtonVisibility);
+        // The macOS-style dock shows its All Apps, Spotlight and tablet mode glyphs in white.
+        int buttonTint = mActivityContext.isDesktopDock() ? Color.WHITE
+                : getContext().getColor(R.color.all_apps_button_color);
+        mAllAppsButtonContainer.setForegroundTint(buttonTint);
+        mSpotlightButton.setForegroundTint(buttonTint);
+        mExitDesktopButton.setForegroundTint(buttonTint);
 
         // Skip static views and potential All Apps divider, if they are on the left.
         mNextViewIndex = mIsRtl ? 0 : mNumStaticViews;
@@ -1064,6 +1093,12 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
             final int nonTaskIconsToBeAdded = 2;
             mIdealNumIcons = hotseatSize + recentTasks.size() + nonTaskIconsToBeAdded;
             overflowSize = mIdealNumIcons - mMaxNumIcons;
+            if (isStockDesktopTaskbar()) {
+                // The stock taskbar keeps three slots for running apps: two apps and a group
+                // of the rest (or three apps), however wide the screen.
+                overflowSize = Math.max(overflowSize,
+                        recentTasks.size() - STOCK_DESKTOP_RUNNING_SLOTS);
+            }
             hasOverflow = overflowSize > 0;
 
             // RTL case is handled after we add the recent icons, because the button needs to
@@ -1491,11 +1526,17 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-        // Spread the regular floating dock over the same safe width as home. The native
-        // drawer stays on the leading edge; drag slots use these same live margins.
+        // The dock is as wide as its icons at the natural dock gap, in apps and on a desktop
+        // alike. It only tightens when a larger icon size no longer fits the safe width; drag
+        // slots use these same live margins.
         int visibleSlotCount = getNumberOfVisibleIcons();
-        mItemMarginLeftRight = mDefaultItemMarginLeftRight;
-        if (visibleSlotCount > 2 && !mShouldTryStartAlign) {
+        int naturalMargin = getNaturalItemMargin();
+        mItemMarginLeftRight = naturalMargin;
+        boolean dockIndicators = mActivityContext.isDesktopDock();
+        for (View icon : getIconViews()) {
+            if (icon instanceof BubbleTextView btv) btv.setRunningAppIndicatorDot(dockIndicators);
+        }
+        if (visibleSlotCount > 2 && !mShouldTryStartAlign && !isStockDesktopTaskbar()) {
             android.view.WindowInsets insets = getRootWindowInsets();
             android.graphics.Insets safe = insets == null ? android.graphics.Insets.NONE
                     : insets.getInsets(android.view.WindowInsets.Type.systemBars()
@@ -1512,7 +1553,7 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
             // Overlapping empty touch padding must not eat the divider's visual gap.
             int gaps = free < 0 && dividerWidth > 0 ? icons - 1 : icons;
             mItemMarginLeftRight = Math.max(mCompactItemMarginLeftRight,
-                    free / (2 * Math.max(1, gaps)));
+                    Math.min(naturalMargin, free / (2 * Math.max(1, gaps))));
         }
         if (mHotseatIconsContainer != null) {
             mHotseatIconsContainer.setIconSpacing(mItemMarginLeftRight);
@@ -1923,6 +1964,18 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
         };
     }
 
+    /**
+     * Whether this is the stock full-width desktop taskbar (macOS-style dock off): it keeps AOSP
+     * spacing and indicators instead of the dock's.
+     */
+    /** Running app slots of the stock desktop taskbar, including its overflow button. */
+    private static final int STOCK_DESKTOP_RUNNING_SLOTS = 3;
+
+    private boolean isStockDesktopTaskbar() {
+        return mActivityContext.isInDesktopMode() && !mActivityContext.isDesktopDock()
+                && !mActivityContext.isDexDock();
+    }
+
     private int getNumVisibleDesktopActionButtons() {
         return mActivityContext.isInDesktopMode() ? 2 : 0;
     }
@@ -2052,6 +2105,14 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
                             : Math.max(pinnedEdge, centre);
                     hasPinned = true;
                 }
+            }
+            // The recents overflow group starts the recent section when it is shown.
+            if (mTaskbarRecentsOverflowView != null
+                    && mTaskbarRecentsOverflowView.getParent() == this
+                    && mTaskbarRecentsOverflowView.getVisibility() == VISIBLE) {
+                float centre = dividerIconCenter(mTaskbarRecentsOverflowView);
+                recentEdge = mIsRtl ? Math.max(recentEdge, centre) : Math.min(recentEdge, centre);
+                hasRecent = true;
             }
             if (!hasPinned || !hasRecent) return;
             float x = (pinnedEdge + recentEdge) / 2f;

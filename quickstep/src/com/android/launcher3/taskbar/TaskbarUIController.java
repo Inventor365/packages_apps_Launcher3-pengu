@@ -211,6 +211,11 @@ public class TaskbarUIController implements BubbleBarController.BubbleBarLocatio
         return false;
     }
 
+    /** Recent apps beside the pinned apps in the home dock, or -1 if there is no home dock. */
+    public int getHomeDockRecentSlots() {
+        return -1;
+    }
+
     /**
      * Returns true if hotseat icons are on top of view hierarchy when aligned in the current state.
      */
