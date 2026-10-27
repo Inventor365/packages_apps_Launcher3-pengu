@@ -71,7 +71,10 @@ import com.android.launcher3.uioverrides.QuickstepLauncher;
 import com.android.launcher3.util.NavigationMode;
 import com.android.launcher3.widget.LauncherAppWidgetHostView;
 import com.android.quickstep.util.BackAnimState;
+import com.android.quickstep.util.HomeBackAnimation;
 import com.android.quickstep.util.ScalingWorkspaceRevealAnim;
+import com.android.quickstep.util.SurfaceTransaction;
+import com.android.quickstep.util.SurfaceTransactionApplier;
 import com.android.systemui.shared.system.QuickStepContract;
 
 import java.lang.ref.WeakReference;
@@ -126,6 +129,8 @@ public class LauncherBackAnimationController {
     private final BackProgressAnimator mProgressAnimator = new BackProgressAnimator();
     private SurfaceControl mScrimLayer;
     private ValueAnimator mScrimAlphaAnimator;
+    private HomeBackAnimation mHomeCloseAnimation;
+    private final SurfaceTransactionApplier mScrimSurfaceApplier;
     private float mScrimAlpha;
     private boolean mOverridingStatusBarFlags;
     private int mMaxBlurRadius;
@@ -145,6 +150,7 @@ public class LauncherBackAnimationController {
             QuickstepLauncher launcher,
             QuickstepTransitionManager quickstepTransitionManager) {
         mLauncher = launcher;
+        mScrimSurfaceApplier = new SurfaceTransactionApplier(launcher.getDragLayer());
         mQuickstepTransitionManager = quickstepTransitionManager;
         loadResources();
         mWindowScaleMarginX = mLauncher.getResources().getDimensionPixelSize(
@@ -414,11 +420,18 @@ public class LauncherBackAnimationController {
         if (mScrimLayer == null) {
             return;
         }
-        if (mScrimLayer.isValid()) {
-            mTransaction.remove(mScrimLayer);
-            applyTransaction();
-        }
+        final SurfaceControl scrim = mScrimLayer;
         mScrimLayer = null;
+        // The release fade is submitted with Launcher frames, like swipe-to-home. Do not remove
+        // its surface while a RenderThread callback still has a transaction queued for it.
+        mScrimSurfaceApplier.addOnSafeToReleaseCallback(() -> {
+            if (scrim.isValid()) {
+                try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
+                    transaction.remove(scrim).apply();
+                }
+            }
+            scrim.release();
+        });
     }
 
     private void updateBackProgress(float progress, BackEvent event) {
@@ -521,6 +534,27 @@ public class LauncherBackAnimationController {
         AbstractFloatingView.closeAllOpenViewsExcept(mLauncher, false, TYPE_REBIND_SAFE);
         float cornerRadius = Utilities.mapRange(
                 mBackProgress, mWindowScaleStartCornerRadius, mWindowScaleEndCornerRadius);
+        // Reuse the swipe-home flight after the finger-follow preview. Keep specialized
+        // container/widget, overlay and multiwindow transitions on their existing runners.
+        boolean specializedTarget = mLauncherTargetView instanceof LauncherAppWidgetHostView
+                || (mLauncherTargetView != null
+                        && mLauncherTargetView.getTag() instanceof com.android.launcher3.model.data.ItemInfo item
+                        && item.shouldUseBackgroundAnimation());
+        if (!specializedTarget && !mLauncher.getWorkspace().isOverlayShown()
+                && !mLauncher.isInState(LauncherState.OVERVIEW)
+                && mBackTarget.windowConfiguration.getWindowingMode()
+                        == android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN) {
+            mHomeCloseAnimation = new HomeBackAnimation(mLauncher, mBackTarget,
+                    new RectF(mCurrentRect), new Rect(mStartRect), cornerRadius,
+                    mLauncherTargetView, mScrimLayer);
+            mScrimLayer = null; // HomeBackAnimation owns removal on its first rendered frame.
+            mLauncher.getDepthController().pauseBlursOnWindows(false);
+            mLauncher.clearForceInvisibleFlag(INVISIBLE_ALL);
+            customizeStatusBarAppearance(true);
+            Log.d("ShellBackPreview", "Starting shared swipe-home close");
+            mHomeCloseAnimation.start(this::finishAnimation);
+            return;
+        }
         final RectF resolveRectF = new RectF();
         new RemoteAnimationCoordinateTransfer(mLauncher)
                 .transferRectToOwnerSurface(mBackTarget, mCurrentRect, resolveRectF);
@@ -537,6 +571,9 @@ public class LauncherBackAnimationController {
     }
 
     private void finishAnimation() {
+        HomeBackAnimation homeAnimation = mHomeCloseAnimation;
+        mHomeCloseAnimation = null;
+        if (homeAnimation != null) homeAnimation.cancel();
         mLauncher.setPredictiveBackToHomeInProgress(false);
         if (mBackTarget != null && mBackTarget.leash.isValid()) {
             mBackTarget.leash.release();
@@ -584,14 +621,22 @@ public class LauncherBackAnimationController {
         if (mScrimLayer == null) {
             // Scrim hasn't been attached yet. Let's attach it.
             addScrimLayer();
+            applyTransaction();
         }
         mScrimAlphaAnimator = ValueAnimator.ofFloat(1, 0);
         mScrimAlphaAnimator.addUpdateListener(animation -> {
             float value = (Float) animation.getAnimatedValue();
             if (mScrimLayer != null && mScrimLayer.isValid()) {
-                mTransaction.setAlpha(mScrimLayer, value * mScrimAlpha);
-                setBlur((int) lerp(mLastBlurRadius, 0, 1f - value));
-                applyTransaction();
+                // Keep the post-commit scrim on the same rendered frame as the app flight and
+                // workspace reveal, as swipe-to-home does. Finger-tracking preview stays direct.
+                final int blurRadius = Settings.Global.getInt(mLauncher.getContentResolver(),
+                        Settings.Global.DISABLE_WINDOW_BLURS, 0) == 1
+                        ? 0 : (int) lerp(mLastBlurRadius, 0, 1f - value);
+                SurfaceTransaction transaction = new SurfaceTransaction();
+                transaction.forSurface(mScrimLayer)
+                        .setAlpha(value * mScrimAlpha)
+                        .setBackgroundBlurRadius(blurRadius);
+                mScrimSurfaceApplier.scheduleApply(transaction);
             }
         });
         mScrimAlphaAnimator.addListener(new AnimatorListenerAdapter() {

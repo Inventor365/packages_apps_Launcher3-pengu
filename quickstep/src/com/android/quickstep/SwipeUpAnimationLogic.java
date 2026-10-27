@@ -44,9 +44,7 @@ import com.android.quickstep.RemoteTargetGluer.RemoteTargetHandle;
 import com.android.quickstep.orientation.RecentsPagedOrientationHandler;
 import com.android.quickstep.util.AnimatorControllerWithResistance;
 import com.android.quickstep.util.RectFSpringAnim;
-import com.android.quickstep.util.RectFSpringAnim.DefaultSpringConfig;
-import com.android.quickstep.util.RectFSpringAnim.TaskbarHotseatSpringConfig;
-import com.android.quickstep.util.RectFSpringAnim.WidgetSpringConfig;
+import com.android.quickstep.util.HomeWindowAnimation;
 import com.android.quickstep.util.SurfaceTransaction.SurfaceProperties;
 import com.android.quickstep.util.TaskViewSimulator;
 import com.android.quickstep.util.TransformParams;
@@ -398,14 +396,9 @@ public abstract class SwipeUpAnimationLogic implements
             startRect = new RectF(thumbnailBounds);
         }
 
-        boolean useTaskbarHotseatParams =
-                mDp.getDeviceProperties().getTaskbarConfiguration().isTaskbarPresent()
-                && homeAnimationFactory.isInHotseat();
-        RectFSpringAnim anim = new RectFSpringAnim(useTaskbarHotseatParams
-                ? new TaskbarHotseatSpringConfig(mContext, mDp, startRect, targetRect)
-                : (homeAnimationFactory.isWidget()
-                        ? new WidgetSpringConfig(mContext, mDp, startRect, targetRect)
-                        : new DefaultSpringConfig(mContext, mDp, startRect, targetRect)));
+        RectFSpringAnim anim = HomeWindowAnimation.createSpring(mContext, mDp,
+                startRect, targetRect, homeAnimationFactory.isInHotseat(),
+                homeAnimationFactory.isWidget());
 
         homeAnimationFactory.setAnimation(anim);
 
@@ -433,6 +426,7 @@ public abstract class SwipeUpAnimationLogic implements
         final Matrix mHomeToWindowPositionMap;
         private final TransformParams mLocalTransformParams;
         final HomeAnimationFactory mAnimationFactory;
+        final HomeWindowAnimation mHomeWindowAnimation;
 
         final AnimatorPlaybackController mHomeAnim;
         final RectF mCropRectF;
@@ -483,6 +477,20 @@ public abstract class SwipeUpAnimationLogic implements
             mRunningTaskViewScrollOffset = factory.isRtl()
                     ? (Math.min(0, -invariantStartRect.right))
                     : (Math.max(0, mDp.getDeviceProperties().getWidthPx() - invariantStartRect.left));
+            mHomeWindowAnimation = mTargetTaskView == null
+                    ? new HomeWindowAnimation(cropRectF, homeToWindowPositionMap, transformParams,
+                            mStartRadius, mEndRadius, new HomeWindowAnimation.Callbacks() {
+                        @Override public float getWindowAlpha(float progress) {
+                            return factory.getWindowAlpha(progress);
+                        }
+                        @Override public boolean isWidget() { return factory.isWidget(); }
+                        @Override public float getWindowCornerRadius(float progress) {
+                            return factory.getWindowCornerRadius(progress);
+                        }
+                        @Override public void onUpdate(RectF rect, float progress, float radius) {
+                            factory.update(rect, progress, radius, 0);
+                        }
+                    }) : null;
         }
 
         @Override
@@ -491,57 +499,14 @@ public abstract class SwipeUpAnimationLogic implements
             float alpha = mAnimationFactory.getWindowAlpha(progress);
 
             mHomeAnim.setPlayFraction(progress);
-            if (mTargetTaskView == null) {
-                mHomeToWindowPositionMap.mapRect(mWindowCurrentRect, currentRect);
-
-                if (mAnimationFactory.isWidget()) {
-                    RectF cropRectF = new RectF();
-                    float scale;
-                    if (mCropRectF.height() > mCropRectF.width()) {
-                        scale = Math.min(mWindowCurrentRect.width() / mCropRectF.width(), 1f);
-                        float unscaledHeight = mWindowCurrentRect.height() / scale;
-                        float croppedHeight = mCropRectF.height() - unscaledHeight;
-                        float translate = croppedHeight / 2;
-                        cropRectF.set(
-                                0f, translate, mCropRectF.width(), mCropRectF.height() - translate);
-                        mMatrix.setScale(scale, scale);
-                        mMatrix.postTranslate(mWindowCurrentRect.left,
-                                mWindowCurrentRect.top - croppedHeight * scale / 2);
-                    } else {
-                        scale = Math.min(mWindowCurrentRect.height() / mCropRectF.height(), 1f);
-                        float unscaledWidth = mWindowCurrentRect.width() / scale;
-                        float croppedWidth = mCropRectF.width() - unscaledWidth;
-                        float translate = croppedWidth / 2;
-                        cropRectF.set(
-                                translate, 0f, mCropRectF.width() - translate, mCropRectF.height());
-                        mMatrix.setScale(scale, scale);
-                        mMatrix.postTranslate(mWindowCurrentRect.left - croppedWidth * scale / 2,
-                                mWindowCurrentRect.top);
-                    }
-                    cropRectF.round(mCropRect);
-
-                    float windowRadius = mAnimationFactory.getWindowCornerRadius(progress);
-                    if (mAnimationFactory.isWidget() && windowRadius >= 0f) {
-                        // The corner radius in the window is scaled by the matrix. So the radius
-                        // provided by the animation factory needs to be transformed by the inverse
-                        // of the window transform.
-                        Matrix inverse = new Matrix();
-                        mMatrix.invert(inverse);
-                        cornerRadius = inverse.mapRadius(windowRadius);
-                    }
-                } else {
-                    mMatrix.setRectToRect(mCropRectF, mWindowCurrentRect, ScaleToFit.FILL);
-                }
-
-                mLocalTransformParams
-                        .setTargetAlpha(alpha)
-                        .setCornerRadius(cornerRadius);
-            } else {
-                mHomeToWindowPositionMap.mapRect(mWindowCurrentRect, mRunningTaskViewStartRectF);
-                mWindowCurrentRect.offset(mRunningTaskViewScrollOffset * progress, 0f);
-                mMatrix.setRectToRect(mCropRectF, mWindowCurrentRect, ScaleToFit.FILL);
-                mLocalTransformParams.setCornerRadius(mStartRadius);
+            if (mHomeWindowAnimation != null) {
+                mHomeWindowAnimation.onUpdate(currentRect, progress);
+                return;
             }
+            mHomeToWindowPositionMap.mapRect(mWindowCurrentRect, mRunningTaskViewStartRectF);
+            mWindowCurrentRect.offset(mRunningTaskViewScrollOffset * progress, 0f);
+            mMatrix.setRectToRect(mCropRectF, mWindowCurrentRect, ScaleToFit.FILL);
+            mLocalTransformParams.setCornerRadius(mStartRadius);
 
             mLocalTransformParams.applySurfaceParams(
                     mLocalTransformParams.createSurfaceParams(this));
