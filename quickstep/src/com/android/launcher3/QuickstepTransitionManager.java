@@ -260,13 +260,20 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
      * the end rather than asymptotically.
      */
     public static boolean cosExperience(android.content.Context context) {
-        return cosFeature(context, "penguin_cos_app_motion");
+        // ColorOS app motion is on unless turned off.
+        return cosFeature(context, "penguin_cos_app_motion", true);
     }
 
     public static boolean cosFeature(android.content.Context context, String key) {
+        return cosFeature(context, key, false);
+    }
+
+    private static boolean cosFeature(android.content.Context context, String key,
+            boolean defaultOn) {
         android.content.ContentResolver resolver = context.getContentResolver();
         return Settings.Secure.getInt(resolver, key,
-                Settings.Secure.getInt(resolver, "penguin_cos_experience", 0)) == 1;
+                Settings.Secure.getInt(resolver, "penguin_cos_experience", defaultOn ? 1 : 0))
+                == 1;
     }
 
     public static final int COS_RECENTS_DURATION = 500;
