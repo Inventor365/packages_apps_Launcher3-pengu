@@ -315,7 +315,10 @@ public class BaseDepthControllerImpl<
                     wallpaperZoom / Math.max(0.01f, appDepth), 0f, 1f);
         }
         wallpaperZoom = allowZoom ? wallpaperZoom : 1f;
-        boolean wallpaperZoomChanged = Math.abs(wallpaperZoom - mLastWallpaperZoom) > 0.01f
+        // The explicit wallpaper animation eases out slowly, so skipping changes under 0.01
+        // would move the wallpaper in visible steps near its end; send every frame of it.
+        float zoomThreshold = Float.isNaN(mAnimatedWallpaperDepth.value) ? 0.01f : 0f;
+        boolean wallpaperZoomChanged = Math.abs(wallpaperZoom - mLastWallpaperZoom) > zoomThreshold
                 || (wallpaperZoom != mLastWallpaperZoom && (wallpaperZoom == 0f || wallpaperZoom == 1f));
         if (windowToken != null && wallpaperZoomChanged) {
             mWallpaperManager.setWallpaperZoomOut(windowToken, wallpaperZoom);
