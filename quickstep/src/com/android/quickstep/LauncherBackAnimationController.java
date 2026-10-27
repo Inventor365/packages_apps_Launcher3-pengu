@@ -329,6 +329,8 @@ public class LauncherBackAnimationController {
         if (mBackTarget == null || !mBackInProgress) {
             return;
         }
+        // The COS setting can change while Launcher keeps running.
+        mMaxBlurRadius = scrimMaxBlurRadius();
 
         mTransaction
                 .show(mBackTarget.leash)
@@ -612,8 +614,17 @@ public class LauncherBackAnimationController {
                 : 0;
         mWindowScaleStartCornerRadius = QuickStepContract.getWindowCornerRadius(mLauncher);
         mStatusBarHeight = SystemBarUtils.getStatusBarHeight(mLauncher);
-        mMaxBlurRadius = mLauncher.getResources().getDimensionPixelSize(
-            R.dimen.max_depth_blur_radius_enhanced);
+        mMaxBlurRadius = scrimMaxBlurRadius();
+    }
+
+    private int scrimMaxBlurRadius() {
+        final int radius = mLauncher.getResources().getDimensionPixelSize(
+                R.dimen.max_depth_blur_radius_enhanced);
+        if (!QuickstepTransitionManager.cosExperience(mLauncher)) return radius;
+        // Keep the COS back preview's frosted background within the same blur budget as its
+        // workspace reveal.
+        return Math.min(radius, mLauncher.getResources().getDimensionPixelSize(
+                R.dimen.cos_tablet_content_blur_radius));
     }
 
     /**
