@@ -246,7 +246,11 @@ public class PreviewBackground extends DelegatedCellDrawing {
     }
 
     public int getBgColor() {
-        return mBgColor;
+        // Liquid Glass gives a small folder the same frosted panel as a big folder's tile. The
+        // theme's folder colour is opaque, which left small folders a flat grey disc under the
+        // glass rim instead of letting the wallpaper show through.
+        return LiquidGlass.isEnabled(mContext)
+                ? LargeFolderPreview.getPanelColor(mContext) : mBgColor;
     }
 
     public void drawBackground(Canvas canvas) {

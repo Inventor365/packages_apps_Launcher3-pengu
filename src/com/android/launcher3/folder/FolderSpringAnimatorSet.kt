@@ -296,7 +296,7 @@ class FolderSpringAnimatorSet(val animatorSet: AnimatorSet) {
                 val bigFolder = folderIcon.isBigFolder
                 val initialColor =
                     if (bigFolder) LargeFolderPreview.getPanelColor(context)
-                    else Themes.getAttrColor(context, R.attr.folderPreviewColor)
+                    else folderIcon.folderBackground.bgColor
                 val finalColor =
                     if (bigFolder) LargeFolderPreview.getPanelColor(context)
                     else Themes.getAttrColor(context, R.attr.folderBackgroundColor)
