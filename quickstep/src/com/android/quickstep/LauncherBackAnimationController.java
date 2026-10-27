@@ -544,10 +544,17 @@ public class LauncherBackAnimationController {
                 && !mLauncher.isInState(LauncherState.OVERVIEW)
                 && mBackTarget.windowConfiguration.getWindowingMode()
                         == android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN) {
+            // The COS reveal blurs home itself, so the preview scrim hands over on the first
+            // flight frame. The stock reveal has no blur: fade the scrim out as before.
+            boolean cos = QuickstepTransitionManager.cosExperience(mLauncher);
             mHomeCloseAnimation = new HomeBackAnimation(mLauncher, mBackTarget,
                     new RectF(mCurrentRect), new Rect(mStartRect), cornerRadius,
-                    mLauncherTargetView, mScrimLayer);
-            mScrimLayer = null; // HomeBackAnimation owns removal on its first rendered frame.
+                    mLauncherTargetView, cos ? mScrimLayer : null);
+            if (cos) {
+                mScrimLayer = null; // HomeBackAnimation owns removal on its first rendered frame.
+            } else {
+                startScrimFade();
+            }
             mLauncher.getDepthController().pauseBlursOnWindows(false);
             mLauncher.clearForceInvisibleFlag(INVISIBLE_ALL);
             customizeStatusBarAppearance(true);
@@ -618,6 +625,13 @@ public class LauncherBackAnimationController {
 
     private void startTransitionAnimations(BackAnimState backAnim) {
         backAnim.addOnAnimCompleteCallback(this::finishAnimation);
+        startScrimFade();
+        mLauncher.clearForceInvisibleFlag(INVISIBLE_ALL);
+        customizeStatusBarAppearance(true);
+        backAnim.start(mLauncher.getStateManager());
+    }
+
+    private void startScrimFade() {
         if (mScrimLayer == null) {
             // Scrim hasn't been attached yet. Let's attach it.
             addScrimLayer();
@@ -646,9 +660,6 @@ public class LauncherBackAnimationController {
             }
         });
         mScrimAlphaAnimator.setDuration(SCRIM_FADE_DURATION).start();
-        mLauncher.clearForceInvisibleFlag(INVISIBLE_ALL);
-        customizeStatusBarAppearance(true);
-        backAnim.start(mLauncher.getStateManager());
     }
 
     private void loadResources() {

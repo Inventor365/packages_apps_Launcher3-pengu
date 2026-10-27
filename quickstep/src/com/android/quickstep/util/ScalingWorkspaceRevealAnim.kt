@@ -404,15 +404,18 @@ constructor(
 
     fun start() {
         val animators = getAnimators()
-        // Make sure to cache the current animation, so it can be properly interrupted.
-        // TODO(b/367591368): ideally these animations would be refactored to be controlled
-        //  centrally so each instances doesn't need to care about this coordination.
-        Animations.setOngoingAnimation(launcher.workspace, animators)
-        Animations.setOngoingAnimation(launcher.hotseat, animators)
         // Gesture state completion is independent of the visual tail. Registering this as
         // the state animation lets a NORMAL reapply cancel it at the first visible home frame.
         if (!cos) launcher.stateManager.setCurrentAnimation(animators, LauncherState.NORMAL)
         animators.start()
+        // Make sure to cache the current animation, so it can be properly interrupted.
+        // TODO(b/367591368): ideally these animations would be refactored to be controlled
+        //  centrally so each instances doesn't need to care about this coordination.
+        // Cache it only once started: when home is already NORMAL (predictive back), starting
+        // the NORMAL state animation cancels the ongoing workspace animation, which would
+        // otherwise be this reveal.
+        Animations.setOngoingAnimation(launcher.workspace, animators)
+        Animations.setOngoingAnimation(launcher.hotseat, animators)
     }
 
     /** Interrupt the currently running animation, if any. */
