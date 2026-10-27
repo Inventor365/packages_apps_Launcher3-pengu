@@ -1964,16 +1964,19 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
         };
     }
 
-    /**
-     * Whether this is the stock full-width desktop taskbar (macOS-style dock off): it keeps AOSP
-     * spacing and indicators instead of the dock's.
-     */
     /** Running app slots of the stock desktop taskbar, including its overflow button. */
     private static final int STOCK_DESKTOP_RUNNING_SLOTS = 3;
 
+    /**
+     * Whether this is a stock full-width taskbar, which keeps AOSP spacing and indicators
+     * instead of the dock's: the desktop taskbar with the macOS-style dock off, and the taskbar
+     * pinned with "Always show" in tablet mode.
+     */
     private boolean isStockDesktopTaskbar() {
-        return mActivityContext.isInDesktopMode() && !mActivityContext.isDesktopDock()
-                && !mActivityContext.isDexDock();
+        if (mActivityContext.isDexDock()) return false;
+        return mActivityContext.isInDesktopMode()
+                ? !mActivityContext.isDesktopDock()
+                : mActivityContext.isPinnedTaskbar();
     }
 
     private int getNumVisibleDesktopActionButtons() {
