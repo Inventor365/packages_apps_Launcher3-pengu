@@ -373,8 +373,12 @@ public class LauncherBackAnimationController {
     private void setLauncherScale(float scale) {
         mLauncher.getWorkspace().setScaleX(scale);
         mLauncher.getWorkspace().setScaleY(scale);
-        mLauncher.getHotseat().setScaleX(scale);
-        mLauncher.getHotseat().setScaleY(scale);
+        // The COS close keeps the dock at its size and never scales it back up, so shrinking it
+        // here leaves the closing app aiming at a smaller dock and its icon creeping into place.
+        float dockScale = QuickstepTransitionManager.cosExperience(mLauncher)
+                ? ScalingWorkspaceRevealAnim.MAX_SIZE : scale;
+        mLauncher.getHotseat().setScaleX(dockScale);
+        mLauncher.getHotseat().setScaleY(dockScale);
     }
 
     void addScrimLayer() {
