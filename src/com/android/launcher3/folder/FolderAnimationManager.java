@@ -210,7 +210,7 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         // an opaque panel, which read as a different background from the tile it grew from.
         final int initialColor = bigFolder
                 ? LargeFolderPreview.getPanelColor(mContext)
-                : Themes.getAttrColor(mContext, R.attr.folderPreviewColor);
+                : mPreviewBackground.getBgColor();
         final int finalColor = bigFolder
                 ? LargeFolderPreview.getPanelColor(mContext)
                 : Themes.getAttrColor(mContext, R.attr.folderBackgroundColor);
