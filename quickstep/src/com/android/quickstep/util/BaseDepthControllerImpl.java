@@ -357,8 +357,10 @@ public class BaseDepthControllerImpl<
             return;
         }
         mCurrentBlur = newBlur;
-        Log.v(TAG, "Applying blur: " + mCurrentBlur + " to " + blurSurface + " applyImmediately: "
-                + applyImmediately);
+        if (DEBUG) {
+            Log.v(TAG, "Applying blur: " + mCurrentBlur + " to " + blurSurface
+                    + " applyImmediately: " + applyImmediately);
+        }
 
         if (surfaceTransaction == null) {
             surfaceTransaction = new SurfaceTransaction();

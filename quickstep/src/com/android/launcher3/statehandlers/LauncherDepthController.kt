@@ -111,7 +111,8 @@ class LauncherDepthController(
             if (hotseatBlurEffect == null || fullRadius <= 0f) 0f
             else minOf(1f, radius / (fullRadius * DOCK_GLASS_FLAT_FRACTION))
         )
-        Log.d(
+        // Runs every frame of a depth animation; only build this message when asked for.
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
             TAG,
             "shouldBlurWorkspace: $shouldBlurWorkspace" +
                 " targetState: $targetState" +
