@@ -62,11 +62,15 @@ public final class PenguinDockGlass extends Drawable {
         paint.setColor(fill);
         paint.setAlpha(Math.round(colorAlpha(fill, alpha) * fillAlpha));
         canvas.drawRoundRect(rect, radius, radius, paint);
+        // Live iOS glass gets its lit rim from SurfaceFlinger, so the flat one only shows as
+        // much as the plain fill stands in for it.
+        float rimAlpha = !noGlass && LiquidGlass.isIosGlass(owner.getContext()) ? fillAlpha : 1f;
+        if (rimAlpha <= 0f) return;
         rect.inset(density * 0.25f, density * 0.25f);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(density * 0.5f);
         paint.setColor(0x33FFFFFF);
-        paint.setAlpha(colorAlpha(0x33FFFFFF, alpha));
+        paint.setAlpha(Math.round(colorAlpha(0x33FFFFFF, alpha) * rimAlpha));
         canvas.drawRoundRect(rect, radius, radius, paint);
     }
     /** Rounds the short sides fully, as iOS draws its small home pills. */

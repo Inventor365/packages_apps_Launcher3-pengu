@@ -50,6 +50,36 @@ object LiquidGlass {
                     }
             }
 
+    private const val STYLE_SETTING = "penguin_liquid_glass_style"
+
+    @Volatile private var iosStyle: Boolean? = null
+
+    /**
+     * Whether Liquid Glass is on in its iOS style, where SurfaceFlinger draws the dock rim.
+     */
+    @JvmStatic
+    fun isIosGlass(context: Context): Boolean {
+        if (!isEnabled(context)) return false
+        return iosStyle
+            ?: synchronized(this) {
+                iosStyle
+                    ?: run {
+                        val resolver = context.applicationContext.contentResolver
+                        val read = { Settings.Secure.getInt(resolver, STYLE_SETTING, 0) != 1 }
+                        resolver.registerContentObserver(
+                            Settings.Secure.getUriFor(STYLE_SETTING),
+                            false,
+                            object : ContentObserver(Handler(Looper.getMainLooper())) {
+                                override fun onChange(selfChange: Boolean) {
+                                    iosStyle = read()
+                                }
+                            },
+                        )
+                        read().also { iosStyle = it }
+                    }
+            }
+    }
+
     private const val LENS =
         """
         uniform shader content;
