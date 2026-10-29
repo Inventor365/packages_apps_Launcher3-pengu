@@ -888,6 +888,7 @@ public class Launcher extends StatefulActivity<LauncherState>
     public void onActivityResult(
             final int requestCode, final int resultCode, final Intent data) {
         mPendingActivityRequestCode = -1;
+        if (SpotlightView.onActivityResult(this, requestCode, resultCode, data)) return;
         handleActivityResult(requestCode, resultCode, data);
     }
 

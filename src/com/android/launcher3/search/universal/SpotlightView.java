@@ -8,6 +8,7 @@ package com.android.launcher3.search.universal;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
+import android.app.Activity;
 import android.app.WallpaperManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
@@ -205,6 +206,12 @@ public class SpotlightView extends AbstractFloatingView
         if (view.getBackground() != null) view.getBackground().setAlpha(alpha);
     }
 
+    /** Request code for dictating into the field; below Launcher's REQUEST_LAST. */
+    public static final int REQUEST_DICTATION = 15;
+    private boolean mCanDictate;
+    // The recognizer's own window is up over Spotlight, which stays open for its words.
+    private boolean mAwaitingDictation;
+
     // The Dynamic Island the field grows out of and shrinks back into.
     private final RectF mIsland = new RectF();
     // The island at rest around the camera, which places the field.
@@ -245,6 +252,47 @@ public class SpotlightView extends AbstractFloatingView
         view.mIsOpen = true;
         view.requestApplyInsets();
         view.post(() -> view.animateOpen(from));
+    }
+
+    private static Intent dictationIntent() {
+        return new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                        RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH)
+                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+    }
+
+    /**
+     * Puts the dictation into the open Spotlight field. Returns whether [requestCode] was its own.
+     */
+    public static boolean onActivityResult(BaseActivity host, int requestCode, int resultCode,
+            Intent data) {
+        if (requestCode != REQUEST_DICTATION) return false;
+        BaseDragLayer<?> layer = host.getDragLayer();
+        for (int i = layer.getChildCount() - 1; i >= 0; i--) {
+            if (layer.getChildAt(i) instanceof SpotlightView view) {
+                view.mAwaitingDictation = false;
+                ArrayList<String> words = data == null ? null
+                        : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                if (resultCode == Activity.RESULT_OK && view.isOpen() && words != null
+                        && !words.isEmpty()) {
+                    view.mInput.setText(words.get(0));
+                    view.mInput.setSelection(view.mInput.length());
+                }
+                break;
+            }
+        }
+        return true;
+    }
+
+    /** Whether Spotlight is waiting on the speech recognizer in [host]. */
+    static boolean isDictating(BaseActivity host) {
+        BaseDragLayer<?> layer = host.getDragLayer();
+        for (int i = layer.getChildCount() - 1; i >= 0; i--) {
+            if (layer.getChildAt(i) instanceof SpotlightView view && view.mAwaitingDictation) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void toggleFromKeyboard(Launcher launcher) {
@@ -449,12 +497,17 @@ public class SpotlightView extends AbstractFloatingView
         mPanel.setClipToOutline(true);
         mPanel.setBackgroundResource(R.drawable.bg_spotlight_card);
         findViewById(R.id.spotlight_clear).setOnClickListener(v -> mInput.setText(""));
-        findViewById(R.id.spotlight_mic).setOnClickListener(v -> {
+        // The mic dictates into the field, as iOS's does, rather than handing the search to an
+        // assistant. Without a speech recognizer there is nothing to dictate with.
+        mCanDictate = launcher.getPackageManager().resolveActivity(dictationIntent(), 0) != null;
+        View mic = findViewById(R.id.spotlight_mic);
+        mic.setVisibility(mCanDictate ? VISIBLE : GONE);
+        mic.setOnClickListener(v -> {
             try {
-                mHost.startActivity(new Intent(RecognizerIntent.ACTION_WEB_SEARCH)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                mAwaitingDictation = true;
+                mHost.startActivityForResult(dictationIntent(), REQUEST_DICTATION);
             } catch (ActivityNotFoundException e) {
-                // No voice search installed.
+                mAwaitingDictation = false;
             }
         });
         mResults.setLayoutManager(new LinearLayoutManager(launcher));
@@ -752,11 +805,12 @@ public class SpotlightView extends AbstractFloatingView
         // Something opened from here took over the screen.
         if (hasWindowFocus) {
             mHadWindowFocus = true;
+            mAwaitingDictation = false;
             if (mIsOpen && mInput != null && mInput.hasFocus()) {
                 showKeyboardWhenReady();
             }
         }
-        if (!hasWindowFocus && mHadWindowFocus && mIsOpen) {
+        if (!hasWindowFocus && mHadWindowFocus && mIsOpen && !mAwaitingDictation) {
             // Not while the window is still telling its views about the focus change.
             post(() -> {
                 if (mIsOpen && !hasWindowFocus()) close(false);
@@ -813,7 +867,8 @@ public class SpotlightView extends AbstractFloatingView
     @Override
     public void afterTextChanged(Editable s) {
         findViewById(R.id.spotlight_clear).setVisibility(mInput.length() == 0 ? GONE : VISIBLE);
-        findViewById(R.id.spotlight_mic).setVisibility(mInput.length() == 0 ? VISIBLE : GONE);
+        findViewById(R.id.spotlight_mic).setVisibility(
+                mInput.length() == 0 && mCanDictate ? VISIBLE : GONE);
         mSearch.cancel(false);
         mSearch.doSearch(s.toString(), this);
     }
@@ -1487,7 +1542,15 @@ public class SpotlightView extends AbstractFloatingView
         @Override
         protected void onPause() {
             super.onPause();
-            if (!isFinishing()) finish();
+            // Dictation's window comes up over this one, which waits for its words.
+            if (!isFinishing() && !isDictating(this)) finish();
+        }
+
+        @Override
+        public void onActivityResult(int requestCode, int resultCode, Intent data) {
+            if (!SpotlightView.onActivityResult(this, requestCode, resultCode, data)) {
+                super.onActivityResult(requestCode, resultCode, data);
+            }
         }
 
         @Override
