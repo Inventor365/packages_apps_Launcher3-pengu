@@ -27,6 +27,7 @@ import android.content.pm.LauncherActivityInfo;
 import android.content.pm.LauncherApps;
 import android.content.pm.ShortcutInfo;
 import android.os.UserHandle;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -51,6 +52,8 @@ import java.util.stream.Collectors;
  * Task to update model as a result of predicted apps update
  */
 public class PredictionUpdateTask implements ModelUpdateTask {
+
+    private static final String TAG = "PredictionUpdateTask";
 
     public static final ConstantItem<Boolean> LAST_PREDICTION_ENABLED =
             nonRestorableItem("last_prediction_enabled_state", true, ENCRYPTED);
@@ -124,6 +127,10 @@ public class PredictionUpdateTask implements ModelUpdateTask {
             itemInfo.container = mPredictorState.containerId;
             items.add(new PredictedItemInfo(itemInfo));
         }
+
+        // Tells an empty drawer row apart: no targets from the service, or targets not resolved.
+        Log.d(TAG, "container=" + mPredictorState.containerId + " targets=" + mTargets.size()
+                + " kept=" + items.size());
 
         PredictedContainerInfo pci = new PredictedContainerInfo(mPredictorState.containerId, items);
         dataModel.updateAndDispatchItem(pci /* item */, ModelTask.INSTANCE /* owner */);
