@@ -46,6 +46,7 @@ import com.android.launcher3.anim.AnimatorListeners
 import com.android.launcher3.anim.PendingAnimation
 import com.android.launcher3.anim.PropertySetter
 import com.android.launcher3.statehandlers.LauncherDepthController
+import com.android.launcher3.statemanager.StateManager
 import com.android.launcher3.states.StateAnimationConfig
 import com.android.launcher3.states.StateAnimationConfig.SKIP_DEPTH_CONTROLLER
 import com.android.launcher3.states.StateAnimationConfig.SKIP_OVERVIEW
@@ -406,6 +407,7 @@ constructor(
         // Gesture state completion is independent of the visual tail. Registering this as
         // the state animation lets a NORMAL reapply cancel it at the first visible home frame.
         if (!cos) launcher.stateManager.setCurrentAnimation(animators, LauncherState.NORMAL)
+        else endWhenDrawerOpens(animators)
         animators.start()
         // Make sure to cache the current animation, so it can be properly interrupted.
         // TODO(b/367591368): ideally these animations would be refactored to be controlled
@@ -415,6 +417,25 @@ constructor(
         // otherwise be this reveal.
         Animations.setOngoingAnimation(launcher.workspace, animators)
         Animations.setOngoingAnimation(launcher.hotseat, animators)
+    }
+
+    /**
+     * Hand the depth and wallpaper back to the drawer's transition when it opens during the reveal.
+     */
+    private fun endWhenDrawerOpens(animators: AnimatorSet) {
+        val stateManager = launcher.stateManager
+        val listener =
+            object : StateManager.StateListener<LauncherState> {
+                override fun onStateTransitionStart(toState: LauncherState) {
+                    if (toState != LauncherState.ALL_APPS || !animators.isRunning) return
+                    animators.cancel()
+                    launcher.depthController.resetWallpaperDepth()
+                }
+            }
+        stateManager.addStateListener(listener)
+        animators.addListener(
+            AnimatorListeners.forEndCallback(Runnable { stateManager.removeStateListener(listener) })
+        )
     }
 
     /** Interrupt the currently running animation, if any. */
