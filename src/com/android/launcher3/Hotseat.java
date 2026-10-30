@@ -488,11 +488,14 @@ public class Hotseat extends CellLayout implements Insettable {
         float shown = 1f - dotsReveal;
         float scale = 0.9f + 0.1f * shown;
         mSearchPill.setAlpha(shown);
+        // View alpha does not reach the glass blur and rim that SurfaceFlinger draws.
+        mSearchPillGlass.setAlpha(Math.round(255 * shown));
         mSearchPill.setScaleX(scale);
         mSearchPill.setScaleY(scale);
         mSearchPill.setClickable(shown > 0.5f);
         if (mQsbPillGlass != null) {
             mQsbAlphaChannels.get(ALPHA_CHANNEL_PAGE_DOTS).setValue(shown);
+            mQsbPillGlass.setAlpha(Math.round(255 * shown));
             mQsb.setScaleX(scale);
             mQsb.setScaleY(scale);
         }

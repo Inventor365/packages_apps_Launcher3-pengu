@@ -8,6 +8,8 @@ import android.graphics.PixelFormat;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.view.View;
+import android.view.ViewParent;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import com.android.internal.graphics.drawable.BackgroundBlurDrawable;
 
@@ -28,10 +30,35 @@ public final class PenguinDockGlass extends Drawable {
     private float flatProgress;
     private final boolean searchPanel;
     private boolean capsule;
+    /** Alpha of the owner and its parents, which the compositor blur does not see. */
+    private float viewAlpha = 1f;
+    private final ViewTreeObserver.OnPreDrawListener viewAlphaWatcher;
     public PenguinDockGlass(View owner) { this(owner, false); }
     public PenguinDockGlass(View owner, boolean searchPanel) {
         this.owner = owner;
         this.searchPanel = searchPanel;
+        viewAlphaWatcher = () -> {
+            float a = viewAlpha();
+            if (a != viewAlpha) {
+                viewAlpha = a;
+                // The dock glass is drawn by hand rather than as a background, so redraw the owner.
+                invalidateSelf();
+                owner.invalidate();
+            }
+            return true;
+        };
+        // SurfaceFlinger draws the blur, so it has to fade with the views too
+        owner.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View v) {
+                v.getViewTreeObserver().addOnPreDrawListener(viewAlphaWatcher);
+            }
+            @Override public void onViewDetachedFromWindow(View v) {
+                v.getViewTreeObserver().removeOnPreDrawListener(viewAlphaWatcher);
+            }
+        });
+        if (owner.isAttachedToWindow()) {
+            owner.getViewTreeObserver().addOnPreDrawListener(viewAlphaWatcher);
+        }
     }
     @Override public void draw(Canvas canvas) {
         if (getBounds().isEmpty()) return;
@@ -49,7 +76,8 @@ public final class PenguinDockGlass extends Drawable {
             blur.setMaterial(MATERIAL);
             blur.setColor(0);
             blur.setBounds(getBounds());
-            blur.setAlpha(Math.round(alpha * live));
+            viewAlpha = viewAlpha();
+            blur.setAlpha(Math.round(alpha * live * viewAlpha));
             blur.draw(canvas);
         }
         rect.set(getBounds());
@@ -73,6 +101,18 @@ public final class PenguinDockGlass extends Drawable {
         paint.setAlpha(Math.round(colorAlpha(0x33FFFFFF, alpha) * rimAlpha));
         canvas.drawRoundRect(rect, radius, radius, paint);
     }
+    private float viewAlpha() {
+        float a = 1f;
+        View v = owner;
+        while (v != null) {
+            if (v.getVisibility() != View.VISIBLE) return 0f;
+            a *= v.getAlpha();
+            ViewParent p = v.getParent();
+            v = p instanceof View ? (View) p : null;
+        }
+        return a;
+    }
+
     /** Rounds the short sides fully, as iOS draws its small home pills. */
     public void setCapsule(boolean capsule) {
         if (this.capsule == capsule) return;

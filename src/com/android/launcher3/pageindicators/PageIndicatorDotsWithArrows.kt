@@ -118,6 +118,8 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     private fun onDotsReveal() {
         val reveal = (pageIndicator as? PageIndicatorDots)?.reveal ?: 0f
         pageIndicatorContentContainer.alpha = reveal
+        // SurfaceFlinger draws the glass blur and rim, so they need the glass's own alpha too.
+        searchPillGlass.alpha = Math.round(255 * reveal)
         val scale = 0.9f + 0.1f * reveal
         pageIndicatorContentContainer.scaleX = scale
         pageIndicatorContentContainer.scaleY = scale
