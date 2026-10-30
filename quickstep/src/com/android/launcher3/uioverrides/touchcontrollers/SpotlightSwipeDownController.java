@@ -78,7 +78,10 @@ public class SpotlightSwipeDownController implements TouchController {
                 || ev.getSource() == InputDevice.SOURCE_MOUSE) {
             return false;
         }
-        if (AbstractFloatingView.getTopOpenView(mLauncher) != null) {
+        // A closing app leaves a touch listener open until its icon lands; it lets other
+        // controllers take the gesture, so it must not stop this one either.
+        if (AbstractFloatingView.getTopOpenViewWithType(mLauncher,
+                AbstractFloatingView.TYPE_ALL & ~AbstractFloatingView.TYPE_LISTENER) != null) {
             return false;
         }
         float density = mLauncher.getResources().getDisplayMetrics().density;
