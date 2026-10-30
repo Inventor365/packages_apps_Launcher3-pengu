@@ -19,6 +19,7 @@ import static com.android.launcher3.allapps.FloatingHeaderRow.NO_ROWS;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.util.ArrayMap;
@@ -363,7 +364,8 @@ public class FloatingHeaderView extends LinearLayout implements
             }
         }
 
-        mTabLayout.setTranslationY(mTranslationY);
+        // Tabs above the rows stay put; only the rows below them scroll away.
+        mTabLayout.setTranslationY(tabsAboveRows() ? 0 : mTranslationY);
 
         int clipTop = getPaddingTop() - mTabsAdditionalPaddingTop;
         if (mTabsHidden) {
@@ -384,6 +386,25 @@ public class FloatingHeaderView extends LinearLayout implements
             mSearchRVClip.top = mRVClip.top;
             mSearchRV.setClipBounds(mSearchRVClip);
         }
+    }
+
+    /** Whether the tabs sit above the floating rows, as in the drawer and not the App Library. */
+    private boolean tabsAboveRows() {
+        return !mTabsHidden && mTabLayout.getVisibility() == VISIBLE
+                && indexOfChild(mTabLayout) == 0;
+    }
+
+    @Override
+    protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
+        if (child == mTabLayout || !tabsAboveRows()) {
+            return super.drawChild(canvas, child, drawingTime);
+        }
+        // Rows scrolling away slide under the pinned tabs, not over them.
+        int save = canvas.save();
+        canvas.clipRect(0, mTabLayout.getBottom(), getWidth(), getHeight());
+        boolean more = super.drawChild(canvas, child, drawingTime);
+        canvas.restoreToCount(save);
+        return more;
     }
 
     /** Where the search list has to stop, so its rows do not run under the search box. */
