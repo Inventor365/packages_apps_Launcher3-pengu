@@ -152,10 +152,11 @@ data class HotseatProfile(
                     panelCount, isScalableGrid, isVerticalBarLayout, numShownHotseatIconsParam,
                 )
             }
-            // Inline navigation buttons or an inline search bar share the row with the icons;
-            // the stock calculation fits around them, so keep it there.
+            // Phones, and hotseats sharing the row with inline navigation buttons or an inline
+            // search bar, keep the stock count and calculation.
             if (
-                hotseatProfileInitialValues.areNavButtonsInline ||
+                !deviceProperties.isLargeScreen ||
+                    hotseatProfileInitialValues.areNavButtonsInline ||
                     hotseatProfileInitialValues.isQsbInline
             ) {
                 return recalculateGridHotseat(
