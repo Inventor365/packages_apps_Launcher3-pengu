@@ -193,6 +193,8 @@ class ModelCallbacks(private var launcher: Launcher) : BgDataModel.Callbacks {
         val deviceProfile = launcher.deviceProfile
         launcher.workspace.restoreInstanceStateForRemainingPages()
         workspaceLoading = false
+        // Predictions that arrived while loading were held back until the pinned items were bound.
+        hybridHotseatOrganizer?.fillGapsWithPrediction()
         launcher.processActivityResult()
         val currentPage =
             if (pagesBoundFirst != null && !pagesBoundFirst.isEmpty)

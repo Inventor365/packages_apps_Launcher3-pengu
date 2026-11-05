@@ -62,7 +62,8 @@ class HybridHotseatOrganizer(
     var predictedItems = emptyList<ItemInfo>()
         set(value) {
             field = value
-            fillGapsWithPrediction()
+            // Filled once the pinned items are bound, so predictions never take their cells.
+            if (!loadingCheck.invoke()) fillGapsWithPrediction()
         }
 
     init {
@@ -130,8 +131,7 @@ class HybridHotseatOrganizer(
 
         pauseFlags = pauseFlags or FLAG_FILL_IN_PROGRESS
         for (rank in 0..<hotseatCount) {
-            val child =
-                hotseat.getChildAt(hotseat.getCellXFromOrder(rank), hotseat.getCellYFromOrder(rank))
+            val child = childAt(hotseat.getCellXFromOrder(rank), hotseat.getCellYFromOrder(rank))
 
             if (child != null && !isPredictedIcon(child)) continue
 
@@ -142,7 +142,7 @@ class HybridHotseatOrganizer(
             }
             val predictedItem = predictedItems[predictionIndex++] as WorkspaceItemInfo
 
-            if (isPredictedIcon(child) && child.isEnabled) {
+            if (child is PredictedAppIcon && isPredictedIcon(child) && child.isEnabled) {
                 val icon = child as PredictedAppIcon
                 if (icon.applyFromWorkspaceItemWithAnimation(predictedItem, numViewsAnimated)) {
                     numViewsAnimated++
@@ -156,6 +156,26 @@ class HybridHotseatOrganizer(
         bindItems(newItems, animate)
 
         pauseFlags = pauseFlags and FLAG_FILL_IN_PROGRESS.inv()
+    }
+
+    /**
+     * The view in a hotseat cell, preferring a pinned item over a prediction left underneath it,
+     * which is removed: otherwise the pinned cell would keep counting as a prediction slot.
+     */
+    private fun childAt(cellX: Int, cellY: Int): View? {
+        val vg = hotseat.shortcutsAndWidgets
+        var pinned: View? = null
+        val predicted = mutableListOf<View>()
+        for (i in 0..<vg.childCount) {
+            val child = vg.getChildAt(i)
+            val lp = child.layoutParams as CellLayoutLayoutParams
+            if (cellX !in lp.cellX..<lp.cellX + lp.cellHSpan) continue
+            if (cellY !in lp.cellY..<lp.cellY + lp.cellVSpan) continue
+            if (isPredictedIcon(child)) predicted.add(child) else if (pinned == null) pinned = child
+        }
+        if (pinned == null) return predicted.firstOrNull()
+        predicted.forEach { hotseat.removeView(it) }
+        return pinned
     }
 
     private fun bindItems(itemsToAdd: List<WorkspaceItemInfo>, animate: Boolean) {
