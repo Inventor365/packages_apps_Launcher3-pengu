@@ -336,6 +336,7 @@ public abstract class ArrowPopup<T extends ActivityContext> extends AbstractFloa
 
     private void applyPopupBlurToHierarchy() {
         applyPopupBlurToHierarchy(this, null);
+        mBlurBackgroundHelper.updatePopupBlurAlpha(this);
     }
 
     private void applyPopupBlurToHierarchy(View view, View parent) {
@@ -740,6 +741,18 @@ public abstract class ArrowPopup<T extends ActivityContext> extends AbstractFloa
         }
 
         fadeInChildViews(this, alphaValues, childFadeStartDelay, childFadeDuration, animatorSet);
+
+        // Keeps the popup blur regions faded with the popup and its cards.
+        ValueAnimator blurAlpha = ValueAnimator.ofFloat(0f, 1f);
+        blurAlpha.setDuration(animatorSet.getTotalDuration());
+        blurAlpha.addUpdateListener(a -> mBlurBackgroundHelper.updatePopupBlurAlpha(this));
+        blurAlpha.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mBlurBackgroundHelper.updatePopupBlurAlpha(ArrowPopup.this);
+            }
+        });
+        animatorSet.play(blurAlpha);
         return animatorSet;
     }
 

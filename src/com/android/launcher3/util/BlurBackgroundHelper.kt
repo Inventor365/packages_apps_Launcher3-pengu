@@ -51,5 +51,8 @@ constructor() {
 
     open fun applyPopupBlurBackground(view: View) {}
 
+    /** Matches the popup blur regions under [root] to the alpha the views are drawn with. */
+    open fun updatePopupBlurAlpha(root: View) {}
+
     open fun getPopupBlurSurfaceColor(fallbackColor: Int) = fallbackColor
 }

@@ -28,6 +28,7 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.View
+import android.view.ViewGroup
 import androidx.core.graphics.ColorUtils
 import com.android.internal.R as InternalR
 import com.android.internal.graphics.drawable.BackgroundBlurDrawable
@@ -233,6 +234,24 @@ constructor(
         } ?: return
         view.background = LayerDrawable(arrayOf(blurDrawable, surface))
         view.invalidate()
+    }
+
+    // The blur region is drawn by SurfaceFlinger and ignores the view alpha, so without this the
+    // blurred cards stay behind while the popup fades out.
+    override fun updatePopupBlurAlpha(root: View) = updatePopupBlurAlpha(root, 1f)
+
+    private fun updatePopupBlurAlpha(view: View, parentAlpha: Float) {
+        val alpha = parentAlpha * view.alpha
+        val background = view.background
+        if (background is LayerDrawable && background.numberOfLayers > 1) {
+            (background.getDrawable(0) as? BackgroundBlurDrawable)?.let {
+                // At 0 the drawable stops drawing and drops its blur region, so keep it at 1.
+                it.alpha = Math.round(alpha * 255f).coerceAtLeast(1)
+            }
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) updatePopupBlurAlpha(view.getChildAt(i), alpha)
+        }
     }
 
     private data class PopupCornerRadii(
