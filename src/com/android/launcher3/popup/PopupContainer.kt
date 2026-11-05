@@ -126,6 +126,7 @@ open class PopupContainer<T : ActivityContext>(
         systemShortcuts: List<PopupData>,
         activityContext: ActivityContext,
         itemView: View,
+        showWallpaperCarousel: Boolean = false,
     ) {
         if (Flags.expandableLongPressMenu()) {
             showComposePopup(
@@ -144,7 +145,7 @@ open class PopupContainer<T : ActivityContext>(
         } else {
             val popupWidth = resolveHomescreenPopupWidth(activityContext)
             systemShortcutContainer = inflateAndAdd(R.layout.system_shortcut_rows_container, this)
-            maybeAddWallpaperCarousel(systemShortcutContainer!!)
+            if (showWallpaperCarousel) maybeAddWallpaperCarousel(systemShortcutContainer!!)
             systemShortcuts.forEach { systemShortcut ->
                 val view: DeepShortcutView =
                     inflateAndAdd(R.layout.system_shortcut, systemShortcutContainer)
@@ -501,6 +502,7 @@ open class PopupContainer<T : ActivityContext>(
             view: View,
             items: List<PopupData>,
             popupPos: Rect? = null,
+            showWallpaperCarousel: Boolean = false,
         ): PopupContainer<ActivityContext>? {
             if (items.isEmpty()) return null
             return create<ActivityContext>(
@@ -510,7 +512,7 @@ open class PopupContainer<T : ActivityContext>(
                 )
                 .apply {
                     fixedDragLayerPos = popupPos
-                    showForSystemShortcuts(items, activity, view)
+                    showForSystemShortcuts(items, activity, view, showWallpaperCarousel)
                 }
         }
     }
