@@ -238,6 +238,7 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
 
     @Override
     public boolean onDoubleTap(MotionEvent event) {
+        if (!mLauncher.isInState(NORMAL)) return false;
         Context context = mWorkspace.getContext();
         if (LauncherPrefs.SLEEP_GESTURE.get(context)) {
             if (LauncherPrefs.SLEEP_GESTURE_HAPTIC.get(context))

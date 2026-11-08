@@ -261,8 +261,8 @@ class ModelCallbacks(private var launcher: Launcher) : BgDataModel.Callbacks {
     }
 
     override fun bindItemsUpdated(updates: Set<ItemInfo>) {
-        if (useModelRepositoryBinding()) return
-        bindWorkspaceItemsUpdated(updates)
+        if (!useModelRepositoryBinding()) bindWorkspaceItemsUpdated(updates)
+        launcher.workspace.batchEditor.refreshIcons()
     }
 
     /**
@@ -291,6 +291,7 @@ class ModelCallbacks(private var launcher: Launcher) : BgDataModel.Callbacks {
     }
 
     override fun bindWorkspaceComponentsRemoved(matcher: Predicate<ItemInfo?>) {
+        launcher.workspace.batchEditor.onItemsRemoved(matcher)
         if (useModelRepositoryBinding()) return
         bindWorkspaceItemsRemoved(matcher)
     }

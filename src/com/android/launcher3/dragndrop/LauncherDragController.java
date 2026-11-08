@@ -134,6 +134,7 @@ public class LauncherDragController extends DragController {
 
     @Override
     protected void exitDrag() {
+        if (mOptions != null && mOptions.isWorkspaceBatchDrag) return;
         if (!mIsInPreDrag && !mLauncher.isInState(EDIT_MODE)) {
             mLauncher.getStateManager().goToState(NORMAL, SPRING_LOADED_EXIT_DELAY);
         }
@@ -141,6 +142,7 @@ public class LauncherDragController extends DragController {
 
     @Override
     protected boolean endWithFlingAnimation() {
+        if (mOptions != null && mOptions.isWorkspaceBatchDrag) return false;
         Runnable flingAnimation = mFlingToDeleteHelper.getFlingAnimation(mDragObject, mOptions);
         if (flingAnimation != null) {
             drop(mFlingToDeleteHelper.getDropTarget(), flingAnimation);

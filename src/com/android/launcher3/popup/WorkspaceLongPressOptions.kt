@@ -24,6 +24,7 @@ import android.widget.Toast
 import com.android.launcher3.BuildConfig
 import com.android.launcher3.Flags
 import com.android.launcher3.Launcher
+import com.android.launcher3.LauncherPrefs
 import com.android.launcher3.LauncherSettings.Favorites
 import com.android.launcher3.LauncherState
 import com.android.launcher3.R
@@ -78,7 +79,7 @@ object WorkspaceLongPressOptions {
                 }
             )
         }
-        if (FeatureFlags.MULTI_SELECT_EDIT_MODE.get()) {
+        if (!LauncherPrefs.WORKSPACE_LOCK.get(ctx)) {
             add(
                 PopupData(
                     R.drawable.enter_home_gardening_icon,
@@ -86,7 +87,14 @@ object WorkspaceLongPressOptions {
                     SYSTEM_SHORTCUT,
                     LAUNCHER_SETTINGS_BUTTON_TAP_OR_LONGPRESS,
                 ) { ac, _, _ ->
-                    (ac as? Launcher)?.stateManager?.goToState(LauncherState.EDIT_MODE)
+                    (ac as? Launcher)?.let { launcher ->
+                        if (!launcher.isWorkspaceLocked &&
+                            !LauncherPrefs.WORKSPACE_LOCK.get(launcher) &&
+                            !launcher.dragController.isDragging
+                        ) {
+                            launcher.stateManager.goToState(LauncherState.EDIT_MODE)
+                        }
+                    }
                 }
             )
         }

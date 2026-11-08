@@ -952,6 +952,7 @@ public class Launcher extends StatefulActivity<LauncherState>
     @Override
     protected void onStop() {
         super.onStop();
+        mWorkspace.getBatchEditor().finish(false);
         if (mQuickSpace != null) {
             mQuickSpace.onPause();
         }
@@ -1044,6 +1045,7 @@ public class Launcher extends StatefulActivity<LauncherState>
     @Override
     public void onStateSetStart(LauncherState state) {
         super.onStateSetStart(state);
+        mWorkspace.getBatchEditor().onStateChanged(state);
         addActivityFlags(ACTIVITY_STATE_TRANSITION_ACTIVE);
 
         if (state.hasFlag(FLAG_WORKSPACE_ICONS_BEING_DRAGGED)) {
@@ -1092,6 +1094,7 @@ public class Launcher extends StatefulActivity<LauncherState>
     @Override
     public void onStateSetEnd(LauncherState state) {
         super.onStateSetEnd(state);
+        mWorkspace.getBatchEditor().onStateTransitionComplete(state);
         getAppWidgetHolder().setStateIsNormal(state == LauncherState.NORMAL);
         getWorkspace().setClipChildren(!state.hasFlag(FLAG_MULTI_PAGE));
 
@@ -1707,6 +1710,7 @@ public class Launcher extends StatefulActivity<LauncherState>
 
     @Override
     public void onDestroy() {
+        mWorkspace.getBatchEditor().close();
         super.onDestroy();
         ACTIVITY_TRACKER.onContextDestroyed(this);
 
@@ -2303,6 +2307,7 @@ public class Launcher extends StatefulActivity<LauncherState>
             }
         }
         workspace.requestLayout();
+        workspace.getBatchEditor().refreshIcons();
     }
 
     /**
