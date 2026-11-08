@@ -459,6 +459,17 @@ open class ModelWriter(
     }
 
     /**
+     * Moves a folder's items to the positions already set on them and deletes the emptied
+     * folder, in one model transaction.
+     */
+    fun ungroupFolderInDatabase(folder: FolderInfo, items: List<ItemInfo>) {
+        execute {
+            it.moveItemsInDatabase(items, folder.container, folder.screenId)
+            it.deleteItemFromDatabase(folder, "folder ungrouped")
+        }
+    }
+
+    /**
      * Removes all the items from the database matching {@param matcher}.
      *
      * TODO(b/457449059): Remove this method.
