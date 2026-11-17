@@ -493,8 +493,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             return;
         }
         mSearchContainer.setBackgroundResource(R.drawable.bg_all_apps_floating_search);
-        mSearchContainer.setElevation(
-                getResources().getDimension(R.dimen.app_library_search_elevation));
+        mSearchContainer.setElevation(0f);
     }
 
     private void setSearchListChromeVisible(boolean visible) {
