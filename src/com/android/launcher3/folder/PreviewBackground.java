@@ -55,6 +55,9 @@ import com.android.launcher3.celllayout.DelegatedCellDrawing;
 import com.android.launcher3.graphics.PathWrapper;
 import com.android.launcher3.graphics.ShapeDelegate;
 import com.android.launcher3.graphics.ThemeManager;
+import com.android.launcher3.LauncherPrefs;
+import com.android.launcher3.LauncherSettings;
+import com.android.launcher3.util.PenguinDockGlass;
 import com.android.launcher3.util.LiquidGlass;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.views.ActivityContext;
@@ -64,6 +67,9 @@ import com.android.launcher3.views.ActivityContext;
  * information, handles drawing, and animation (accept state <--> rest state).
  */
 public class PreviewBackground extends DelegatedCellDrawing {
+
+    /** Frost of the home folder tiles; heavier than the dock, as on ColorOS 17. */
+    private static final int FOLDER_GLASS_BLUR_DP = 20;
 
     private static final boolean DRAW_SHADOW = false;
     private static final boolean DRAW_STROKE = false;
@@ -212,6 +218,10 @@ public class PreviewBackground extends DelegatedCellDrawing {
                 backgroundLeft = bgPaddingHoriz;
                 backgroundWidth = Math.max(previewSize, totalSpanWidth - 2 * bgPaddingHoriz);
             }
+            // Tall grid cells would stretch the panel far past its width (a 2x2 folder drawn
+            // as a tall slab with a gap between its rows), so keep each cell of it square.
+            int maxHeight = Math.max(previewSize, Math.round(backgroundWidth * spanY / (float) spanX));
+            backgroundHeight = Math.min(backgroundHeight, maxHeight);
         }
 
         outBounds.set(
@@ -268,6 +278,11 @@ public class PreviewBackground extends DelegatedCellDrawing {
             spanX,
             spanY,
             mBackgroundBounds);
+        if (mMaxBottom >= 0 && mBackgroundBounds.bottom > mMaxBottom
+                && (spanX > 1 || spanY > 1)) {
+            // Keep a multi-cell panel clear of the Search pill above the dock.
+            mBackgroundBounds.bottom = Math.max(mBackgroundBounds.top + previewSize, mMaxBottom);
+        }
         mTargetBackgroundBounds.set(mBackgroundBounds);
 
         // Stroke width is 1dp
@@ -413,7 +428,9 @@ public class PreviewBackground extends DelegatedCellDrawing {
         mPaint.setColor(getBgColor());
 
         RectF bounds = getBoundsAtScale(mScale);
-        drawShapeInBounds(canvas, bounds, mScale, mPaint);
+        if (!drawGlassTile(canvas, bounds)) {
+            drawShapeInBounds(canvas, bounds, mScale, mPaint);
+        }
         drawShadow(canvas);
         if (LiquidGlass.isEnabled(mContext)) {
             mGlassBounds.set(bounds);
@@ -425,6 +442,38 @@ public class PreviewBackground extends DelegatedCellDrawing {
 
     private final Path mGlassPath = new Path();
     private final RectF mGlassBounds = new RectF();
+    private final Rect mGlassTileBounds = new Rect();
+    private PenguinDockGlass mGlassTile;
+    private int mMaxBottom = -1;
+
+    /** Lowest y the panel of a multi-cell folder may reach, or -1 for no limit. */
+    void setMaxBottom(int maxBottom) {
+        mMaxBottom = maxBottom;
+    }
+
+    /**
+     * Home and dock folders sit on the wallpaper as a frosted tile, as ColorOS 17 draws them:
+     * the same compositor blur as the dock glass, in the folder's own shape. Returns false where
+     * the plain filled shape is drawn instead.
+     */
+    private boolean drawGlassTile(Canvas canvas, RectF bounds) {
+        if (!LauncherPrefs.FOLDER_BLUR.get(mContext)) return false;
+        if (!(mInvalidateDelegate instanceof FolderIcon icon) || icon.mInfo == null
+                || icon.mInfo.forceBigPreview
+                || (icon.mInfo.container != LauncherSettings.Favorites.CONTAINER_DESKTOP
+                        && icon.mInfo.container != LauncherSettings.Favorites.CONTAINER_HOTSEAT)) {
+            return false;
+        }
+        if (mGlassTile == null) {
+            mGlassTile = new PenguinDockGlass(icon);
+            mGlassTile.setBlurDp(FOLDER_GLASS_BLUR_DP);
+        }
+        bounds.round(mGlassTileBounds);
+        mGlassTile.setBounds(mGlassTileBounds);
+        mGlassTile.setCornerRadius(getDrawnCornerRadius());
+        mGlassTile.draw(canvas);
+        return true;
+    }
 
     private ShapeDelegate getShape() {
         return ThemeManager.INSTANCE.get(mContext).getFolderShape();

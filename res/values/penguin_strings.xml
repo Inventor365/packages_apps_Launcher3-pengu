@@ -43,4 +43,8 @@
     <string name="folder_thumbnail_reset">Reset thumbnail</string>
     <string name="folder_thumbnail_failed">Couldn\'t use that image</string>
     <string name="rename_app_updated">App name updated</string>
+
+    <!-- Home screen folder blur -->
+    <string name="pref_folder_blur_title">Blur folders</string>
+    <string name="pref_folder_blur_summary">Show home screen folders as frosted glass over the wallpaper</string>
 </resources>

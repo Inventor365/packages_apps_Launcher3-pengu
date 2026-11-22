@@ -126,6 +126,7 @@ public class PreviewItemManager {
     private final float mClipThreshold;
     private float mCurrentPageItemsTransX = 0;
     private float mPageSlideDistance;
+    private int mPrevMaxBottom = -1;
     private boolean mShouldSlideInFirstPage;
 
     static final int INITIAL_ITEM_ANIMATION_DURATION = 350;
@@ -186,7 +187,8 @@ public class PreviewItemManager {
                         || mPrevSpanX != spanX
                         || mPrevSpanY != spanY
                         || mPrevUsesWorkspacePreviewLayout != usesWorkspacePreview
-                        || mPrevTopPadding != mIcon.getPaddingTop();
+                        || mPrevTopPadding != mIcon.getPaddingTop()
+                        || mPrevMaxBottom != mIcon.getPreviewMaxBottom();
 
         if (mIntrinsicIconSize != drawableSize || geometryChanged) {
             boolean animateResize =
@@ -213,6 +215,8 @@ public class PreviewItemManager {
             mPrevSpanY = spanY;
             mPrevTopPadding = mIcon.getPaddingTop();
             mPrevUsesWorkspacePreviewLayout = usesWorkspacePreview;
+            mPrevMaxBottom = mIcon.getPreviewMaxBottom();
+            mIcon.mBackground.setMaxBottom(mPrevMaxBottom);
 
             mIcon.mBackground.setup(
                     mIcon.getContext(),

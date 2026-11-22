@@ -33,6 +33,10 @@ public final class PenguinDockGlass extends Drawable {
     private int liveWarmupFrames;
     private final boolean searchPanel;
     private boolean capsule;
+    /** Fixed corner radius in px, or -1 for the dock's. */
+    private float cornerRadius = -1f;
+    /** Blur radius in dp, or -1 for the dock's / Spotlight's. */
+    private int blurDp = -1;
     /** Alpha of the owner and its parents, which the compositor blur does not see. */
     private float viewAlpha = 1f;
     private final ViewTreeObserver.OnPreDrawListener viewAlphaWatcher;
@@ -114,8 +118,8 @@ public final class PenguinDockGlass extends Drawable {
         // Keep a hidden region while flat, a re-added one is misplaced for a frame.
         boolean track = live == 0f && alpha > 0 && viewAlpha > 0f;
         // Spotlight is a large reading panel, so it needs a stronger frost than the dock.
-        int blurRadius = track ? 1 : Math.round((searchPanel ? SEARCH_BLUR_DP
-                : DOCK_BLUR_DP) * density);
+        int dp = blurDp >= 0 ? blurDp : searchPanel ? SEARCH_BLUR_DP : DOCK_BLUR_DP;
+        int blurRadius = track ? 1 : Math.round(dp * density);
         int blurAlpha = track ? 1 : Math.round(alpha * live * viewAlpha);
         boolean changed = blur.getAlpha() != blurAlpha || blurRadius != lastBlurRadius;
         lastBlurRadius = blurRadius;
@@ -155,7 +159,22 @@ public final class PenguinDockGlass extends Drawable {
         invalidateSelf();
     }
 
+    /** Uses a fixed corner radius in px, such as a folder's shape; -1 restores the dock's. */
+    public void setCornerRadius(float radius) {
+        if (cornerRadius == radius) return;
+        cornerRadius = radius;
+        invalidateSelf();
+    }
+
+    /** Sets the frost in dp for this surface; -1 restores the dock's. */
+    public void setBlurDp(int dp) {
+        if (blurDp == dp) return;
+        blurDp = dp;
+        updateBlurNow();
+    }
+
     private float radius(float density) {
+        if (cornerRadius >= 0f) return cornerRadius;
         return capsule ? getBounds().height() / 2f
                 : Math.min(28 * density, getBounds().height() * 0.4f);
     }

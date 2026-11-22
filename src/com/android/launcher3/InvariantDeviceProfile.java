@@ -25,6 +25,7 @@ import static com.android.launcher3.LauncherPrefs.ICON_SIZE;
 import static com.android.launcher3.LauncherPrefs.GRID_NAME;
 import static com.android.launcher3.LauncherPrefs.NON_FIXED_LANDSCAPE_GRID_NAME;
 import static com.android.launcher3.LauncherPrefs.ROW_HEIGHT;
+import static com.android.launcher3.LauncherPrefs.FOLDER_BLUR;
 import static com.android.launcher3.LauncherPrefs.SHOW_DESKTOP_LABELS;
 import static com.android.launcher3.LauncherPrefs.SHOW_DRAWER_LABELS;
 import static com.android.launcher3.LauncherPrefs.SHOW_HOTSEAT_QSB;
@@ -322,19 +323,20 @@ public class InvariantDeviceProfile {
                     ENABLE_TWOLINE_ALLAPPS_TOGGLE.getSharedPrefKey().equals(key) ||
                     ROW_HEIGHT.getSharedPrefKey().equals(key) ||
                     SHOW_HOTSEAT_QSB.getSharedPrefKey().equals(key) ||
-                    PREF_ICON_SHAPE.getSharedPrefKey().equals(key)) {
+                    PREF_ICON_SHAPE.getSharedPrefKey().equals(key) ||
+                    FOLDER_BLUR.getSharedPrefKey().equals(key)) {
                 onConfigChanged();
             }
         };
         prefs.addListener(prefListener, FIXED_LANDSCAPE_MODE, ALLAPPS_THEMED_ICONS,
                 SHOW_DESKTOP_LABELS, SHOW_DRAWER_LABELS, ICON_SIZE, FONT_SIZE,
                 ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB,
-                PREF_ICON_SHAPE);
+                PREF_ICON_SHAPE, FOLDER_BLUR);
         lifeCycle.addCloseable(() -> prefs.removeListener(prefListener,
                 FIXED_LANDSCAPE_MODE, ALLAPPS_THEMED_ICONS,
                 SHOW_DESKTOP_LABELS, SHOW_DRAWER_LABELS, ICON_SIZE, FONT_SIZE,
                 ENABLE_TWOLINE_ALLAPPS_TOGGLE, ROW_HEIGHT, SHOW_HOTSEAT_QSB,
-                PREF_ICON_SHAPE));
+                PREF_ICON_SHAPE, FOLDER_BLUR));
 
         SharedPreferences.OnSharedPreferenceChangeListener iconPackListener = (sp, key) -> {
             if (IconDatabase.KEY_ICON_PACK.equals(key)) {

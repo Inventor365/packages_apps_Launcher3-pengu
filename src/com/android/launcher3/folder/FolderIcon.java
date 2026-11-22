@@ -484,6 +484,27 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         mFolder = folder;
     }
 
+    /**
+     * Lowest y, in this view, that a multi-cell folder's panel may reach so that it and its label
+     * stay above the Search pill over the dock; -1 when nothing limits it.
+     */
+    int getPreviewMaxBottom() {
+        if (!isMultiSpanFolder() || !(mActivity instanceof Launcher launcher)
+                || launcher.getHotseat() == null || !isAttachedToWindow()) {
+            return -1;
+        }
+        View pill = launcher.getHotseat().getVisibleSearchPill();
+        if (pill == null || pill.getHeight() == 0) return -1;
+        int[] own = new int[2];
+        int[] pillPos = new int[2];
+        getLocationInWindow(own);
+        pill.getLocationInWindow(pillPos);
+        int labelSpace = shouldShowFolderName() ? getFolderLabelHeight() : 0;
+        int gap = Math.round(4 * getResources().getDisplayMetrics().density);
+        int limit = pillPos[1] - own[1] - labelSpace - gap;
+        return limit < getHeight() - labelSpace ? limit : -1;
+    }
+
     public boolean isMultiSpanFolder() {
         return getCurrentSpanX() > 1 || getCurrentSpanY() > 1;
     }
@@ -1402,8 +1423,10 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
             }
             int standardIconLabelTop = targetRow * (cellHeight + borderSpace.y)
                     + cellPaddingY + iconSize + iconPadding;
-            int textTop = Math.max(standardIconLabelTop,
-                    bgBounds.bottom + Math.max(1, iconPadding / 2));
+            // Line up with the row's labels, unless the panel is clearly shorter than its cells.
+            int underPanel = bgBounds.bottom + Math.max(1, iconPadding / 2);
+            int textTop = standardIconLabelTop - underPanel > textHeight
+                    ? underPanel : Math.max(standardIconLabelTop, underPanel);
 
             mFolderName.layout(textLeft, textTop, textLeft + textWidth, textTop + textHeight);
         }

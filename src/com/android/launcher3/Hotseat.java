@@ -40,6 +40,7 @@ import androidx.annotation.Nullable;
 
 import com.android.launcher3.ShortcutAndWidgetContainer.TranslationProvider;
 import com.android.launcher3.celllayout.CellLayoutLayoutParams;
+import com.android.launcher3.folder.FolderIcon;
 import com.android.launcher3.dagger.LauncherComponentProvider;
 import com.android.launcher3.dragndrop.SystemDragItemInfo;
 import com.android.launcher3.homescreenfiles.HomeScreenFilesUtilsKt;
@@ -471,6 +472,11 @@ public class Hotseat extends CellLayout implements Insettable {
     }
 
     /** The Search pill shown above the dock, if any: the dock's own or the one in the QSB slot. */
+    /** The Search pill shown above the dock, or null when there is none. */
+    public @Nullable View getVisibleSearchPill() {
+        return getActiveSearchPill();
+    }
+
     private @Nullable View getActiveSearchPill() {
         if (mSearchPill.getVisibility() == View.VISIBLE) return mSearchPill;
         if (mQsbPillGlass != null && mQsb.getVisibility() == View.VISIBLE) return mQsb;
@@ -488,7 +494,20 @@ public class Hotseat extends CellLayout implements Insettable {
             mSearchPillCentreFromBottom = centre;
             // Moving the dots relayouts the parent, so wait for this layout pass to finish.
             post(this::bindPageIndicatorToSearchPill);
+            post(this::relayoutMultiSpanFolders);
         }
+    }
+
+    /** Multi-cell folders in the last workspace row keep clear of the pill, so place them again. */
+    private void relayoutMultiSpanFolders() {
+        if (mWorkspace == null) return;
+        mWorkspace.mapOverItems((info, view) -> {
+            if (view instanceof FolderIcon folder && folder.isMultiSpanFolder()) {
+                folder.requestLayout();
+                folder.invalidate();
+            }
+            return false;
+        });
     }
 
     /** Fades the Search pill out as far as the page dots are shown in its place. */
