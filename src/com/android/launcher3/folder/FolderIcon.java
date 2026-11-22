@@ -144,7 +144,7 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     final ClippedFolderIconLayoutRule mPreviewLayoutRule;
     private final PreviewItemManager mPreviewItemManager;
     // Renders the "big" (2x2) folder preview and owns its per-quadrant tap hit-testing. Only used
-    // while mInfo.isBigFolder() is true; normal folders keep using mPreviewItemManager.
+    // while isBigFolder() is true; normal folders keep using mPreviewItemManager.
     private final LargeFolderPreview mLargeFolderPreview;
     private PreviewItemDrawingParams mTmpParams = new PreviewItemDrawingParams(0, 0, 0);
     private final List<ItemInfo> mCurrentPreviewItems = new ArrayList<>();
@@ -853,39 +853,14 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         // Only maintain the big-preview drawables for folders that are (or are about to become)
         // big, so normal small folders don't build extra icons.
         if (mInfo != null
-                && (mInfo.isBigFolder() || mInfo.qualifiesAsBigFolder() || mInfo.forceBigPreview)) {
+                && mInfo.forceBigPreview) {
             mLargeFolderPreview.onItemsChanged(getOrderedContents());
         }
     }
 
-    /**
-     * Whether this folder should be rendered as a big (2x2) folder. This is content-based (a
-     * workspace folder with enough apps) rather than span-based on purpose: a transient span or
-     * footprint change while the folder opens/closes must not flip the icon back to the small 2x2
-     * preview for a frame -- that was the "small folder flash" on close. The physical 2x2 footprint
-     * is managed separately (the loader's applyBigFolderFootprint + {@link
-     * #updateBigFolderFootprint()}).
-     */
+    /** Whether this folder draws the big tile: only the drawer's Caddy/App Library folders. */
     public boolean isBigFolder() {
-        if (mInfo == null) {
-            return false;
-        }
-        // Caddy drawer folders always use the big tile (see FolderInfo#forceBigPreview).
-        if (mInfo.forceBigPreview) {
-            return true;
-        }
-        if (mInfo.container != LauncherSettings.Favorites.CONTAINER_DESKTOP) {
-            return false;
-        }
-        if (mInfo.isBigFolder()) {
-            return true;
-        }
-        // A folder that had no room to grow keeps its 1x1 cell, so the big preview would spill
-        // over its neighbours and the dock.
-        return mInfo.qualifiesAsBigFolder()
-                && !(getLayoutParams() instanceof CellLayoutLayoutParams lp
-                        && (lp.cellHSpan < FolderInfo.BIG_FOLDER_SPAN
-                                || lp.cellVSpan < FolderInfo.BIG_FOLDER_SPAN));
+        return mInfo != null && mInfo.forceBigPreview;
     }
 
     /** Folder contents in rank order, used to pick the big folder's large icons vs. cluster. */
@@ -916,26 +891,6 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
                 + Math.round(6 * getResources().getDisplayMetrics().density);
     }
 
-    /**
-     * How far the workspace grid holding this folder runs behind the Search pill above the dock,
-     * in px; 0 when it doesn't. The last row extends under the pill.
-     */
-    int getSearchPillOverlap() {
-        if (!(mActivity instanceof Launcher launcher) || launcher.getHotseat() == null
-                || !(getParent() instanceof View grid)) {
-            return 0;
-        }
-        int pillTop = launcher.getHotseat().getSearchPillTop();
-        if (pillTop < 0) return 0;
-        int bottom = grid.getHeight();
-        for (View v = grid; v != launcher.getDragLayer(); ) {
-            bottom += v.getTop();
-            if (!(v.getParent() instanceof View parent)) return 0;
-            v = parent;
-        }
-        return Math.max(0, bottom - pillTop);
-    }
-
     /** Gap between a big folder's preview and the label below it. */
     int getBigFolderLabelGap() {
         if (mInfo != null && mInfo.forceBigPreview) {
@@ -956,142 +911,8 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         updateDotInfo();
         setContentDescription(getAccessiblityTitle(mInfo.title));
         updatePreviewItems(animate);
-        // Grow/shrink the footprint when a folder crosses the big-folder threshold (e.g. the user
-        // drags a 4th app in). Posted so it runs after the change/drag settles.
-        post(this::updateBigFolderFootprint);
         invalidate();
         requestLayout();
-    }
-
-    @Override
-    protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        // Size the footprint once the folder is bound and the grid has settled. Posted so it runs
-        // after the current bind pass rather than mutating occupancy mid-bind.
-        post(this::updateBigFolderFootprint);
-    }
-
-    /**
-     * Sizes this workspace folder to a 2x2 footprint when it qualifies as a big folder, or back to
-     * 1x1 otherwise. When growing it keeps its position if the 2x2 block is free, else relocates to
-     * the nearest free 2x2 on the same screen -- so it never overlaps neighbours or straddles a
-     * page. The new footprint/position are persisted so it stays big after a reload.
-     *
-     * <p>The layout params' span (not the model's) is treated as the source of truth for "currently
-     * big", so this self-corrects even if the loaded span didn't reach the view.
-     */
-    private void updateBigFolderFootprint() {
-        if (mInfo == null || mInfo.container != LauncherSettings.Favorites.CONTAINER_DESKTOP) {
-            // Only workspace folders are enlarged (not the hotseat, all-apps, or taskbar).
-            return;
-        }
-        if (getParent() == null
-                || !(getParent().getParent() instanceof CellLayout cellLayout)
-                || !(getLayoutParams() instanceof CellLayoutLayoutParams lp)) {
-            return;
-        }
-        final int span = FolderInfo.BIG_FOLDER_SPAN;
-        boolean wantBig = mInfo.qualifiesAsBigFolder()
-                && !mInfo.hasOption(FolderInfo.FLAG_SIZE_CHOSEN);
-        boolean isBig = lp.cellHSpan >= span && lp.cellVSpan >= span;
-        android.util.Log.d("BigFolder", "footprint '" + mInfo.title + "' contents="
-                + mInfo.getContents().size() + " wantBig=" + wantBig + " isBig=" + isBig
-                + " lp=" + lp.cellHSpan + "x" + lp.cellVSpan
-                + " cell=" + lp.getCellX() + "," + lp.getCellY());
-        // GROW-ONLY: never shrink a folder here. Shrinking + persisting spanX=1 on a transient/racy
-        // post-bind signal is what made big folders come back small after a reboot (and it can free
-        // cells that then block the loader from re-growing). The loader
-        // (LoaderCursor.applyBigFolderFootprint) is the authoritative sizer at load; this path only
-        // grows a folder live when its 4th app is dropped in.
-        if (isBig || !wantBig) {
-            // Keep the model's span consistent with the actual layout.
-            mInfo.spanX = lp.cellHSpan;
-            mInfo.spanY = lp.cellVSpan;
-            return;
-        }
-        if (cellLayout.getCountX() < span || cellLayout.getCountY() < span) {
-            return; // grid too small to ever hold a 2x2 folder
-        }
-        cellLayout.markCellsAsUnoccupiedForView(this);
-        // Prefer our current spot (clamped in-grid); otherwise the nearest free 2x2.
-        int cellX = Math.max(0, Math.min(lp.getCellX(), cellLayout.getCountX() - span));
-        int cellY = Math.max(0, Math.min(lp.getCellY(), cellLayout.getCountY() - span));
-        if (!cellLayout.isRegionVacant(cellX, cellY, span, span)) {
-            int[] center = new int[2];
-            cellLayout.regionToCenterPoint(lp.getCellX(), lp.getCellY(), 1, 1, center);
-            int[] vacant = cellLayout.findNearestVacantArea(center[0], center[1], span, span,
-                    span, span, null, null);
-            if (vacant != null && vacant[0] >= 0 && vacant[1] >= 0) {
-                cellX = vacant[0];
-                cellY = vacant[1];
-            } else {
-                // No room on this screen for a 2x2; stay a normal 1x1 folder.
-                cellLayout.markCellsAsOccupiedForView(this);
-                android.util.Log.d("BigFolder", "no free 2x2 for '" + mInfo.title + "', staying 1x1");
-                return;
-            }
-        }
-        applyFootprint(lp, cellX, cellY, span);
-        cellLayout.markCellsAsOccupiedForView(this);
-        mActivity.getModelWriter().updateItemInDatabase(mInfo);
-        requestLayout();
-        invalidate();
-    }
-
-    /**
-     * Resizes this workspace folder to a square of {@code span} cells, as picked from its menu:
-     * small (1), large (2) or extra large (3). It grows from where it is, or moves to the nearest
-     * spot with room. Returns false when the page has no room for that size.
-     */
-    public boolean setFolderSize(int span) {
-        if (mInfo == null || mInfo.container != LauncherSettings.Favorites.CONTAINER_DESKTOP
-                || !(getParent() != null && getParent().getParent() instanceof CellLayout cellLayout)
-                || !(getLayoutParams() instanceof CellLayoutLayoutParams lp)) {
-            return false;
-        }
-        if (cellLayout.getCountX() < span || cellLayout.getCountY() < span) {
-            return false;
-        }
-        cellLayout.markCellsAsUnoccupiedForView(this);
-        int cellX = Math.max(0, Math.min(lp.getCellX(), cellLayout.getCountX() - span));
-        int cellY = Math.max(0, Math.min(lp.getCellY(), cellLayout.getCountY() - span));
-        if (!cellLayout.isRegionVacant(cellX, cellY, span, span)) {
-            int[] center = new int[2];
-            cellLayout.regionToCenterPoint(lp.getCellX(), lp.getCellY(), lp.cellHSpan,
-                    lp.cellVSpan, center);
-            int[] vacant = cellLayout.findNearestVacantArea(center[0], center[1], span, span,
-                    span, span, null, null);
-            if (vacant == null || vacant[0] < 0 || vacant[1] < 0) {
-                cellLayout.markCellsAsOccupiedForView(this);
-                return false;
-            }
-            cellX = vacant[0];
-            cellY = vacant[1];
-        }
-        applyFootprint(lp, cellX, cellY, span);
-        cellLayout.markCellsAsOccupiedForView(this);
-        mInfo.options |= FolderInfo.FLAG_SIZE_CHOSEN;
-        mActivity.getModelWriter().updateItemInDatabase(mInfo);
-        mLargeFolderPreview.onItemsChanged(getOrderedContents());
-        requestLayout();
-        invalidate();
-        // Settles into its new size with a little bounce.
-        setScaleX(0.86f);
-        setScaleY(0.86f);
-        animate().scaleX(1f).scaleY(1f).setDuration(420)
-                .setInterpolator(new android.view.animation.OvershootInterpolator(2.4f)).start();
-        return true;
-    }
-
-    private void applyFootprint(CellLayoutLayoutParams lp, int cellX, int cellY, int span) {
-        lp.setCellX(cellX);
-        lp.setCellY(cellY);
-        lp.cellHSpan = span;
-        lp.cellVSpan = span;
-        mInfo.cellX = cellX;
-        mInfo.cellY = cellY;
-        mInfo.spanX = span;
-        mInfo.spanY = span;
     }
 
     /** The category most of the folder's apps fall in, or null when none has one. */

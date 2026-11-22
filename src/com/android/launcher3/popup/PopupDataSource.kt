@@ -22,14 +22,12 @@ import android.content.Intent
 import android.os.Process
 import android.util.Log
 import android.view.View
-import android.widget.Toast
 import com.android.launcher3.AbstractFloatingView
 import com.android.launcher3.AbstractFloatingViewHelper
 import com.android.launcher3.DropTargetHandler
 import com.android.launcher3.Flags.enableHomeScreenFilesCopyPaste
 import com.android.launcher3.Flags.enableHomeScreenFilesRenaming
 import com.android.launcher3.LauncherConstants
-import com.android.launcher3.LauncherSettings.Favorites.CONTAINER_DESKTOP
 import com.android.launcher3.LauncherSettings.Favorites.ITEM_TYPE_APPWIDGET
 import com.android.launcher3.LauncherSettings.Favorites.ITEM_TYPE_APP_GROUP
 import com.android.launcher3.LauncherSettings.Favorites.ITEM_TYPE_CUSTOM_APPWIDGET
@@ -41,12 +39,10 @@ import com.android.launcher3.SecondaryDropTarget
 import com.android.launcher3.Utilities
 import com.android.launcher3.accessibility.LauncherAccessibilityDelegate
 import com.android.launcher3.allapps.PrivateProfileManager
-import com.android.launcher3.folder.FolderIcon
 import com.android.launcher3.homescreenfiles.HomeScreenFilesRenameDialogFactory
 import com.android.launcher3.homescreenfiles.HomeScreenFilesUtils
 import com.android.launcher3.homescreenfiles.homeScreenFile
 import com.android.launcher3.logging.StatsLogManager.LauncherEvent
-import com.android.launcher3.model.data.FolderInfo
 import com.android.launcher3.model.data.ItemInfo
 import com.android.launcher3.model.data.LauncherAppWidgetInfo
 import com.android.launcher3.model.data.WorkspaceItemInfo
@@ -81,38 +77,8 @@ object PopupDataSource {
 
 object FolderSystemShortcuts : PopupDataMapper {
 
-    private fun sizePopupData(span: Int, iconResId: Int, labelResId: Int) =
-        PopupData(
-            iconResId = iconResId,
-            labelResId = labelResId,
-            category = PopupCategory.SYSTEM_SHORTCUT_FIXED,
-        ) { activityContext: ActivityContext, _: ItemInfo, view: View ->
-            AbstractFloatingView.closeAllOpenViews(activityContext)
-            if (view is FolderIcon && !view.setFolderSize(span)) {
-                Toast.makeText(view.context, R.string.folder_size_no_room, Toast.LENGTH_SHORT).show()
-            }
-        }
-
-    // HyperOS-style sizes: a 1x1 folder, or a 2x2 or 3x3 one with its apps launchable in place.
-    private val sizes =
-        listOf(
-            sizePopupData(1, R.drawable.ic_folder_size_small, R.string.folder_size_small),
-            sizePopupData(2, R.drawable.ic_folder_size_large, R.string.folder_size_large),
-            sizePopupData(
-                3,
-                R.drawable.ic_folder_size_extra_large,
-                R.string.folder_size_extra_large,
-            ),
-        )
-
     override fun getPopupDataByItemInfo(itemInfo: ItemInfo): List<PopupData>? =
-        if (itemInfo.itemType != ITEM_TYPE_FOLDER) null
-        else if (itemInfo is FolderInfo && itemInfo.container == CONTAINER_DESKTOP) {
-            listOf(PopupDataSource.removePopupData) +
-                sizes.filterIndexed { i, _ -> i + 1 != itemInfo.getFolderSpan() }
-        } else {
-            listOf(PopupDataSource.removePopupData)
-        }
+        if (itemInfo.itemType == ITEM_TYPE_FOLDER) listOf(PopupDataSource.removePopupData) else null
 }
 
 object AppPairSystemShortcuts : PopupDataMapper {

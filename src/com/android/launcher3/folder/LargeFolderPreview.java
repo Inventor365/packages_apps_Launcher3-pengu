@@ -21,7 +21,6 @@ import static com.android.launcher3.LauncherSettings.Favorites.DESKTOP_ICON_FLAG
 import static com.android.launcher3.folder.ClippedFolderIconLayoutRule.MAX_NUM_ITEMS_IN_PREVIEW;
 import static com.android.launcher3.icons.cache.CacheLookupFlag.DEFAULT_LOOKUP_FLAG;
 import static com.android.launcher3.icons.BitmapInfo.FLAG_THEMED;
-import static com.android.launcher3.model.data.FolderInfo.MAX_FOLDER_SPAN;
 
 import android.content.Context;
 import android.content.res.Configuration;
@@ -112,7 +111,7 @@ public class LargeFolderPreview {
 
     // Hit rectangles in FolderIcon-local coordinates. mLargeRects[i] launches mLargeItems.get(i);
     // mClusterRect opens the folder.
-    private final Rect[] mLargeRects = new Rect[MAX_FOLDER_SPAN * MAX_FOLDER_SPAN - 1];
+    private final Rect[] mLargeRects = new Rect[GRID * GRID - 1];
     private final Rect mClusterRect = new Rect();
     private final Rect mTmpRect = new Rect();
     // The frosted panel rect (the whole 2x2 preview square, slightly inset).
@@ -164,12 +163,11 @@ public class LargeFolderPreview {
         mAcceptStrokePaint.setColor(ACCENT);
     }
 
-    /** Cells along each side of the preview: 2 for a large folder, 3 for an extra-large one. */
+    /** Cells along each side of the preview: drawer tiles are always 2x2. */
+    private static final int GRID = 2;
+
     private int grid() {
-        if (mIcon.mInfo == null || mIcon.mInfo.forceBigPreview) {
-            return 2;
-        }
-        return Math.max(2, mIcon.mInfo.getFolderSpan());
+        return GRID;
     }
 
     /** Apps shown as large icons: every cell but the last, which holds the rest as a cluster. */
@@ -354,11 +352,6 @@ public class LargeFolderPreview {
             // between them so the label isn't pushed out of the icon and clipped.
             previewTop = top + Math.max(0, availableHeight - side) - pad
                     - mIcon.getBigFolderLabelGap();
-            // The last row runs behind the Search pill; keep the panel and label above it.
-            int overlap = mIcon.getSearchPillOverlap();
-            if (overlap > 0) {
-                previewTop = Math.min(previewTop, top + availableHeight - side - pad - overlap);
-            }
         }
         int lowest = top + Math.max(0, availableHeight - side - mIcon.getBigFolderLabelGap());
         return Math.max(top + pad, Math.min(previewTop, lowest));

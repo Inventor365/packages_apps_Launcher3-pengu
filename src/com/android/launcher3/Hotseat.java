@@ -40,7 +40,6 @@ import androidx.annotation.Nullable;
 
 import com.android.launcher3.ShortcutAndWidgetContainer.TranslationProvider;
 import com.android.launcher3.celllayout.CellLayoutLayoutParams;
-import com.android.launcher3.folder.FolderIcon;
 import com.android.launcher3.dagger.LauncherComponentProvider;
 import com.android.launcher3.dragndrop.SystemDragItemInfo;
 import com.android.launcher3.homescreenfiles.HomeScreenFilesUtilsKt;
@@ -489,23 +488,7 @@ public class Hotseat extends CellLayout implements Insettable {
             mSearchPillCentreFromBottom = centre;
             // Moving the dots relayouts the parent, so wait for this layout pass to finish.
             post(this::bindPageIndicatorToSearchPill);
-            post(this::relayoutBigFolders);
         }
-    }
-
-    /** Top of the Search pill above the dock in this hotseat's parent; -1 when there is none. */
-    public int getSearchPillTop() {
-        View pill = getActiveSearchPill();
-        return pill == null || pill.getHeight() == 0 ? -1 : getTop() + pill.getTop();
-    }
-
-    /** Big folders in the last workspace row keep clear of the pill, so place them again. */
-    private void relayoutBigFolders() {
-        if (mWorkspace == null) return;
-        mWorkspace.mapOverItems((info, view) -> {
-            if (view instanceof FolderIcon folder && folder.isBigFolder()) folder.requestLayout();
-            return false;
-        });
     }
 
     /** Fades the Search pill out as far as the page dots are shown in its place. */

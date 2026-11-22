@@ -58,19 +58,6 @@ public class FolderInfo extends CollectionInfo {
 
     public static final int FLAG_MANUAL_FOLDER_NAME = 0x00000008;
 
-    /** The folder's size was picked from its menu, so its span is kept as it is. */
-    public static final int FLAG_SIZE_CHOSEN = 0x00000010;
-
-    /** The biggest folder size on offer: a 3x3 folder. */
-    public static final int MAX_FOLDER_SPAN = 3;
-
-    /**
-     * Minimum number of items for a folder to be eligible to render as a "big" (2x2) folder, where
-     * the first few apps are shown as large, directly-launchable icons and the rest are collapsed
-     * into a mini-cluster that opens the folder. See {@link #qualifiesAsBigFolder()}.
-     */
-    public static final int BIG_FOLDER_MIN_ITEMS = 4;
-
     /** Grid span (both rows and columns) occupied by a big folder. */
     public static final int BIG_FOLDER_SPAN = 2;
 
@@ -122,32 +109,6 @@ public class FolderInfo extends CollectionInfo {
 
     public FolderInfo() {
         itemType = LauncherSettings.Favorites.ITEM_TYPE_FOLDER;
-    }
-
-    /**
-     * Whether this folder is currently laid out as a big (2x2) folder on the workspace. The
-     * footprint is the source of truth (persisted via the existing spanX/spanY columns), so this
-     * stays correct across reloads without any schema change.
-     */
-    public boolean isBigFolder() {
-        return spanX >= BIG_FOLDER_SPAN && spanY >= BIG_FOLDER_SPAN;
-    }
-
-    /** The side of the folder's square footprint: 1, 2 or 3 cells. */
-    public int getFolderSpan() {
-        return Math.max(1, Math.min(MAX_FOLDER_SPAN, Math.min(spanX, spanY)));
-    }
-
-    /**
-     * Whether this folder holds enough items to be shown as a big folder. Being eligible does not
-     * guarantee it is big: it only becomes big when there is also room on the grid for the 2x2
-     * footprint (see the workspace-side sizing logic).
-     */
-    public boolean qualifiesAsBigFolder() {
-        if (hasOption(FLAG_SIZE_CHOSEN)) {
-            return isBigFolder();
-        }
-        return getContents().size() >= BIG_FOLDER_MIN_ITEMS;
     }
 
     @Override
