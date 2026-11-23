@@ -191,6 +191,7 @@ public class Hotseat extends CellLayout implements Insettable {
                     centre - iconHeight / 2 - verticalPad,
                     Math.max(icons.getRight(), mDockCompanion.getRight()) + gap,
                     centre + iconHeight / 2 + verticalPad);
+            mDockGlass.setWallpaperBackdrop(true);
             mDockGlass.setAlpha(Math.round(255 * icons.getAlpha()));
             mDockGlass.draw(canvas);
             mDockCompanion.setAlpha(icons.getAlpha());
@@ -214,6 +215,7 @@ public class Hotseat extends CellLayout implements Insettable {
                 mQsb = LayoutInflater.from(context).inflate(R.layout.home_search_pill, this, false);
                 mQsbPillGlass = new PenguinDockGlass(mQsb);
                 mQsbPillGlass.setCapsule(true);
+                mQsbPillGlass.setWallpaperBackdrop(true);
                 mQsb.setBackground(mQsbPillGlass);
                 mQsb.setOnClickListener(v -> {
                     if (mActivity instanceof Launcher launcher) launcher.openSearchFromPill(v);
@@ -236,6 +238,9 @@ public class Hotseat extends CellLayout implements Insettable {
         mSearchPill = LayoutInflater.from(context).inflate(R.layout.home_search_pill, this, false);
         mSearchPillGlass = new PenguinDockGlass(mSearchPill);
         mSearchPillGlass.setCapsule(true);
+        // Drawn from the blurred wallpaper with the views, so it fades and scales with the dock
+        // into the drawer instead of swapping its live blur for a flat fill.
+        mSearchPillGlass.setWallpaperBackdrop(true);
         mSearchPill.setBackground(mSearchPillGlass);
         mSearchPill.setOnClickListener(v -> {
             if (mActivity instanceof Launcher launcher) launcher.openSearchFromPill(v);
