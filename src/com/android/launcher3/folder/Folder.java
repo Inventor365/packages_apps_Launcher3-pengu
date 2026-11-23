@@ -39,12 +39,17 @@ import android.animation.AnimatorSet;
 import android.annotation.SuppressLint;
 import android.appwidget.AppWidgetHostView;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Insets;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -117,6 +122,7 @@ import com.android.launcher3.touch.CustomTouchDelegate;
 import com.android.launcher3.util.BlurBackgroundHelper;
 import com.android.launcher3.util.LauncherBindableItemsContainer;
 import com.android.launcher3.util.LiquidGlass;
+import com.android.launcher3.util.WallpaperBackdrop;
 import com.android.launcher3.util.Thunk;
 import com.android.launcher3.views.ActivityContext;
 import com.android.launcher3.views.BaseDragLayer;
@@ -770,7 +776,11 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         Folder openFolder = getOpen(mActivityContext);
         closeOpenFolder(openFolder);
 
-        mBlurBackgroundHelper.prepareToOpenFolder(this);
+        // The panel draws the blurred still wallpaper itself; only a live wallpaper needs the
+        // snapshot of the home screen behind it.
+        if (getBackdropBitmap() == null) {
+            mBlurBackgroundHelper.prepareToOpenFolder(this);
+        }
 
         mContent.bindItems(items);
         centerAboutIcon();
@@ -2051,9 +2061,12 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
             int count = canvas.save();
             canvas.clipPath(mClipPath.getPath());
 
-            mBlurBackgroundHelper.drawFolderBlur(canvas, mClipPath, this);
-            drawGlassBackground(canvas, mClipPath.getBounds(), mClipPath.getCornerRadius(),
-                    mClipPath.getPath());
+            if (!drawBackdropPanel(canvas, mClipPath.getBounds(),
+                    mClipPath.getCornerRadius(), mClipPath.getPath())) {
+                mBlurBackgroundHelper.drawFolderBlur(canvas, mClipPath, this);
+                drawGlassBackground(canvas, mClipPath.getBounds(), mClipPath.getCornerRadius(),
+                        mClipPath.getPath());
+            }
 
             if (!mIsAnimatingClosed) {
                 // If animating open, clip the content to the clip path to keep in bounds.
@@ -2065,15 +2078,83 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
                 super.dispatchDraw(canvas);
             }
         } else {
-            mBlurBackgroundHelper.drawFolderBlur(canvas, null, this);
             mGlassBounds.set(mBackground.getBounds());
-            drawGlassBackground(canvas, mGlassBounds, mBackground.getCornerRadius(), null);
+            if (!drawBackdropPanel(canvas, mGlassBounds, mBackground.getCornerRadius(), null)) {
+                mBlurBackgroundHelper.drawFolderBlur(canvas, null, this);
+                drawGlassBackground(canvas, mGlassBounds, mBackground.getCornerRadius(), null);
+            }
 
             super.dispatchDraw(canvas);
         }
     }
 
     private final RectF mGlassBounds = new RectF();
+
+    /** Same strength as the folder tile (PreviewBackground), so the panel and tile match. */
+    private static final int BACKDROP_BLUR_DP = 20;
+    private final Paint mBackdropPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint mBackdropRimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Matrix mBackdropMatrix = new Matrix();
+    private final Matrix mBackdropToScreen = new Matrix();
+    private final RectF mBackdropRim = new RectF();
+    private Bitmap mBackdropBitmap;
+    private BitmapShader mBackdropShader;
+
+    private Bitmap getBackdropBitmap() {
+        View root = getRootView();
+        if (root == null || root == this) return null;
+        return WallpaperBackdrop.get(getContext()).getBitmap(this, root.getWidth(),
+                root.getHeight(),
+                Math.round(BACKDROP_BLUR_DP * getResources().getDisplayMetrics().density));
+    }
+
+    /**
+     * Draws the panel from the same blurred still wallpaper as the folder tile, as ColorOS does.
+     * It is pinned to the screen, so it always shows the wallpaper behind it while the panel
+     * scales and moves, and it is the tile's own surface once it has shrunk onto the icon.
+     * Returns false for a live wallpaper, which keeps the compositor blur.
+     */
+    private boolean drawBackdropPanel(Canvas canvas, RectF bounds, float radius, Path shape) {
+        Bitmap bitmap = getBackdropBitmap();
+        if (bitmap == null) return false;
+        View root = getRootView();
+        if (bitmap != mBackdropBitmap) {
+            mBackdropBitmap = bitmap;
+            mBackdropShader = new BitmapShader(bitmap, Shader.TileMode.CLAMP,
+                    Shader.TileMode.CLAMP);
+            mBackdropPaint.setShader(mBackdropShader);
+        }
+        // This view's coordinates to the screen, animation transforms included.
+        mBackdropToScreen.reset();
+        for (View v = this; v != root; ) {
+            if (!(v.getParent() instanceof View parent)) return false;
+            mBackdropToScreen.postConcat(v.getMatrix());
+            mBackdropToScreen.postTranslate(v.getLeft() - parent.getScrollX(),
+                    v.getTop() - parent.getScrollY());
+            v = parent;
+        }
+        if (!mBackdropToScreen.invert(mBackdropToScreen)) return false;
+        mBackdropMatrix.setScale(root.getWidth() / (float) bitmap.getWidth(),
+                root.getHeight() / (float) bitmap.getHeight());
+        mBackdropMatrix.postConcat(mBackdropToScreen);
+        mBackdropShader.setLocalMatrix(mBackdropMatrix);
+        if (shape != null) {
+            canvas.drawPath(shape, mBackdropPaint);
+        } else {
+            canvas.drawRoundRect(bounds, radius, radius, mBackdropPaint);
+        }
+
+        // The tile's quiet rim.
+        float density = getResources().getDisplayMetrics().density;
+        mBackdropRim.set(bounds);
+        mBackdropRim.inset(density * 0.25f, density * 0.25f);
+        mBackdropRimPaint.setStyle(Paint.Style.STROKE);
+        mBackdropRimPaint.setStrokeWidth(density * 0.5f);
+        mBackdropRimPaint.setColor(0x33FFFFFF);
+        float rimRadius = Math.max(0, radius - density * 0.25f);
+        canvas.drawRoundRect(mBackdropRim, rimRadius, rimRadius, mBackdropRimPaint);
+        return true;
+    }
 
     /** The folder's tinted surface, as a lighter veil with a lit rim under Liquid Glass. */
     private void drawGlassBackground(Canvas canvas, RectF bounds, float radius, Path shape) {
