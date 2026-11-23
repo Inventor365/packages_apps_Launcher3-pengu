@@ -674,6 +674,14 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         getBatchEditor().onDragEnd();
     }
 
+    /** Shows the folders' frosted tiles on home, and drops them where home is not shown. */
+    public void setFolderGlassAllowed(boolean allowed) {
+        mapOverItems((info, view) -> {
+            if (view instanceof FolderIcon folder) folder.setGlassAllowedByState(allowed);
+            return false;
+        });
+    }
+
     public WorkspaceBatchEditor getBatchEditor() {
         if (mBatchEditor == null) mBatchEditor = new WorkspaceBatchEditor(mLauncher, this);
         return mBatchEditor;

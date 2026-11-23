@@ -238,10 +238,13 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         // tile, so the open folder paints that same surface -- the themed folderBackgroundColor is
         // an opaque panel, which read as a different background from the tile it grew from.
         final boolean hasThumbnail = mFolderIcon.hasCustomThumbnail();
+        // A thumbnail or a frosted glass tile shows through, so fade the panel colour to clear.
+        // Only a thumbnail also fades the content: a glass tile draws its own preview icons.
+        final boolean clearPanel = hasThumbnail || mPreviewBackground.drawsGlassTile();
         final int previewColor = Themes.getAttrColor(mContext, R.attr.folderPreviewColor);
         final int initialColor = bigFolder
                 ? LargeFolderPreview.getPanelColor(mContext)
-                : hasThumbnail ? ColorUtils.setAlphaComponent(previewColor, 0) : previewColor;
+                : clearPanel ? ColorUtils.setAlphaComponent(previewColor, 0) : previewColor;
         final int finalColor = bigFolder
                 ? LargeFolderPreview.getPanelColor(mContext)
                 : Themes.getAttrColor(mContext, R.attr.folderBackgroundColor);

@@ -29,6 +29,8 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -58,6 +60,7 @@ import com.android.launcher3.graphics.ThemeManager;
 import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.LauncherSettings;
 import com.android.launcher3.util.PenguinDockGlass;
+import com.android.launcher3.util.WallpaperBackdrop;
 import com.android.launcher3.util.LiquidGlass;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.views.ActivityContext;
@@ -162,6 +165,7 @@ public class PreviewBackground extends DelegatedCellDrawing {
             int topPadding,
             int spanX,
             int spanY,
+            boolean showLabels,
             Rect outBounds) {
         int previewSize = grid.getFolderProfile().getFolderIconSizePx();
         Point borderSpace = grid.getWorkspaceProfile().getCellLayoutBorderSpacePx();
@@ -199,7 +203,22 @@ public class PreviewBackground extends DelegatedCellDrawing {
             backgroundTop = topPadding + grid.getFolderProfile().getFolderIconOffsetYPx();
         } else {
             backgroundHeight = (spanY - 1) * (cellHeight + borderSpace.y) + previewSize;
-            backgroundTop = topPadding + grid.getFolderProfile().getFolderIconOffsetYPx();
+            // Placed by its rows, as the icons around it are: the cell container pads a folder
+            // as if one icon were centred in its whole height, which hung a multi-row panel
+            // hundreds of pixels below its rows (and away from the drop outline).
+            int rowPadding = grid.getWorkspaceProfile().getCellYPaddingPx();
+            if (rowPadding < 0) {
+                rowPadding = Math.max(0,
+                        (cellHeight - grid.getWorkspaceProfile().getCellHeightPx()) / 2);
+            }
+            backgroundTop = rowPadding + grid.getFolderProfile().getFolderIconOffsetYPx();
+            if (!showLabels) {
+                // Without labels an icon is centred in its cell, so the row's icons are too.
+                backgroundTop = Math.max(0, (cellHeight - previewSize) / 2);
+            }
+            // Middle of the icons of the first and last rows.
+            float rowsMiddle = backgroundTop + previewSize / 2f
+                    + (spanY - 1) * (cellHeight + borderSpace.y) / 2f;
 
             if (spanX == 1) {
                 backgroundWidth = previewSize;
@@ -222,6 +241,39 @@ public class PreviewBackground extends DelegatedCellDrawing {
             // as a tall slab with a gap between its rows), so keep each cell of it square.
             int maxHeight = Math.max(previewSize, Math.round(backgroundWidth * spanY / (float) spanX));
             backgroundHeight = Math.min(backgroundHeight, maxHeight);
+            if (spanY > 1) {
+                backgroundTop = Math.max(0, Math.round(rowsMiddle - backgroundHeight / 2f));
+            }
+
+            // A one-row or one-column folder is a capsule in ColorOS's proportions: about 2.6
+            // times as long as it is thick, thicker than an icon when the cells allow it. Sized
+            // by the icon alone it reads as a thin strip on grids of five or more columns. It
+            // grows evenly about the icon's centre, so its icons stay in line with the row.
+            if (spanY == 1 && spanX > 1) {
+                int thick = clampPillThickness(Math.round(backgroundWidth / PILL_ASPECT),
+                        previewSize, cellHeight);
+                int top = backgroundTop - (thick - backgroundHeight) / 2;
+                backgroundTop = Math.max(0, top);
+                backgroundHeight = thick;
+            } else if (spanX == 1 && spanY > 1) {
+                // The same capsule as the horizontal folder of as many cells, stood upright, so
+                // the two orientations read as one shape. Centred between the first and last
+                // row's icons, as the row's icons are centred in their cells.
+                int numColumns = grid.inv != null ? grid.inv.numColumns : 4;
+                float padDp = numColumns <= 3 ? 18f : (numColumns == 4 ? 10f : 4.7f);
+                int padHoriz = Math.min(Utilities.dpToPx(padDp),
+                        Math.max(0, (cellWidth - previewSize) / 2));
+                int length = spanY * cellWidth + (spanY - 1) * borderSpace.x - 2 * padHoriz;
+                int thick = clampPillThickness(Math.round(length / PILL_ASPECT), previewSize,
+                        cellHeight);
+                thick = Math.min(thick, Math.max(previewSize, cellWidth - 2 * padHoriz));
+                int spanHeight = spanY * cellHeight + (spanY - 1) * borderSpace.y;
+                length = Math.max(thick, Math.min(length, spanHeight));
+                backgroundTop = Math.max(0, Math.round(rowsMiddle - length / 2f));
+                backgroundHeight = length;
+                backgroundLeft = (cellWidth - thick) / 2;
+                backgroundWidth = thick;
+            }
         }
 
         outBounds.set(
@@ -229,6 +281,16 @@ public class PreviewBackground extends DelegatedCellDrawing {
             backgroundTop,
             backgroundLeft + backgroundWidth,
             backgroundTop + backgroundHeight);
+    }
+
+    /** Length over thickness of a one-row or one-column folder, as ColorOS draws it. */
+    private static final float PILL_ASPECT = 2.6f;
+    /** The thickest a capsule folder gets, against the icon size. */
+    private static final float PILL_MAX_ICON_RATIO = 1.3f;
+
+    private static int clampPillThickness(int wanted, int previewSize, int cellSpace) {
+        int max = Math.min(Math.round(previewSize * PILL_MAX_ICON_RATIO), cellSpace);
+        return Math.max(previewSize, Math.min(wanted, max));
     }
 
     public PreviewBackground(Context context) {
@@ -277,6 +339,7 @@ public class PreviewBackground extends DelegatedCellDrawing {
             topPadding,
             spanX,
             spanY,
+            LauncherPrefs.SHOW_DESKTOP_LABELS.get(context),
             mBackgroundBounds);
         if (mMaxBottom >= 0 && mBackgroundBounds.bottom > mMaxBottom
                 && (spanX > 1 || spanY > 1)) {
@@ -444,7 +507,20 @@ public class PreviewBackground extends DelegatedCellDrawing {
     private final RectF mGlassBounds = new RectF();
     private final Rect mGlassTileBounds = new Rect();
     private PenguinDockGlass mGlassTile;
+    private boolean mGlassVisible = true;
     private int mMaxBottom = -1;
+
+    /**
+     * Shows or hides the frosted tile. Its blur is drawn by the compositor under the window, so a
+     * folder the launcher no longer shows (behind the drawer, in recents, or open) has to drop
+     * it explicitly; covering or not drawing the view leaves the blur in place.
+     */
+    void setGlassVisible(boolean visible) {
+        if (mGlassVisible == visible) return;
+        mGlassVisible = visible;
+        if (mGlassTile != null) mGlassTile.setAlpha(visible && !mDrewBackdrop ? 255 : 0);
+        invalidate();
+    }
 
     /** Lowest y the panel of a multi-cell folder may reach, or -1 for no limit. */
     void setMaxBottom(int maxBottom) {
@@ -456,22 +532,96 @@ public class PreviewBackground extends DelegatedCellDrawing {
      * the same compositor blur as the dock glass, in the folder's own shape. Returns false where
      * the plain filled shape is drawn instead.
      */
+    /** Whether this folder draws as a frosted glass tile rather than a filled shape. */
+    boolean drawsGlassTile() {
+        return LauncherPrefs.FOLDER_BLUR.get(mContext)
+                && mInvalidateDelegate instanceof FolderIcon icon && icon.mInfo != null
+                && !icon.mInfo.forceBigPreview
+                && (icon.mInfo.container == LauncherSettings.Favorites.CONTAINER_DESKTOP
+                        || icon.mInfo.container == LauncherSettings.Favorites.CONTAINER_HOTSEAT);
+    }
+
     private boolean drawGlassTile(Canvas canvas, RectF bounds) {
-        if (!LauncherPrefs.FOLDER_BLUR.get(mContext)) return false;
-        if (!(mInvalidateDelegate instanceof FolderIcon icon) || icon.mInfo == null
-                || icon.mInfo.forceBigPreview
-                || (icon.mInfo.container != LauncherSettings.Favorites.CONTAINER_DESKTOP
-                        && icon.mInfo.container != LauncherSettings.Favorites.CONTAINER_HOTSEAT)) {
-            return false;
+        if (!drawsGlassTile()) return false;
+        FolderIcon icon = (FolderIcon) mInvalidateDelegate;
+        if (drawBackdropTile(canvas, bounds, icon)) {
+            if (!mDrewBackdrop) {
+                mDrewBackdrop = true;
+                // Took over from the compositor glass: drop its region.
+                if (mGlassTile != null) mGlassTile.setAlpha(0);
+            }
+            // A glass region drawn before keeps its last state until drawn again.
+            if (mGlassTile != null) {
+                mGlassTile.setBounds(mGlassTileBounds);
+                mGlassTile.draw(canvas);
+            }
+            return true;
         }
+        if (mDrewBackdrop) {
+            mDrewBackdrop = false;
+            if (mGlassTile != null) mGlassTile.setAlpha(mGlassVisible ? 255 : 0);
+        }
+        // A live wallpaper has no still image: the compositor blurs it under the window.
         if (mGlassTile == null) {
             mGlassTile = new PenguinDockGlass(icon);
             mGlassTile.setBlurDp(FOLDER_GLASS_BLUR_DP);
+            mGlassTile.setAlpha(mGlassVisible ? 255 : 0);
         }
         bounds.round(mGlassTileBounds);
         mGlassTile.setBounds(mGlassTileBounds);
         mGlassTile.setCornerRadius(getDrawnCornerRadius());
         mGlassTile.draw(canvas);
+        return true;
+    }
+
+    private final Paint mBackdropPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint mRimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Matrix mBackdropMatrix = new Matrix();
+    private final RectF mRimBounds = new RectF();
+    private Bitmap mBackdropBitmap;
+    private BitmapShader mBackdropShader;
+    private boolean mDrewBackdrop;
+
+    /**
+     * Draws the tile from the blurred still wallpaper, as ColorOS does. It is part of the view,
+     * so it follows the icon through every transition: the drawer, recents, app launch and
+     * close, folder open and close, and drags. Returns false when there is no still wallpaper.
+     */
+    private boolean drawBackdropTile(Canvas canvas, RectF bounds, FolderIcon icon) {
+        View root = icon.getRootView();
+        if (root == null || root == icon) return false;
+        float density = mContext.getResources().getDisplayMetrics().density;
+        Bitmap bitmap = WallpaperBackdrop.get(mContext).getBitmap(icon, root.getWidth(),
+                root.getHeight(), Math.round(FOLDER_GLASS_BLUR_DP * density));
+        if (bitmap == null) return false;
+        if (bitmap != mBackdropBitmap) {
+            mBackdropBitmap = bitmap;
+            mBackdropShader = new BitmapShader(bitmap, Shader.TileMode.CLAMP,
+                    Shader.TileMode.CLAMP);
+            mBackdropPaint.setShader(mBackdropShader);
+        }
+        // Sample where the folder rests on the screen (layout and scroll, no transforms): the
+        // tile then moves and scales with the icon in transitions, as a part of it.
+        float originX = 0, originY = 0;
+        for (View v = icon; v != root; ) {
+            if (!(v.getParent() instanceof View parent)) return false;
+            originX += v.getLeft() - parent.getScrollX();
+            originY += v.getTop() - parent.getScrollY();
+            v = parent;
+        }
+        mBackdropMatrix.setScale(root.getWidth() / (float) bitmap.getWidth(),
+                root.getHeight() / (float) bitmap.getHeight());
+        mBackdropMatrix.postTranslate(-originX, -originY);
+        mBackdropShader.setLocalMatrix(mBackdropMatrix);
+        drawShapeInBounds(canvas, bounds, mScale, mBackdropPaint);
+
+        // The quiet rim of the dock glass.
+        mRimBounds.set(bounds);
+        mRimBounds.inset(density * 0.25f, density * 0.25f);
+        mRimPaint.setStyle(Paint.Style.STROKE);
+        mRimPaint.setStrokeWidth(density * 0.5f);
+        mRimPaint.setColor(0x33FFFFFF);
+        drawShapeInBounds(canvas, mRimBounds, mScale, mRimPaint);
         return true;
     }
 

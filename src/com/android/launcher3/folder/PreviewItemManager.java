@@ -56,6 +56,7 @@ import com.android.launcher3.BubbleTextView;
 import com.android.launcher3.Flags;
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.LauncherAppState;
+import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.apppairs.AppPairIcon;
@@ -356,6 +357,7 @@ public class PreviewItemManager {
                 mIcon.getPaddingTop(),
                 spanX,
                 spanY,
+                LauncherPrefs.SHOW_DESKTOP_LABELS.get(mIcon.getContext()),
                 backgroundBounds);
         return calculateWorkspacePreviewGrid(new RectF(backgroundBounds), spanX, spanY);
     }

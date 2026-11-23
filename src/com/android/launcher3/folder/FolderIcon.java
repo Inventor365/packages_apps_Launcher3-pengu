@@ -495,14 +495,27 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         }
         View pill = launcher.getHotseat().getVisibleSearchPill();
         if (pill == null || pill.getHeight() == 0) return -1;
-        int[] own = new int[2];
-        int[] pillPos = new int[2];
-        getLocationInWindow(own);
-        pill.getLocationInWindow(pillPos);
+        // Layout positions, not on-screen ones: the workspace and pill scale and move during
+        // state and app animations, which would reshape the panel mid-animation.
+        View root = launcher.getDragLayer();
+        int ownTop = layoutTopIn(this, root);
+        int pillTop = layoutTopIn(pill, root);
+        if (ownTop == Integer.MIN_VALUE || pillTop == Integer.MIN_VALUE) return -1;
         int labelSpace = shouldShowFolderName() ? getFolderLabelHeight() : 0;
         int gap = Math.round(4 * getResources().getDisplayMetrics().density);
-        int limit = pillPos[1] - own[1] - labelSpace - gap;
+        int limit = pillTop - ownTop - labelSpace - gap;
         return limit < getHeight() - labelSpace ? limit : -1;
+    }
+
+    /** Top of {@code view} in {@code root} by layout alone, or MIN_VALUE when not under it. */
+    private static int layoutTopIn(View view, View root) {
+        int top = 0;
+        for (View v = view; v != root; ) {
+            top += v.getTop();
+            if (!(v.getParent() instanceof View parent)) return Integer.MIN_VALUE;
+            v = parent;
+        }
+        return top;
     }
 
     public boolean isMultiSpanFolder() {
@@ -1151,7 +1164,23 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         if (visible) {
             mShowThumbnailWhileHidden = false;
         }
+        updateGlassVisibility();
         invalidate();
+    }
+
+    private boolean mGlassAllowedByState = true;
+
+    /** Whether the launcher shows home, where the frosted tile may be drawn. */
+    public void setGlassAllowedByState(boolean allowed) {
+        if (mGlassAllowedByState == allowed) return;
+        mGlassAllowedByState = allowed;
+        updateGlassVisibility();
+    }
+
+    private void updateGlassVisibility() {
+        if (mBackground != null) {
+            mBackground.setGlassVisible(mBackgroundIsVisible && mGlassAllowedByState);
+        }
     }
 
     public boolean getIconVisible() {

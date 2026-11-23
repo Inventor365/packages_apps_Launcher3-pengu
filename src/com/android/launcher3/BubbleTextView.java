@@ -1017,9 +1017,9 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
         if (!isMultiSpan() || mSuperIconShortcuts == null || mSuperIconShortcuts.isEmpty()) {
             return false;
         }
-        int sx = getSpanX();
-        int sy = getSpanY();
-        return (sx == 2 && sy == 1) || (sx == 1 && sy == 2) || (sx == 2 && sy == 2);
+        // Capsules (2x1, 1x2) show the app's glyph alone, as ColorOS's large icons do; only
+        // the 2x2 tile has room for its shortcuts.
+        return getSpanX() == 2 && getSpanY() == 2;
     }
 
     private int getSlotAt(float x, float y) {
@@ -1277,7 +1277,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
                 : (getMeasuredHeight() > 0 ? getMeasuredHeight() : 0);
         com.android.launcher3.folder.PreviewBackground.calculateBackgroundBounds(
                 mDeviceProfile, availableSpaceX, availableSpaceY, getPaddingTop(), spanX, spanY,
-                outBounds);
+                SHOW_DESKTOP_LABELS.get(getContext()), outBounds);
         return outBounds;
     }
 
@@ -1895,8 +1895,12 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
         }
         int standardIconLabelTop = targetRow * (cellHeight + borderSpace.y)
                 + cellPaddingY + iconSize + iconPadding;
-        int textTop = Math.max(standardIconLabelTop,
-                bgBounds.bottom + Math.max(1, iconPadding / 2));
+        // Line up with the row's labels, unless the tile is clearly shorter than its cells
+        // (a capsule centred between two rows): then sit just under it, as folders do.
+        int underTile = bgBounds.bottom + Math.max(1, iconPadding / 2);
+        int textHeight = getLayout().getHeight();
+        int textTop = standardIconLabelTop - underTile > textHeight
+                ? underTile : Math.max(standardIconLabelTop, underTile);
         int textWidth = getLayout().getWidth();
         int textLeft = bgBounds.left + (bgBounds.width() - textWidth) / 2;
         canvas.save();
