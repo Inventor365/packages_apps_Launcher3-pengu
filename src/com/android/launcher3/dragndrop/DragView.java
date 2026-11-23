@@ -190,6 +190,7 @@ public class DragView extends FrameLayout {
         mEndScale = (width + finalScaleDps) / width;
 
         // Set the initial scale to avoid any jumps
+        mLiftScale = initialScale;
         setScaleX(initialScale);
         setScaleY(initialScale);
 
@@ -198,8 +199,8 @@ public class DragView extends FrameLayout {
         mScaleAnim.setDuration(VIEW_ZOOM_DURATION);
         mScaleAnim.addUpdateListener(animation -> {
             final float value = (Float) animation.getAnimatedValue();
-            setScaleX(Utilities.mapRange(value, initialScale, mEndScale));
-            setScaleY(Utilities.mapRange(value, initialScale, mEndScale));
+            mLiftScale = Utilities.mapRange(value, initialScale, mEndScale);
+            applyScale();
             if (!isAttachedToWindow()) {
                 animation.cancel();
             }
@@ -550,8 +551,52 @@ public class DragView extends FrameLayout {
     }
 
     private void applyTranslation() {
-        setTranslationX(mLastTouchX - mRegistrationX + mAnimatedShiftX);
-        setTranslationY(mLastTouchY - mRegistrationY + mAnimatedShiftY);
+        // The state scale is about the touch point, so the item stays under the finger as the
+        // workspace shrinks; the view itself scales about its centre.
+        float extra = getScaleX() - getScaleX() / mStateScale;
+        float anchorX = extra * (getWidth() / 2f - mRegistrationX);
+        float anchorY = extra * (getHeight() / 2f - mRegistrationY);
+        setTranslationX(mLastTouchX - mRegistrationX + mAnimatedShiftX + anchorX);
+        setTranslationY(mLastTouchY - mRegistrationY + mAnimatedShiftY + anchorY);
+    }
+
+    /** The pick-up scale and its lift, before {@link #mStateScale}. */
+    private float mLiftScale = 1f;
+    /** How much the workspace has shrunk or grown since the item was picked up. */
+    private float mStateScale = 1f;
+    @Nullable private ValueAnimator mStateScaleAnim;
+
+    /**
+     * Scales the dragged item with the workspace it was picked up from, so it keeps the size of
+     * the items around it when the workspace shrinks into the drag layout mid-drag. Relative to
+     * the scale at pick-up.
+     */
+    public void animateStateScale(float stateScale, long duration) {
+        if (mStateScaleAnim != null) mStateScaleAnim.cancel();
+        if (duration <= 0) {
+            mStateScale = stateScale;
+            applyScale();
+            return;
+        }
+        mStateScaleAnim = ValueAnimator.ofFloat(mStateScale, stateScale);
+        mStateScaleAnim.setDuration(duration);
+        mStateScaleAnim.setInterpolator(Interpolators.EMPHASIZED);
+        mStateScaleAnim.addUpdateListener(a -> {
+            mStateScale = (float) a.getAnimatedValue();
+            applyScale();
+        });
+        mStateScaleAnim.start();
+    }
+
+    public float getStateScale() {
+        return mStateScale;
+    }
+
+    private void applyScale() {
+        float scale = mLiftScale * mStateScale;
+        setScaleX(scale);
+        setScaleY(scale);
+        applyTranslation();
     }
 
     /**

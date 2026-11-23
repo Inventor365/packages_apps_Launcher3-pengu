@@ -143,6 +143,12 @@ public class CellLayout extends ViewGroup {
     // They are used as circular arrays, indexed by mDragOutlineCurrent.
     @Thunk final CellLayoutLayoutParams[] mDragOutlines = new CellLayoutLayoutParams[4];
     @Thunk final float[] mDragOutlineAlphas = new float[mDragOutlines.length];
+    /**
+     * Per outline, the bounds of what will land there relative to its cells (icon and label, or a
+     * folder's panel), or empty for the whole cell area; and that shape's corner radius.
+     */
+    private final RectF[] mDragOutlineShapes = new RectF[mDragOutlines.length];
+    private final float[] mDragOutlineRadii = new float[mDragOutlines.length];
     private final InterruptibleInOutAnimator[] mDragOutlineAnims =
             new InterruptibleInOutAnimator[mDragOutlines.length];
 
@@ -285,6 +291,7 @@ public class CellLayout extends ViewGroup {
         mDragCellSpan[0] = mDragCellSpan[1] = -1;
         for (int i = 0; i < mDragOutlines.length; i++) {
             mDragOutlines[i] = new CellLayoutLayoutParams(0, 0, 0, 0);
+            mDragOutlineShapes[i] = new RectF();
         }
         mDragOutlinePaint.setColor(Themes.getAttrColor(context, R.attr.workspaceTextColor));
 
@@ -648,8 +655,17 @@ public class CellLayout extends ViewGroup {
                 CellLayoutLayoutParams params = mDragOutlines[i];
                 cellToRect(params.getCellX(), params.getCellY(), params.cellHSpan, params.cellVSpan,
                         mTempOnDrawCellToRect);
-                mVisualizeGridRect.set(mTempOnDrawCellToRect);
-                mVisualizeGridRect.inset(paddingX, paddingY);
+                float radius = mGridVisualizationRoundingRadius;
+                RectF shape = mDragOutlineShapes[i];
+                if (shape.isEmpty()) {
+                    mVisualizeGridRect.set(mTempOnDrawCellToRect);
+                    mVisualizeGridRect.inset(paddingX, paddingY);
+                } else {
+                    mVisualizeGridRect.set(shape);
+                    mVisualizeGridRect.offset(mTempOnDrawCellToRect.left,
+                            mTempOnDrawCellToRect.top);
+                    radius = mDragOutlineRadii[i];
+                }
 
                 mVisualizeGridPaint.setAlpha(255);
                 mVisualizeGridPaint.setStyle(Paint.Style.STROKE);
@@ -658,8 +674,7 @@ public class CellLayout extends ViewGroup {
 
                 canvas.save();
                 canvas.translate(getMarginForGivenCellParams(params), 0);
-                canvas.drawRoundRect(mVisualizeGridRect, mGridVisualizationRoundingRadius,
-                        mGridVisualizationRoundingRadius, mVisualizeGridPaint);
+                canvas.drawRoundRect(mVisualizeGridRect, radius, radius, mVisualizeGridPaint);
                 canvas.restore();
             }
         }
@@ -1208,6 +1223,8 @@ public class CellLayout extends ViewGroup {
             cell.setCellY(cellY);
             cell.cellHSpan = spanX;
             cell.cellVSpan = spanY;
+            mDragOutlineRadii[mDragOutlineCurrent] = computeDropOutlineShape(
+                    dragObject.dragInfo, spanX, spanY, mDragOutlineShapes[mDragOutlineCurrent]);
 
             mDragOutlineAnims[mDragOutlineCurrent].animateIn();
             invalidate();
@@ -1217,6 +1234,51 @@ public class CellLayout extends ViewGroup {
             }
 
         }
+    }
+
+    /**
+     * Sets {@code out} to the bounds, relative to the cells, of what a drop lands as: an app's
+     * icon and label, centred in the cell as they are drawn, or a multi-cell folder's panel. The
+     * cells themselves can be far taller than that on long screens, where an outline of the whole
+     * area read as a much larger item. Leaves {@code out} empty for the whole area (widgets), and
+     * returns the shape's corner radius.
+     */
+    private float computeDropOutlineShape(@Nullable ItemInfo info, int spanX, int spanY,
+            RectF out) {
+        out.setEmpty();
+        if (info == null || mCellWidth <= 0 || mCellHeight <= 0) {
+            return mGridVisualizationRoundingRadius;
+        }
+        DeviceProfile dp = mActivity.getDeviceProfile();
+        int width = spanX * mCellWidth + (spanX - 1) * mBorderSpace.x;
+        int height = spanY * mCellHeight + (spanY - 1) * mBorderSpace.y;
+        float outset = getResources().getDisplayMetrics().density * 4;
+        boolean folder = info.itemType == Favorites.ITEM_TYPE_FOLDER;
+        boolean app = info.itemType == Favorites.ITEM_TYPE_APPLICATION
+                || info.itemType == Favorites.ITEM_TYPE_DEEP_SHORTCUT;
+        // Multi-cell folders and apps share their panel geometry.
+        if ((folder || app) && (spanX > 1 || spanY > 1)) {
+            Rect bounds = new Rect();
+            PreviewBackground.calculateBackgroundBounds(dp, width, height, 0, spanX, spanY,
+                    LauncherPrefs.SHOW_DESKTOP_LABELS.get(getContext()), bounds);
+            if (bounds.isEmpty()) return mGridVisualizationRoundingRadius;
+            out.set(bounds);
+            out.inset(-outset, -outset);
+            float shortSide = Math.min(out.width(), out.height());
+            return spanX == 1 || spanY == 1 ? shortSide / 2f
+                    : dp.getFolderProfile().getFolderIconSizePx() * 0.44f + outset;
+        }
+        boolean icon = app || folder;
+        if (icon && spanX == 1 && spanY == 1) {
+            int content = Math.min(height, LauncherPrefs.SHOW_DESKTOP_LABELS.get(getContext())
+                    ? dp.getWorkspaceProfile().getCellHeightPx()
+                    : dp.getWorkspaceProfile().getIconSizePx());
+            int paddingX = Math.min((mCellWidth - dp.getWorkspaceProfile().getIconSizePx()) / 2,
+                    dp.getWorkspaceProfile().getGridVisualizationPaddingX());
+            out.set(paddingX, (height - content) / 2f - outset, width - paddingX,
+                    (height + content) / 2f + outset);
+        }
+        return mGridVisualizationRoundingRadius;
     }
 
     private void determineIfDragHapticsPlay() {

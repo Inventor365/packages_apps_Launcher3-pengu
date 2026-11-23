@@ -1046,6 +1046,8 @@ public class Launcher extends StatefulActivity<LauncherState>
     public void onStateSetStart(LauncherState state) {
         super.onStateSetStart(state);
         mWorkspace.getBatchEditor().onStateChanged(state);
+        mWorkspace.setFolderGlassAllowed(!coversHomeFolders(state));
+        scaleWorkspaceDragWithState(state);
         addActivityFlags(ACTIVITY_STATE_TRANSITION_ACTIVE);
 
         if (state.hasFlag(FLAG_WORKSPACE_ICONS_BEING_DRAGGED)) {
@@ -1089,6 +1091,36 @@ public class Launcher extends StatefulActivity<LauncherState>
      */
     protected Optional<EventEnum> getAllAppsEntryEvent() {
         return Optional.of(LAUNCHER_ALLAPPS_ENTRY_WITH_DEVICE_SEARCH);
+    }
+
+    /**
+     * An item picked up from the home pages keeps the size of the items around it: when the
+     * pages shrink into the drag layout after the pick-up, the dragged item shrinks with them
+     * instead of staying at its full size over the smaller grid.
+     */
+    private void scaleWorkspaceDragWithState(LauncherState state) {
+        if (!mDragController.isDragging()) return;
+        DropTarget.DragObject drag = mDragController.mDragObject;
+        if (drag == null || drag.dragView == null || !(drag.dragSource instanceof Workspace)
+                || drag.dragInfo == null
+                || drag.dragInfo.container != LauncherSettings.Favorites.CONTAINER_DESKTOP) {
+            return;
+        }
+        float from = mWorkspace.getScaleX();
+        float to = state.getWorkspaceScaleAndTranslation(this).scale;
+        if (from <= 0f || to <= 0f || Math.abs(from - to) < 0.001f) return;
+        DragView dragView = drag.dragView;
+        dragView.animateStateScale(dragView.getStateScale() * to / from,
+                state.getTransitionDuration(this, true));
+    }
+
+    /**
+     * States whose surface sits over home folders, so their frosted tiles (blurred by the
+     * compositor under the window) would show through it. Going home from an app passes through
+     * the background-app state with home in view, so that one keeps them.
+     */
+    private static boolean coversHomeFolders(LauncherState state) {
+        return state == LauncherState.ALL_APPS || state == LauncherState.OVERVIEW;
     }
 
     @Override

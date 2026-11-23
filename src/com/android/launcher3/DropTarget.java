@@ -108,6 +108,14 @@ public interface DropTarget {
             res[0] = left + dragRegion.width() / 2;
             res[1] = top + dragRegion.height() / 2;
 
+            // A drag view that shrank with the workspace did so about the touch point, so its
+            // centre is that much closer to the finger.
+            float stateScale = dragView.getStateScale();
+            if (stateScale != 1f) {
+                res[0] = x + (res[0] - x) * stateScale;
+                res[1] = y + (res[1] - y) * stateScale;
+            }
+
             return res;
         }
     }
