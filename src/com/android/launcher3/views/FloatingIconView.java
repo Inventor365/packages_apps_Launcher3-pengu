@@ -385,6 +385,10 @@ public class FloatingIconView extends FrameLayout implements
         } else {
             mClipIconView.setMultiSpanSuperIconParams(false, 1, 1, 0f, null);
         }
+        // A large icon's clip follows the window, which the spring can make wider than the
+        // icon for a few frames; its own rounded outline shapes it, so do not cut it off at
+        // this view's edge.
+        setClipChildren(!isMultiSpanSuperIcon);
         mBadge = badge;
         final int originalHeight = lp.height;
         final int originalWidth = lp.width;

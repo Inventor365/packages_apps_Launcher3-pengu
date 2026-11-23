@@ -68,27 +68,6 @@ class PopupControllerForAppIcon<T> : PopupController<T> where T : Context, T : A
                     .filter { it != null }
                     .collect(Collectors.toList())
 
-            // Keep Lunaris' pixel-size handle for ordinary icons, but provide an entry into
-            // cell-span resizing as well. Otherwise a new 1x1 icon could never become a Super Icon.
-            val launcher = activityContext as? Launcher
-            if (launcher != null && item is WorkspaceItemInfo &&
-                item.container == CONTAINER_DESKTOP && !icon.isMultiSpan) {
-                systemShortcuts.add(object : SystemShortcut<T>(
-                    R.drawable.ic_folder_style_featured, R.string.super_icon_resize,
-                    activityContext, item, icon, false,
-                ) {
-                    override fun onClick(view: View) {
-                        if (LauncherPrefs.WORKSPACE_LOCK.get(launcher)) return
-                        val cellLayout =
-                            launcher.workspace.getParentCellLayoutForView(icon) ?: return
-                        // Close the old pixel-size handle synchronously before opening the span
-                        // handle.
-                        AbstractFloatingView.closeAllOpenViews(launcher, false)
-                        AppWidgetResizeFrame.showForAppIcon(icon, cellLayout)
-                    }
-                })
-            }
-
             container =
                 PopupContainerWithArrow.create(
                     context = activityContext,
@@ -123,11 +102,15 @@ class PopupControllerForAppIcon<T> : PopupController<T> where T : Context, T : A
             }
             activityContext.refreshAndBindWidgetsForPackageUser(PackageUserKey.fromItemInfo(item))
             container.requestFocus()
+            val launcher = activityContext as? Launcher
             val cellLayout = launcher?.workspace?.getParentCellLayoutForView(icon)
-            if (cellLayout != null && icon.isMultiSpan) {
-                // Multi-span icons use the shared workspace resize frame. Keep the existing
-                // icon-size frame for ordinary icons so Lunaris' saved icon-size overrides remain
-                // available.
+            if (launcher != null && LauncherPrefs.WORKSPACE_LOCK.get(launcher)) {
+                // A locked layout is not resized, as it is not rearranged.
+            } else if (cellLayout != null
+                && (icon.isMultiSpan || item.container == CONTAINER_DESKTOP)) {
+                // Home screen apps resize by cells, as ColorOS's large icons do: 1x1, a 2x1 or
+                // 1x2 capsule, or 2x2. The size-only frame stays for the dock, which has no
+                // spans.
                 AppWidgetResizeFrame.showForAppIcon(icon, cellLayout)
             } else {
                 IconResizeFrame.showForIcon(icon)

@@ -427,7 +427,11 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
             float currentHeight = Utilities.mapRange(mCurrentScaleProgress, mStartRect.height(),
                     mTargetRect.height());
             if (mCos && mStartRect.width() > 0 && mTargetRect.width() > 0) {
-                currentHeight = currentWidth * Utilities.mapRange(mCurrentScaleProgress,
+                // The landing bounce (progress past 1) changes the size, not the shape: carried
+                // on past the target, the aspect squashed a wide target (a 2x1 icon) into a
+                // thin strip.
+                currentHeight = currentWidth * Utilities.mapRange(
+                        Math.min(mCurrentScaleProgress, 1f),
                         mStartRect.height() / mStartRect.width(),
                         mTargetRect.height() / mTargetRect.width());
             }
