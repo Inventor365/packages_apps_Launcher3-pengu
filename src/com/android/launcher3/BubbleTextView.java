@@ -1017,9 +1017,9 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
         if (!isMultiSpan() || mSuperIconShortcuts == null || mSuperIconShortcuts.isEmpty()) {
             return false;
         }
-        // Capsules (2x1, 1x2) show the app's glyph alone, as ColorOS's large icons do; only
-        // the 2x2 tile has room for its shortcuts.
-        return getSpanX() == 2 && getSpanY() == 2;
+        int sx = getSpanX();
+        int sy = getSpanY();
+        return (sx == 2 && sy == 1) || (sx == 1 && sy == 2) || (sx == 2 && sy == 2);
     }
 
     private int getSlotAt(float x, float y) {
